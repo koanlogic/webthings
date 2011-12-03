@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<!-- vim: set ts=2 expandtab: -->
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd" [
+<!ENTITY RFC2119 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml">
+<!ENTITY RFC2629 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2629.xml">
+<!ENTITY RFC3552 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.3552.xml">
+<!ENTITY I-D.narten-iana-considerations-rfc2434bis SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.narten-iana-considerations-rfc2434bis.xml">
+]>
+<?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
+<?rfc strict="yes" ?>
+<?rfc toc="yes"?>
+<?rfc tocdepth="4"?>
+<?rfc symrefs="yes"?>
+<?rfc sortrefs="yes" ?>
+<?rfc compact="yes" ?>
+<?rfc subcompact="no" ?>
+<rfc category="info" docName="draft-monitor-00" ipr="trust200902">
+  <front>
+    <title>
+      MONITOR Method for CoAP
+    </title>
+    <author
+      fullname="Thomas Fossati"
+      initials="T.F."
+      surname="Fossati"
+    >
+      <organization>KoanLogic Srl</organization>
+        <address>
+          <postal>
+            <street>Via di Sabbiuno, 11/5</street>
+            <city>Bologna</city>
+            <code>40100</code>
+            <country>Italy</country>
+        </postal>
+        <email>tho@koanlogic.com</email>
+      </address>
+    </author>
+
+    <author
+      fullname="Pierpaolo Giacomin"
+      initials="P.G."
+      surname="Giacomin"
+    >
+      <organization>Hitachi Europe</organization>
+      <address>
+        <email>yrz@anche.no</email>
+      </address>
+    </author>
+
+
+
+    <date month="December" year="2011" />
+
+    <area>General</area>
+    <workgroup>Internet Engineering Task Force</workgroup>
+
+    <keyword>CoAP, MONITOR method</keyword>
+
+    <abstract>
+      <t>New MONITOR Method for CoAP.</t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section title="Introduction">
+      <t>The basic use case covered is the following: node N, which is sleeping most of the time, depends one or more resources hosted at another sleepy node M.  In cases as such, the probability of a non empty intersection between their respective wake periods is very low which makes communication hard.</t>
+
+      <t>In this scenario, using the basic proxy functionality is not enough: if a cached resource at M becomes stale while M is sleeping, a request from N could result in a 5.04 (Gateway Timeout) response code.</t>
+
+      <t>A new CoAP method (MONITOR) is devised to make an explicit request to a Proxy to keep a given resource resource fresh by continuously observing (polling, at worst) it, while the requesting node is sleeping.  Thus the sleepy sensor can get the latest representation published by the monitored resource when it wakes up.</t>
+
+      <section title="Requirements Language">
+        <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119">RFC 2119</xref>.</t>
+      </section>
+    </section>
+
+    <section title="The MONITOR Method">
+      <t>The following paragraphs illustrate the three different phases of the resource monitoring facility: resource monitoring registration, resource refresh, delayed request.</t> 
+      
+      <t>Please note that all but the first operation integrates smoothly with the current CoRE specification, basically letting the monitoring operation being a superset of the typical proxy and observe patterns.</t>
+
+      <section title="Monitor Request">
+        <figure align="center" anchor="monitor_request">
+          <artwork align="left"><![CDATA[
+  Proxy     Client
+    |         |
+    |         |
+    |<--------+     Header: MONITOR (T=CON, Code=5, MID=0x7d39)
+    | MONITOR |      Token: 0xfe
+    |         |  Proxy-URI: coap://Server/resource
+    |         |    [Accept: ...]
+    |         |
+    +-------->|     Header: 2.06 Monitor Installed 
+    |  2.06   |             (T=ACK, Code=70, MID=0x7d34)
+    |         |      Token: 0xfe
+    |         |
+          ]]></artwork>
+        </figure>
+        <t>In case the Proxy does not support the MONITOR method, it MUST respond with 4.05 Method Not Allowed.</t>
+      </section>
+
+      <section title="Resource Refresh">
+        <t>Try first to install an Observation on the monitored resource, if it fails, fall back to a repeated poll.</t>
+        <figure align="center" anchor="resource_refresh">
+          <artwork align="left"><![CDATA[
+TODO cut and paste a typical Observe flow (+ fallback to poll.)
+          ]]></artwork>
+        </figure>
+      </section>
+
+      <section title="Delayed Request">
+        <t>When the sleepy client wakes up and need to get the resource, it performs a simple GET to the Proxy with Proxy-URI set to the monitored resource.</t>
+        <figure align="center" anchor="delayed_request">
+          <artwork align="left"><![CDATA[
+TODO cut and paste a typical Proxy flow.
+          ]]></artwork>
+        </figure>
+      </section>
+    </section>
+
+    <!-- This PI places the pagebreak correctly (before the section title) in the text output. -->
+    <?rfc needLines="8" ?>
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t>.</t>
+    </section>
+
+    <section anchor="IANA" title="IANA Considerations">
+    <t>Request a new Method Code for the MONITOR verb (e.g. 5).</t>
+    <t>Request a new Response Code for the "Monitor Installed" notification (e.g. 2.06)</t>
+    </section>
+
+    <section anchor="Security" title="Security Considerations">
+      <t>The described mechanism poses further weight on the proxy node (it is not only an interconnection element, but also a state management component) whose availability and continuity are made more critical by the added function.</t>
+    </section>
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      &RFC2119;
+    </references>
+  </back>
+</rfc>
