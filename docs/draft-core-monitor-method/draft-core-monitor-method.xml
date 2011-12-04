@@ -14,7 +14,7 @@
 <?rfc sortrefs="yes" ?>
 <?rfc compact="yes" ?>
 <?rfc subcompact="no" ?>
-<rfc category="info" docName="draft-monitor-00" ipr="trust200902">
+<rfc category="info" docName="draft-core-monitor-method-00" ipr="trust200902">
   <front>
     <title>
       MONITOR Method for CoAP
@@ -67,7 +67,7 @@
 
       <t>In this scenario, using the basic proxy functionality is not enough: if a cached resource at M becomes stale while M is sleeping, a request from N could result in a 5.04 (Gateway Timeout) response code.</t>
 
-      <t>A new CoAP method (MONITOR) is devised to make an explicit request to a Proxy to keep a given resource resource fresh by continuously observing (polling, at worst) it, while the requesting node is sleeping.  Thus the sleepy sensor can get the latest representation published by the monitored resource when it wakes up.</t>
+      <t>A new CoAP method (MONITOR) is devised to make an explicit request to a Proxy to keep a given resource fresh by continuously observing (polling, at worst) it, while the requesting node is sleeping.  Thus the sleepy sensor can get the latest representation published by the monitored resource when it wakes up.</t>
 
       <section title="Requirements Language">
         <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119">RFC 2119</xref>.</t>
