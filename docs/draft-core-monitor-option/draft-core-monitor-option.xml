@@ -24,7 +24,7 @@
       initials="T.F."
       surname="Fossati"
     >
-      <organization>KoanLogic Srl</organization>
+      <organization>KoanLogic</organization>
         <address>
           <postal>
             <street>Via di Sabbiuno, 11/5</street>
@@ -73,79 +73,93 @@
       </section>
     </section>
 
-    <section title="Monitor Option">
-      <t>The Monitor option is used to ask a Proxy to keep a given resource fresh by continuously observing (polling, at worst) it, while the requesting node is sleeping. Thus the sleepy sensor can get the latest representation published by the monitored resource when it wakes up, even if the origin is sleeping.</t>
-
-      <t>The Monitor option is critical. If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the client.</t>
-      
-      <section title="Monitor Registration">
-        <figure align="center" anchor="monitor_registration">
-          <artwork align="left"><![CDATA[
-P        C
-|   PUT  | Proxy-URI: coap://S/r
-|<-------+   Monitor: <empty>
-|        |   Max-Age: 86400
-|        |    Accept: ...
-|  2.01  |
-+------->| Location-Path: coap://S/r
-|        |
-          ]]></artwork>
-        </figure>
-        <t>The client PUT's the resource to be monitored, identified by the Proxy-URI. The request message contains a Monitor option, and possibly specifies a TTL (i.e. an implicit de-registration indication) for the monitor through Max-Age. One or more content types for the acceptable representations of the resource are optionally specified via the Accept option.</t>
-
-        <t>The operation creates a monitor resource at the Proxy, that is a carbon copy of one or more representations of the monitored resource.</t>
-
-        <t>There may be multiple clients requesting a monitor on a same resource. Multiple identical monitor resources MUST be absorbed into one only refcounted monitor at the Proxy.</t>
-      </section>
-
-      <section title="Monitor De-registration">
-        <t>The monitor MUST be actually deleted at the Proxy when its associated refcounter reaches 0.</t>
-
-        <t>In order to save storage, a Proxy MAY decide to delete a monitor resource in case it has not been requested for a sufficiently long time.</t>
-
-        <section title="Explicit De-registration">
-          <figure align="center" anchor="explicit_monitor_deregistration">
-            <artwork align="left"><![CDATA[
-P        C
-| DELETE | Proxy-URI: coap://S/r
-|<-------+   Monitor: <empty>
-|        |
-|  2.02  |
-+------->|
-|        |
-            ]]></artwork>
-          </figure>
-        </section>
-
-        <section title="Implicit De-registration">
-         <t>Implicit de-registration occurs when the monitoring period specified by the client via Max-Age expires. If no Max-Age was supplied on registration, the client instance of the monitor MUST be de-registered explicitly.</t>
-        </section>
-
-      </section>
-
-      <section title="Resource Refresh">
-        <t>In order to minimize the number of messages used by the monitoring process, the Proxy SHOULD try to install an observation on the requested resource first. In case this attempt fails, the Proxy will fall back to repeated poll possibly driven by the Max-Age value indicated by the origin server. Usual cache validation MUST be applied to the cached copy of the monitored resource (CHECK THIS).</t>
-      </section>
-    </section>
-
-    <section title="Gratuitous Update Option">
-      <t>A new gratuitous response message to a Proxy is introduced to allow a sleepy sensor to use the Proxy as the rendez-vous point for sleepy node to sleepy node signalling.</t>
-
-      <figure align="center" anchor="gratuitous_update_option">
+    <section title="Options">
+      <figure align="center">
         <artwork align="left"><![CDATA[
-P        S
-|   PUT  |    Proxy-URI: coap://S/r
-|<-------+       Update: 123456789
-|    r   | Content-Type: ...
-|        |
-|  2.01  | (or 2.04)
-+------->| 
-|        |
++-----+----------+---------+--------+--------+---------+
+| No. | C/E      | Name    | Format | Length | Default |
++-----+----------+---------+--------+--------+---------+
+|  XX | Critical | Monitor | (none) | 0 B    | (none)  |
+|  YY | Critical | Update  | uint   | 0-8 B  | (none)  |
++-----+----------+---------+--------+--------+---------+
         ]]></artwork>
       </figure>
-      <t>The Origin Server publish one of its hosted resources, specified by the enclosed Proxy-URI, by PUT'ing it to the proxy. The Update option value is a monotonically increasing counter which hints the Proxy about the more recent version of the resource.</t>
 
-      <t>[TODO PUT and ETags]</t>
+      <section title="Monitor Option">
+        <t>The Monitor option is used to ask a Proxy to keep a given resource fresh by continuously observing (polling, at worst) it, while the requesting node is sleeping. Thus the sleepy sensor can get the latest representation published by the monitored resource when it wakes up, even if the origin is sleeping.</t>
+  
+        <t>The Monitor option is critical. If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the client.</t>
+        
+        <section title="Monitor Registration">
+          <figure align="center" anchor="monitor_registration">
+            <artwork align="left"><![CDATA[
+  P        C
+  |   PUT  | Proxy-URI: coap://S/r
+  |<-------+   Monitor: <empty>
+  |        |   Max-Age: 86400
+  |        |    Accept: ...
+  |  2.01  |
+  +------->| Location-Path: coap://S/r
+  |        |
+            ]]></artwork>
+          </figure>
+          <t>The client PUT's the resource to be monitored, identified by the Proxy-URI. The request message contains a Monitor option, and possibly specifies a TTL (i.e. an implicit de-registration indication) for the monitor through Max-Age. One or more content types for the acceptable representations of the resource are optionally specified via the Accept option.</t>
+  
+          <t>The operation creates a monitor resource at the Proxy, that is a carbon copy of one or more representations of the monitored resource.</t>
+  
+          <t>There may be multiple clients requesting a monitor on a same resource. Multiple identical monitor resources MUST be absorbed into one only refcounted monitor at the Proxy.</t>
+        </section>
+  
+        <section title="Monitor De-registration">
+          <t>The monitor MUST be actually deleted at the Proxy when its associated refcounter reaches 0.</t>
+  
+          <t>In order to save storage, a Proxy MAY decide to delete a monitor resource in case it has not been requested for a sufficiently long time.</t>
+  
+          <section title="Explicit De-registration">
+            <figure align="center" anchor="explicit_monitor_deregistration">
+              <artwork align="left"><![CDATA[
+  P        C
+  | DELETE | Proxy-URI: coap://S/r
+  |<-------+   Monitor: <empty>
+  |        |
+  |  2.02  |
+  +------->|
+  |        |
+              ]]></artwork>
+            </figure>
+          </section>
+  
+          <section title="Implicit De-registration">
+           <t>Implicit de-registration occurs when the monitoring period specified by the client via Max-Age expires. If no Max-Age was supplied on registration, the client instance of the monitor MUST be de-registered explicitly.</t>
+          </section>
+  
+        </section>
+  
+        <section title="Resource Refresh">
+          <t>In order to minimize the number of messages used by the monitoring process, the Proxy SHOULD try to install an observation on the requested resource first. In case this attempt fails, the Proxy will fall back to repeated poll possibly driven by the Max-Age value indicated by the origin server. Usual cache validation MUST be applied to the cached copy of the monitored resource (CHECK THIS).</t>
+        </section>
+      </section>
+  
+      <section title="Gratuitous Update Option">
+        <t>A new gratuitous response message to a Proxy is introduced to allow a sleepy sensor to use the Proxy as the rendez-vous point for sleepy node to sleepy node signalling.</t>
+  
+        <figure align="center" anchor="gratuitous_update_option">
+          <artwork align="left"><![CDATA[
+  P        S
+  |   PUT  |    Proxy-URI: coap://S/r
+  |<-------+       Update: 123456789
+  |    r   | Content-Type: ...
+  |        |
+  |  2.01  | (or 2.04)
+  +------->| 
+  |        |
+          ]]></artwork>
+        </figure>
+        <t>The Origin Server publish one of its hosted resources, specified by the enclosed Proxy-URI, by PUT'ing it to the proxy. The Update option value is a monotonically increasing counter which hints the Proxy about the more recent version of the resource.</t>
+  
+        <t>[TODO PUT and ETags]</t>
+      </section>
+  
     </section>
 
     <!-- This PI places the pagebreak correctly (before the section title) in the text output. -->
@@ -172,14 +186,43 @@ P        S
 
     <section anchor="Security" title="Security Considerations">
 
-    <t>THREAT#1: Cache poisoning (authenticate sender.)</t>
-    <t>THREAT#2: Unauthorized de-registration (authenticate requester.)</t>
-    <t>THREAT#3: Proxy resources' exhaustion (authenticate requester + quota limit.)</t>
-    <t>THREAT#4: Global state loss (cache redundancy.)</t>
-    <t>THREAT#5: DoS on remote constrained resource via unneeded monitoring (...)</t>
+    <?rfc subcompact="yes"?>
+    <t>
+      <list style="hanging" hangIndent="6">
+        <t hangText="Threat:">cache poisoning.</t>
+        <t hangText="Countermeasure:">authenticate sender.</t>
+      </list>
+    </t>
 
+    <t>
+      <list style="hanging" hangIndent="6">
+        <t hangText="Threat:">unauthorized de-registration</t>
+        <t hangText="Countermeasure:">authenticate requester.</t>
+      </list>
+    </t>
 
-    <t></t>
+    <t>
+      <list style="hanging" hangIndent="6">
+        <t hangText="Threat:">proxy resources' exhaustion.</t>
+        <t hangText="Countermeasure:">authenticate requester + quota limit.</t>
+      </list>
+    </t>
+
+    <t>
+      <list style="hanging" hangIndent="6">
+        <t hangText="Threat:">global state loss.</t>
+        <t hangText="Countermeasure:">cache redundancy.</t>
+      </list>
+    </t>
+
+    <t>
+      <list style="hanging" hangIndent="6">
+        <t hangText="Threat:">DoS on remote constrained resource via unneeded monitoring.</t>
+        <t hangText="Countermeasure:">...</t>
+      </list>
+    </t>
+
+    <?rfc subcompact="no"?>
 
     </section>
   </middle>
