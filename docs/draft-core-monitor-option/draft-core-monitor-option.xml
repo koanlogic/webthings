@@ -93,14 +93,14 @@
         <section title="Monitor Registration">
           <figure align="center" anchor="monitor_registration">
             <artwork align="left"><![CDATA[
-  P        C
-  |   PUT  | Proxy-URI: coap://S/r
-  |<-------+   Monitor: <empty>
-  |        |   Max-Age: 86400
-  |        |    Accept: ...
-  |  2.01  |
-  +------->| Location-Path: coap://S/r
-  |        |
+P        C
+|   PUT  | Proxy-URI: coap://S/r
+|<-------+   Monitor: <empty>
+|        |   Max-Age: 86400
+|        |    Accept: ...
+|  2.01  |
++------->| Location-Path: coap://S/r
+|        |
             ]]></artwork>
           </figure>
           <t>The client PUT's the resource to be monitored, identified by the Proxy-URI. The request message contains a Monitor option, and possibly specifies a TTL (i.e. an implicit de-registration indication) for the monitor through Max-Age. One or more content types for the acceptable representations of the resource are optionally specified via the Accept option.</t>
@@ -118,13 +118,13 @@
           <section title="Explicit De-registration">
             <figure align="center" anchor="explicit_monitor_deregistration">
               <artwork align="left"><![CDATA[
-  P        C
-  | DELETE | Proxy-URI: coap://S/r
-  |<-------+   Monitor: <empty>
-  |        |
-  |  2.02  |
-  +------->|
-  |        |
+P        C
+| DELETE | Proxy-URI: coap://S/r
+|<-------+   Monitor: <empty>
+|        |
+|  2.02  |
++------->|
+|        |
               ]]></artwork>
             </figure>
           </section>
@@ -145,14 +145,14 @@
   
         <figure align="center" anchor="gratuitous_update_option">
           <artwork align="left"><![CDATA[
-  P        S
-  |   PUT  |    Proxy-URI: coap://S/r
-  |<-------+       Update: 123456789
-  |    r   | Content-Type: ...
-  |        |
-  |  2.01  | (or 2.04)
-  +------->| 
-  |        |
+P        S
+|   PUT  |    Proxy-URI: coap://S/r
+|<-------+       Update: 123456789
+|    r   | Content-Type: ...
+|        |
+|  2.01  | (or 2.04)
++------->| 
+|        |
           ]]></artwork>
         </figure>
         <t>The Origin Server publish one of its hosted resources, specified by the enclosed Proxy-URI, by PUT'ing it to the proxy. The Update option value is a monotonically increasing counter which hints the Proxy about the more recent version of the resource.</t>
