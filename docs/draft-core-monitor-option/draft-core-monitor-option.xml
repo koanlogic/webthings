@@ -41,7 +41,7 @@
       initials="P.G."
       surname="Giacomin"
     >
-      <organization>Hitachi Europe</organization>
+      <organization>Freelance</organization>
       <address>
         <email>yrz@anche.no</email>
       </address>
@@ -55,7 +55,11 @@
     <keyword>CoAP, Monitor option, Update option, sleepy sensor</keyword>
 
     <abstract>
-      <t>Monitor and Gratuitous Update Options for CoAP.</t>
+      <t>This memo defines two additional options for the Constrained Application Protocol (CoAP): Monitor and Update.</t> 
+      
+      <t>The first enables monitoring of a node sleeping most of the time without requiring the client pulling all the time.</t>
+
+      <t>The latter enables opportunistic updates, driven by sleepy nodes, which actually MAY never need to listen.</t>
     </abstract>
   </front>
 
@@ -89,29 +93,44 @@
         <t>The Monitor option is used to ask a Proxy to keep a given resource fresh by continuously observing (polling, at worst) it, while the requesting node is sleeping. Thus the sleepy sensor can get the latest representation published by the monitored resource when it wakes up, even if the origin is sleeping.</t>
   
         <t>The Monitor option is critical. If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the client.</t>
+	
+	<t>The Monitor option has a meaning on the request only.</t>
         
         <section title="Monitor Registration">
           <figure align="center" anchor="monitor_registration">
             <artwork align="left"><![CDATA[
 P        C
-|   PUT  | Proxy-URI: coap://S/r
-|<-------+   Monitor: <empty>
-|        |   Max-Age: 86400
-|        |    Accept: ...
+|   PUT  | Proxy-URI: coap://sleepy.example.org/res
+|<-------+ Monitor: <empty>
+|        | Max-Age: 86400
+|        | Content-type: application/json
 |  2.01  |
-+------->| Location-Path: coap://S/r
++------->| Location-Path: temp
+|        | Location-Path: res
+|        | Etag: 420e420e
 |        |
             ]]></artwork>
           </figure>
           <t>The client PUT's the resource to be monitored, identified by the Proxy-URI. The request message contains a Monitor option, and possibly specifies a TTL (i.e. an implicit de-registration indication) for the monitor through Max-Age. One or more content types for the acceptable representations of the resource are optionally specified via the Accept option.</t>
   
-          <t>The operation creates a monitor resource at the Proxy, that is a carbon copy of one or more representations of the monitored resource.</t>
+          <t>The operation creates a monitor resource at the Proxy, that MUST be a carbon copy of one or more representations of the monitored resource.</t>
+	  
+	  <t>Upon a successfull request the client MUST be returned a 2.01 response and one Etag. The Etag SHALL be unique per object.</t>
+	  
+	  <t>The Location-Path option MAY be used to indicate to the client where he SHALL find the latest version of the content. In case of absense of a Location-Path option the client SHALL use the location pointed by the Proxy-URI of the original request.</t>
   
-          <t>There may be multiple clients requesting a monitor on a same resource. Multiple identical monitor resources MUST be absorbed into one only refcounted monitor at the Proxy.</t>
+	  <t>The Etag option value is stored and SHALL be used by the client to perform monitor de-registration.</t>
+  
+          <t>There may be multiple clients requesting a monitor on a same resource, with the same content-type, and those are coalesced into the same object.</t>
+	  
+	  <t>Different data representations, namely different content-type, are dealt by the proxy as different resources, but the proxy MAY even coalesce requests to the same resource with different content-types, provided it is able to perform application data conversion.</t>
+	  
+	  <t>For a given coalesced object a references list, containing Etags and (updated) Max-Ages, is kept.</t>
+	  
         </section>
   
         <section title="Monitor De-registration">
-          <t>The monitor MUST be actually deleted at the Proxy when its associated refcounter reaches 0.</t>
+          <t>The monitor MUST be actually deleted at the Proxy when its associated references list is empty.</t>
   
           <t>In order to save storage, a Proxy MAY decide to delete a monitor resource in case it has not been requested for a sufficiently long time.</t>
   
@@ -119,14 +138,18 @@ P        C
             <figure align="center" anchor="explicit_monitor_deregistration">
               <artwork align="left"><![CDATA[
 P        C
-| DELETE | Proxy-URI: coap://S/r
-|<-------+   Monitor: <empty>
+| DELETE | Proxy-URI: coap://proxy.example.org/temp/res
+|<-------+ Monitor: <empty>
+|        | If-Match: 420e420e
 |        |
 |  2.02  |
 +------->|
 |        |
               ]]></artwork>
             </figure>
+	    
+	    <t>Explicit de-registration is performed by a client, with a DELETE carrying as options Monitor and If-Match, with the value got upon registration. If any, the entry in the references list with the matching Etag will be deleted.</t>
+	    
           </section>
   
           <section title="Implicit De-registration">
@@ -146,7 +169,7 @@ P        C
         <figure align="center" anchor="gratuitous_update_option">
           <artwork align="left"><![CDATA[
 P        S
-|   PUT  |    Proxy-URI: coap://S/r
+|   PUT  |    Proxy-URI: coap://proxy.example.org/temp/res
 |<-------+       Update: 123456789
 |    r   | Content-Type: ...
 |        |
