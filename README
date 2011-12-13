@@ -1,1 +1,7 @@
 CoRE protocols implementation and ramblings.
+
+    docs/
+        misc documents (IETF drafts, presentations, ...)
+
+    bits/
+        code (evcoap, kink, ...)
