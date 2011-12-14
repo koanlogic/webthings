@@ -83,7 +83,7 @@
 +-----+----------+---------+--------+--------+---------+
 | No. | C/E      | Name    | Format | Length | Default |
 +-----+----------+---------+--------+--------+---------+
-|  XX | Critical | Monitor | (none) | 0 B    | (none)  |
+|  XX | Critical | Monitor | (none) | 0-1 B  |      0  |
 |  YY | Critical | Update  | uint   | 0-8 B  | (none)  |
 +-----+----------+---------+--------+--------+---------+
         ]]></artwork>
@@ -96,12 +96,12 @@
 	
 	<t>The Monitor option has a meaning on the request only.</t>
         
-        <section title="Monitor Registration">
+        <section title="Public Monitor Registration">
           <figure align="center" anchor="monitor_registration">
             <artwork align="left"><![CDATA[
 P        C
 |   PUT  | Proxy-URI: coap://sleepy.example.org/res
-|<-------+ Monitor: <empty>
+|<-------+ Monitor: 0
 |        | Max-Age: 86400
 |        | Content-type: application/json
 |  2.01  |
@@ -111,13 +111,13 @@ P        C
 |        |
             ]]></artwork>
           </figure>
-          <t>The client PUT's the resource to be monitored, identified by the Proxy-URI. The request message contains a Monitor option, and possibly specifies a TTL (i.e. an implicit de-registration indication) for the monitor through Max-Age. One or more content types for the acceptable representations of the resource are optionally specified via the Accept option.</t>
+          <t>The client PUT's the resource to be monitored, identified by the Proxy-URI. The request message contains a Monitor option with no value or with value 0, and possibly specifies a TTL (i.e. an implicit de-registration indication) for the monitor through Max-Age. One or more content types for the acceptable representations of the resource are optionally specified via the Accept option.</t>
   
-          <t>The operation creates a monitor resource at the Proxy, that MUST be a carbon copy of one or more representations of the monitored resource.</t>
-	  
+          <t>If such a resource is not yet monitored publicly the operation creates a public monitor resource at the Proxy, that MUST be a carbon copy of one or more representations of the monitored resource.</t>
+	  	  
 	  <t>Upon a successfull request the client MUST be returned a 2.01 response and one Etag. The Etag SHALL be unique per object.</t>
 	  
-	  <t>The Location-Path option MAY be used to indicate to the client where he SHALL find the latest version of the content. In case of absense of a Location-Path option the client SHALL use the location pointed by the Proxy-URI of the original request.</t>
+	  <t>The proxy returns one or more location-path and/or location-query options to identify the new monitored resource instance.</t>
   
 	  <t>The Etag option value is stored and SHALL be used by the client to perform monitor de-registration.</t>
   
@@ -128,6 +128,37 @@ P        C
 	  <t>For a given coalesced object a references list, containing Etags and (updated) Max-Ages, is kept.</t>
 	  
         </section>
+
+        <section title="Private Monitor Registration">
+          <figure align="center" anchor="private_monitor_registration">
+            <artwork align="left"><![CDATA[
+P        C
+|   PUT  | Proxy-URI: coap://sleepy.example.org/res
+|<-------+ Monitor: 1
+|        | Max-Age: 86400
+|        | Content-type: application/json
+|  2.01  |
++------->| Location-Path: private
+|        | Location-Path: unique
+|        | Location-Path: res
+|        | Etag: 420e420e
+|        |
+            ]]></artwork>
+          </figure>
+	  
+	  <t>The proxy MAY offer also private monitoring.</t>
+	  
+          <t>The client PUT's the resource to be privately monitored, identified by the Proxy-URI. The request message contains a Monitor option with value 1, and possibly specifies a TTL (i.e. an implicit de-registration indication) for the monitor through Max-Age. One or more content types for the acceptable representations of the resource are optionally specified via the Accept option.</t>
+  
+          <t>The operation creates a private monitor resource at the Proxy, that SHALL be a carbon copy of one representation of the monitored resource.</t>
+	  
+	  <t>The proxy returns one or more location-path and/or location-query options to identify the new monitored resource instance.</t>
+	  
+	  <t>The location pointed by location-paths and/or location-query options MUST be unique.</t>
+  
+        </section>
+  
+
   
         <section title="Monitor De-registration">
           <t>The monitor MUST be actually deleted at the Proxy when its associated references list is empty.</t>
@@ -153,7 +184,7 @@ P        C
           </section>
   
           <section title="Implicit De-registration">
-           <t>Implicit de-registration occurs when the monitoring period specified by the client via Max-Age expires. If no Max-Age was supplied on registration, the client instance of the monitor MUST be de-registered explicitly.</t>
+           <t>Implicit de-registration SHALL occur when the monitoring period specified by the client via Max-Age expires. If no Max-Age was supplied on registration, the client instance of the monitor MUST be de-registered explicitly.</t>
           </section>
   
         </section>
