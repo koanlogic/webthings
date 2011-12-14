@@ -1,0 +1,13 @@
+- install makl:
+    ...
+
+- install libevent (ver >= 2)
+    ...
+
+- install libu (ver >= 2)
+    ...
+
+- install evcoap
+    $ makl-conf --libs=...
+    $ makl
+    # makl install
