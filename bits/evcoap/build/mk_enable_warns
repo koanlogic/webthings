@@ -1,0 +1,17 @@
+# --enable_warns
+
+# helper
+makl_args_def                                           \
+    "enable_warns"                                      \
+    "" ""                                               \
+    "set CFLAGS for extra warnings (near linting)"
+
+# hook
+function __makl_enable_warns ()
+{
+    makl_append_var_mk "CFLAGS"                                     \
+        "-W -Wall -Wstrict-prototypes -Wmissing-prototypes"         \
+        "-Wpointer-arith -Wno-uninitialized -Wreturn-type"          \
+        "-Wwrite-strings -Wswitch -Wshadow -Wwrite-strings"         \
+        "-Wunused -Wcast-qual -pedantic -std=c99"
+}
