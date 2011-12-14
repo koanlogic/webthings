@@ -1,3 +1,4 @@
+#include "debug.h"
 #include "evcoap.h"
 #include "evcoap-internal.h"
 

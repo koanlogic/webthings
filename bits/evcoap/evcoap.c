@@ -20,8 +20,9 @@ struct evcoap *evcoap_new(struct event_base *base, struct evdns_base *dns)
     coap->fb = NULL;
     coap->fb_args = NULL;
 
-    /* Bound sockets. */
-    TAILQ_INIT(&coap->sockets);
+    /* Client and server sockets. */
+    TAILQ_INIT(&coap->servers);
+    TAILQ_INIT(&coap->clients);
 
     /* Duplicate detection machinery. */
     TAILQ_INIT(&coap->rcvd_queue);
@@ -117,7 +118,7 @@ int evcoap_bind_socket(struct evcoap *coap, const char *addr, ev_uint16_t port,
 
     /* Attach a new bound socket to the supplied coap context. */
     dbg_err_if ((bs = evcoap_bound_socket_new(coap, sd, secure)) == NULL);
-    TAILQ_INSERT_TAIL(&coap->sockets, bs, next);
+    TAILQ_INSERT_TAIL(&coap->servers, bs, next);
     bs = NULL;
 
     return 0;

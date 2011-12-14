@@ -1,14 +1,11 @@
 # --enable_debug
 
 # helper
-makl_args_def                                           \
-    "enable_debug"                                      \
-    "" ""                                               \
-    "#define DEBUG and prepare for GDB(1) debugging"
+makl_args_def "enable_debug" "" "" "#define EVCOAP_DEBUG and hint gdb"
 
 # hook
 function __makl_enable_debug ()
 {
     makl_append_var_mk "CFLAGS" "-ggdb -DDEBUG"
-    makl_set_var "PANG_DEBUG" "1"
+    makl_set_var "EVCOAP_DEBUG" "1"
 }

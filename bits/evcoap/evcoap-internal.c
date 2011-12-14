@@ -5,6 +5,7 @@
 
 #include "evcoap.h"
 #include "evcoap-internal.h"
+#include "debug.h"
 
 /* From evutil-internal.h */
 const char *evutil_format_sockaddr_port(const struct sockaddr *sa, char *out,
@@ -233,21 +234,22 @@ void evcoap_rcvd_queue_chores (evutil_socket_t u0, short u1, void *arg)
 
 void evcoap_input (int sd, short what, void *coap)
 {
-    int e; 
-    ev_ssize_t n;
     struct sockaddr_storage peer;
     ev_socklen_t peer_len = sizeof(peer);
     ev_uint8_t d[COAP_REQUEST_SIZE_MAX];
+    struct evcoap_bound_socket *bs = NULL;
+    struct evcoap_client_socket *cs = NULL;
+    struct evcoap_pdu *pdu = NULL;
 
     u_unused_args(what);
 
     /* 
-     * Process all buffered messages.
+     * Process all buffered PDUs.
      */
     for (;;)
     {
         /* Pull up next UDP packet from the socket input buffer. */
-        n = recvfrom(sd, (void *) d, sizeof d, 0, 
+        ev_ssize_t n = recvfrom(sd, (void *) d, sizeof d, 0, 
                 (struct sockaddr *) &peer, &peer_len);
 
         /* XXX What happens if the received CoAP packet is greater than
@@ -259,19 +261,42 @@ void evcoap_input (int sd, short what, void *coap)
         if (n == 0)
             continue;
 
-        /* Check for errors. */
         if (n < 0)
         {
-            e = evutil_socket_geterror(sd);
-            if (e == EINTR || e == EAGAIN)
-                return;
+            int e;
 
-            u_warn("%s", evutil_socket_error_to_string(e));
-            return;
+            /* If no messages are available at the socket, the receive call 
+             * waits for a message to arrive, unless the socket is nonblocking 
+             * (see fcntl(2)) in which case the value -1 is returned and the 
+             * external variable errno set to EAGAIN. */
+            switch ((e = evutil_socket_geterror(sd)))
+            {
+                case EAGAIN:
+                    return;
+                case EINTR:
+                    continue;
+                default:
+                    u_warn("%s", evutil_socket_error_to_string(e));
+                    return;
+            }
         }
 
-        /* Go and parse the CoAP message. */
-        evcoap_pdu_parse(coap, d, (size_t) n, sd, &peer, peer_len);
+        /* Parse the PDU. */
+        pdu = evcoap_pdu_new_received(coap, sd, d, (size_t) n, &peer, peer_len);
+        if (pdu == NULL)
+            continue;
+
+        /* See where this PDU comes from and dispatch to the right consumer. */
+        if ((bs = evcoap_socket_is_server(coap, sd)) != NULL)
+        {
+            dbg_if (evcoap_pdu_server(coap, pdu, bs));
+        }
+        else if ((cs = evcoap_socket_is_client(coap, sd)) != NULL)
+        {
+            dbg_if (evcoap_pdu_client(coap, pdu, cs));
+        }
+        else
+            u_dbg("%d is neither a client nor a server socket", sd);
     }
 
     return;
@@ -284,7 +309,7 @@ int evcoap_bound_socket_get_secure(struct evcoap *coap, int sd,
 
     /* Trust the caller. */
 
-    TAILQ_FOREACH(bs, &coap->sockets, next)
+    TAILQ_FOREACH(bs, &coap->servers, next)
     {
         if (bs->sd == sd)
         {
@@ -320,32 +345,58 @@ err:
     return -1;
 }
 
-void evcoap_pdu_parse(struct evcoap *coap, const ev_uint8_t *d,
-        size_t dlen, int sd, const struct sockaddr_storage *peer,
-        const ev_socklen_t peer_len)
+struct evcoap_client_socket *evcoap_socket_is_client(struct evcoap *coap,
+        evutil_socket_t sd)
+{
+    struct evcoap_client_socket *cs;
+
+    TAILQ_FOREACH(cs, &coap->clients, next)
+    {
+        if (cs->sd == sd)
+            return cs;
+    }
+
+    return NULL;
+}
+
+struct evcoap_bound_socket *evcoap_socket_is_server(struct evcoap *coap,
+        evutil_socket_t sd)
+{
+    struct evcoap_bound_socket *bs;
+
+    TAILQ_FOREACH(bs, &coap->servers, next)
+    {
+        if (bs->sd == sd)
+            return bs;
+    }
+
+    return NULL;
+}
+
+int evcoap_pdu_client(struct evcoap *coap, struct evcoap_pdu *pdu,
+        struct evcoap_client_socket *cs)
+{
+    u_con("TODO");
+    /* TODO */
+    return 0;
+}
+
+int evcoap_pdu_server(struct evcoap *coap, struct evcoap_pdu *pdu, 
+        struct evcoap_bound_socket *bs)
 {
     ev_uint8_t hdr[4];
     struct evcoap_cb *cb = NULL;
-    struct evcoap_pdu *pdu = NULL;
-    ev_uint8_t secure = 0;
     const char *mp = NULL; 
-    int flags = FNM_PATHNAME | FNM_PERIOD | FNM_CASEFOLD | FNM_LEADING_DIR;
+    int flags;
     
     /* Trust the caller. */
-
-    /* Lookup the secure attribute. */
-    dbg_err_ifm (evcoap_bound_socket_get_secure(coap, sd, &secure),
-            "%d not registered", sd);
-
-    /* Internalize the PDU. */
-    dbg_err_ifm (!(pdu = evcoap_pdu_new_received(coap, sd, d, dlen, secure,
-                    peer, peer_len)),
-            "request message creation failed");
 
     /* Retrieve the URI, if available. */
     mp = u_uri_get_path(pdu->uri);
 
     /* Dispatch parsed message to the user supplied callback. */
+    flags = FNM_PATHNAME | FNM_PERIOD | FNM_CASEFOLD | FNM_LEADING_DIR;
+
     TAILQ_FOREACH(cb, &coap->callbacks, next)
     {
         evcoap_cb_status_t rc;
@@ -366,10 +417,10 @@ void evcoap_pdu_parse(struct evcoap *coap, const ev_uint8_t *d,
                 && rc == EVCOAP_CB_STATUS_ACK_AUTO)
         {
             dbg_err_if (evcoap_pending_ack_sched(coap, pdu->mid, 
-                        cb->ack_timeout, sd, peer, peer_len));
+                        cb->ack_timeout, bs->sd, &pdu->peer, pdu->peer_len));
         }
 
-        return;
+        return 0;
     }
 
     /* Fall back to catch-all function, if set. */
@@ -379,18 +430,19 @@ void evcoap_pdu_parse(struct evcoap *coap, const ev_uint8_t *d,
     /* User did not provide a callback for this URL: send back a 4.04. */
     evcoap_build_header(COAP_PROTO_VER_1, pdu->t, 0, EVCOAP_RESP_CODE_NOT_FOUND,
             pdu->mid, hdr);
-    dbg_if (evcoap_send(coap, sd, peer, peer_len, hdr, NULL, 0, NULL, 0));
+    dbg_if (evcoap_send(coap, bs->sd, &pdu->peer, pdu->peer_len, 
+                hdr, NULL, 0, NULL, 0));
 
     /* TODO */
 
-    return;
+    return 0;
 err:
     /* TODO decide what to do in case an internal error occurs here,
      * TODO i.e. silently discard or return an error indication 
      * TODO (EVCOAP_RESP_CODE_INTERNAL_SERVER_ERROR) to our peer. */
     if (pdu)
         evcoap_pdu_free(pdu);
-    return;
+    return -1;
 }
 
 int evcoap_pdu_uri_compose_proxy(struct evcoap_pdu *pdu)
@@ -1050,8 +1102,8 @@ struct evcoap_pdu *evcoap_pdu_new_empty(void)
     return pdu;
 }
 
-struct evcoap_pdu *evcoap_pdu_new_received(struct evcoap *coap, int sd,
-        const ev_uint8_t *d, size_t dlen, ev_uint8_t secure,
+struct evcoap_pdu *evcoap_pdu_new_received(struct evcoap *coap, 
+        evutil_socket_t sd, const ev_uint8_t *d, size_t dlen,
         const struct sockaddr_storage *peer, const ev_socklen_t peer_len)
 {
     ev_uint16_t mid;
@@ -1132,12 +1184,6 @@ struct evcoap_pdu *evcoap_pdu_new_received(struct evcoap *coap, int sd,
      */
     if (pdu->oc)
         dbg_err_ifm (evcoap_opt_parse(pdu), "could not parse options");
-
-    /* 
-     * Set DTLS flag.  This MUST be done before the URI is reassembled
-     * to decide for 'coap' vs 'coaps' scheme.
-     */
-    pdu->secure = secure;
 
     /* 
      * Reassemble URI (if applicable) from options.
@@ -1421,7 +1467,9 @@ int evcoap_opts_encode(struct evcoap_pdu *pdu, ev_uint8_t *b, size_t *plen)
 
     *plen -= left;
 
-    evcoap_dbg_print_buffer("options", b, *plen);
+#ifdef EVCOAP_DEBUG
+    evcoap_dbg_print_buffer("encoded options", b, *plen);
+#endif
 
     return 0;
 err:
@@ -1478,37 +1526,24 @@ int evcoap_pdu_sanitize_send_req(struct evcoap *coap, struct evcoap_pdu *pdu)
     return 0;
 }
 
-int evcoap_do_send_request(struct evcoap *coap, struct evcoap_pdu *pdu,
-        void (*cb)(struct evcoap_pdu *, int, void *), void *cb_args,
-        struct timeval *timeout)
-{
-    return -1;
-}
-
 void evcoap_sendreq_dns_cb(int result, struct evutil_addrinfo *res, void *a)
 {
     struct evutil_addrinfo *ai;
     ev_uint8_t hdr[4], opts[EVCOAP_OPTS_UPPER_LEN];
     size_t opts_len = sizeof opts;
-    struct evcoap_sendreq_args *sendreq_args;
-    struct evcoap_pdu *pdu;
-    struct evcoap *coap;
-    void (*cb)(struct evcoap_pdu *, int, void *);
-    void *cb_args;
-    struct evcoap_opt *t;
 
     /* Unroll arguments. */
-    sendreq_args = (struct evcoap_sendreq_args *) a;
-    pdu = sendreq_args->pdu;
-    coap = sendreq_args->coap;
-    cb = sendreq_args->cb;
-    cb_args = sendreq_args->cb_args;
+    struct evcoap_sendreq_args *sendreq_args = (struct evcoap_sendreq_args *) a;
+    struct evcoap_pdu *pdu = sendreq_args->pdu;
+    struct evcoap *coap = sendreq_args->coap;
+    void (*cb)(struct evcoap_pdu *, int, void *) = sendreq_args->cb;
+    void *cb_args = sendreq_args->cb_args;
 
     /* Unset the evdns_getaddrinfo_request pointer, since when we get called
-     * its lifetime is exhausted. */
+     * its lifetime is complete. */
     pdu->gai_req = NULL;
 
-    /* Early return on DNS failures. */
+    /* Check DNS return status. */
     if (result != DNS_ERR_NONE)
     {
         u_dbg("DNS resolution failed for %s: %s", 
@@ -1520,15 +1555,16 @@ void evcoap_sendreq_dns_cb(int result, struct evutil_addrinfo *res, void *a)
 
     /* Since the supplied host (and service name) resolved successfully, 
      * we have some non-null chance to deliver the request to something/someone
-     * out there.  First off encode options and header. */
+     * out there.  So, first off, encode PDU's header and options. */
     dbg_err_if (evcoap_opts_encode(pdu, opts, &opts_len));
     evcoap_build_header(pdu->ver, pdu->t, pdu->oc, pdu->code, pdu->mid, hdr);
 
     /* Then for each returned sockaddr, try to push the request across the
-     * network. */
+     * network.  The first successful attempt breaks the loop. */
     for (pdu->sd = -1, ai = res; ai; ai = ai->ai_next)
     {
         pdu->sd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+
         if (pdu->sd == -1)
             continue;
 
@@ -1536,48 +1572,112 @@ void evcoap_sendreq_dns_cb(int result, struct evutil_addrinfo *res, void *a)
         if (evcoap_send(coap, pdu->sd, 
                 (const struct sockaddr_storage *) ai->ai_addr,
                 ai->ai_addrlen, hdr, opts, opts_len, pdu->payload,
-                pdu->payload_len))
+                pdu->payload_len) == 0)
         {
-            pdu->sd = -1;   /* Mark socket as failed and try again. */
-            continue;
+            char a[256];
+
+            EVCOAP_TRACE("request PDU sent to %s",
+                    evutil_format_sockaddr_port(ai->ai_addr, a, sizeof a));
+            break;
         }
 
-        /* If raw UDP send was ok. save the Token into the outstanding 
-         * requests set. */
-        dbg_err_if ((t = evcoap_opt_get(pdu, EVCOAP_OPT_TOKEN)) == NULL);
-        dbg_err_if (evcoap_pending_token_add(coap, cb, cb_args, t->v, t->l));
-
-        /* Also, in case it is a CON message, save the outstanding MID for
-         * ACK/RST matching. */
-        if (pdu->t == EVCOAP_PDU_TYPE_CON)
-            dbg_err_if (evcoap_pending_mid_add(coap, cb, cb_args, pdu->mid));
+        /* Mark this socket as failed and try again. */
+        evutil_closesocket(pdu->sd), pdu->sd = -1;
     }
 
+    /* Check whether the PDU was sent out. */
     dbg_err_if (pdu->sd == -1);
+
+    /* The winning socket is saved along with all the needed 
+     * protocol metadata belonging to this request: token and
+     * MID, in case it's a CON PDU. */
+    dbg_err_if (evcoap_client_socket_add(coap, cb, cb_args, pdu));
+
     pdu->send_status = EVCOAP_SEND_STATUS_OK;
     evcoap_sendreq_args_free(sendreq_args);
     return;
 
 err:
+    if (pdu->sd != -1)
+        evutil_closesocket(pdu->sd), pdu->sd = -1;
     pdu->send_status = EVCOAP_SEND_STATUS_ERR;
     evcoap_sendreq_args_free(sendreq_args);
+    /* TODO Trigger the user callback ! */
     return;
 }
 
-int evcoap_pending_token_add(struct evcoap *coap,
-       void (*cb)(struct evcoap_pdu *, int, void *), void *cb_args,
-       ev_uint8_t *token, size_t token_len)
+void evcoap_recv_response()
 {
-    /* TODO */
-    return 0;
+    return;
 }
 
-int evcoap_pending_mid_add(struct evcoap *coap,
-       void (*cb)(struct evcoap_pdu *, int, void *), void *cb_args,
-       ev_uint16_t mid)
+void evcoap_client_socket_free(struct evcoap_client_socket *cs)
 {
-    /* TODO */
+    if (cs)
+    {
+        if (cs->ev)
+            event_free(cs->ev);
+        u_free(cs);
+    } 
+    return;
+}
+
+struct evcoap_client_socket *evcoap_client_socket_new(struct evcoap *coap,
+        evutil_socket_t sd, ev_uint16_t mid, ev_uint8_t *tok, size_t tok_len,
+        evcoap_response_cb_t cb, void *cb_args)
+{
+    struct evcoap_client_socket *cs = NULL;
+
+    dbg_return_if (sd == -1, NULL);
+    dbg_return_if (tok == NULL, NULL);
+    dbg_return_if (!tok_len || tok_len > sizeof cs->token, NULL);
+
+    /* Make room for the new client socket. */
+    dbg_err_sif ((cs = u_malloc(sizeof *cs)) == NULL);
+
+    /* Attach a persistent read event to it (will be destroyed after response
+     * has been received, or timeout.) */
+    cs->ev = event_new(coap->base, sd, EV_READ|EV_PERSIST, evcoap_input, coap);
+    dbg_err_if (cs->ev == NULL);
+
+    /* Fill all the bits. */
+    cs->sd = sd;
+    memcpy(&cs->token, tok, tok_len);
+    cs->token_len = tok_len;
+    cs->mid = mid;
+    cs->cb = cb;
+    cs->cb_args = cb_args;
+
+    return cs;
+err:
+    evcoap_client_socket_free(cs);    
+    return NULL;
+}
+
+int evcoap_client_socket_add(struct evcoap *coap,
+       void (*cb)(struct evcoap_pdu *, int, void *), void *cb_args,
+       struct evcoap_pdu *pdu)
+{
+    ev_uint16_t mid = 0;
+    struct evcoap_opt *t;
+    struct evcoap_client_socket *cs = NULL;
+
+    /* See if a MID match is expected on ACK/RST message. */
+    if (pdu->t == EVCOAP_PDU_TYPE_CON)
+        mid = pdu->mid;
+
+    /* Get Token option from PDU (shall be matched in response.) */
+    dbg_err_if ((t = evcoap_opt_get(pdu, EVCOAP_OPT_TOKEN)) == NULL);
+
+    /* Create a new client socket entry and attach it to the evcoap core. */
+    cs = evcoap_client_socket_new(coap, pdu->sd, mid, t->v, t->l, cb, cb_args);
+    dbg_err_if (cs == NULL);
+
+    TAILQ_INSERT_TAIL(&coap->clients, cs, next);
+
     return 0;
+err:
+    return -1;
 }
 
 struct evcoap_sendreq_args *evcoap_sendreq_args_new(struct evcoap *coap, 
