@@ -14,7 +14,7 @@ include xeno.mk
 install:
 	cp -r tinyos-tools-1.4.0/* $(DESTDIR) && \
 	    cd $(DESTDIR)/tools && \
-	    ln -s /usr/bin/install . && \
+	    ln -sf /usr/bin/install . && \
 	    ./Bootstrap && \
 	    ./configure --prefix=$(DESTDIR) && \
 	    make && \

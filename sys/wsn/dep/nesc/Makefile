@@ -12,4 +12,4 @@ include xeno.mk
 
 # avoid complaints about missing install (automake bug?)
 build-hook-pre:
-	cd nesc-1.3.1/ && ln -s /usr/bin/install .
+	cd nesc-1.3.1/ && ln -sf /usr/bin/install .
