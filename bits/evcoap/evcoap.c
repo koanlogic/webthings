@@ -397,8 +397,7 @@ const char *evcoap_pdu_get_proxy_uri(struct evcoap_pdu *pdu)
 }
 
 int evcoap_send_request(struct evcoap *coap, struct evcoap_pdu *pdu,
-        void (*cb)(struct evcoap_pdu *, int, void *), void *cb_args,
-        struct timeval *timeout)
+        evcoap_response_cb_t cb, void *cb_args, struct timeval *timeout)
 {
     const char *host, *proxy_uri;
     char sport[6] = COAP_DEFAULT_SERVER_PORT_STR;
@@ -505,4 +504,11 @@ int evcoap_pdu_resp_set_header(struct evcoap_pdu *pdu,
 //    pdu->mid = (message_id == EVCOAP_MID_AUTO) ? evcoap_gen_mid() : message_id;
 
     return 0;
+}
+
+evcoap_resp_code_t evcoap_pdu_get_resp_status(struct evcoap_pdu *pdu)
+{
+    dbg_return_if (pdu == NULL, EVCOAP_RESP_CODE_UNSET);
+
+    return pdu->rcode;
 }

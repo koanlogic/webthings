@@ -87,8 +87,6 @@ struct evcoap_bound_socket
     TAILQ_ENTRY(evcoap_bound_socket) next;
 };
 
-typedef void (*evcoap_response_cb_t)(struct evcoap_pdu *, int, void *);
-
 /* CoAP client socket. */
 struct evcoap_client_socket
 {
@@ -157,11 +155,7 @@ struct evcoap_pdu
     ev_uint8_t secure;
 
     /* Return code from send request operation. */
-    enum {
-        EVCOAP_SEND_STATUS_OK = 0,
-        EVCOAP_SEND_STATUS_ERR,
-        EVCOAP_SEND_STATUS_DNS_FAIL
-    } send_status;
+    evcoap_send_status_t send_status;
 
     /* Pointer to possibly pending getaddrinfo request. */
     struct evdns_getaddrinfo_request *gai_req;
@@ -282,12 +276,12 @@ struct evcoap_sendreq_args
 {
     struct evcoap *coap;
     struct evcoap_pdu *pdu;
-    void (*cb)(struct evcoap_pdu *, int, void *);
+    evcoap_response_cb_t cb;
     void *cb_args;
     struct timeval *timeout;
 };
 
-/* Bound sockets. */
+/* Server sockets. */
 struct evcoap_bound_socket *evcoap_bound_socket_new(struct evcoap *coap,
         evutil_socket_t sd, ev_uint8_t secure);
 void evcoap_bound_socket_free(struct evcoap_bound_socket *bs);
@@ -295,6 +289,14 @@ int evcoap_bound_socket_get_secure(struct evcoap *coap, int sd,
         ev_uint8_t *psecure);
 evutil_socket_t evcoap_do_bind_socket(struct sockaddr_storage *ss,
         ev_socklen_t ss_len);
+
+/* Client sockets. */
+struct evcoap_client_socket *evcoap_client_socket_new(struct evcoap *coap,
+        evutil_socket_t sd, ev_uint16_t mid, ev_uint8_t *tok, size_t tok_len,
+        evcoap_response_cb_t cb, void *cb_args);
+int evcoap_client_socket_add(struct evcoap *coap, evcoap_response_cb_t cb, 
+        void *cb_args, struct evcoap_pdu *pdu);
+void evcoap_client_socket_free(struct evcoap_client_socket *cs);
 
 /* Input processing entry point. */
 void evcoap_input (int sd, short what, void *u);
@@ -310,12 +312,9 @@ int evcoap_send(struct evcoap *coap, int sd,
 void evcoap_sendreq_dns_cb(int result, struct evutil_addrinfo *res, void *arg);
 int evcoap_resolv_async(struct evcoap *coap, struct evcoap_pdu *pdu);
 struct evcoap_sendreq_args *evcoap_sendreq_args_new(struct evcoap *coap, 
-        struct evcoap_pdu *pdu, void (*cb)(struct evcoap_pdu *, int, void *),
-        void *cb_args, struct timeval *timeout);
+        struct evcoap_pdu *pdu, evcoap_response_cb_t cb, void *cb_args, 
+        struct timeval *timeout);
 void evcoap_sendreq_args_free(struct evcoap_sendreq_args *sendreq_args);
-int evcoap_client_socket_add(struct evcoap *coap, 
-        void (*cb)(struct evcoap_pdu *, int, void *), void *cb_args,
-        struct evcoap_pdu *pdu);
 
 /* Automatic ACK handling. */
 int evcoap_pending_ack_sched(struct evcoap *coap, ev_uint16_t mid,
@@ -330,26 +329,27 @@ struct evcoap_client_socket *evcoap_socket_is_client(struct evcoap *coap,
         evutil_socket_t sd);
 
 /* PDU handling. */
-int evcoap_pdu_client(struct evcoap *coap, struct evcoap_pdu *pdu,
+int evcoap_pdu_client_input(struct evcoap *coap, struct evcoap_pdu *pdu,
         struct evcoap_client_socket *cs);
-int evcoap_pdu_server(struct evcoap *coap, struct evcoap_pdu *pdu,
+int evcoap_pdu_server_input(struct evcoap *coap, struct evcoap_pdu *pdu,
         struct evcoap_bound_socket *bs);
 struct evcoap_pdu *evcoap_pdu_new_received(struct evcoap *coap, int sd,
         const ev_uint8_t *d, size_t dlen, const struct sockaddr_storage *peer, 
         const ev_socklen_t peer_len);
-evcoap_msg_type_t evcoap_pdu_decode_type(ev_uint8_t code);
 int evcoap_pdu_uri_compose(struct evcoap_pdu *pdu);
 int evcoap_pdu_uri_compose_proxy(struct evcoap_pdu *pdu);
 int evcoap_pdu_uri_compose_tokens(struct evcoap_pdu *pdu);
-int evcoap_pdu_decode_method(ev_uint8_t code, evcoap_method_t *pm);
-int evcoap_pdu_decode_resp_code(ev_uint8_t code, evcoap_resp_code_t *pc);
 void evcoap_pdu_free(struct evcoap_pdu *pdu);
-int evcoap_pdu_dup_handler(struct evcoap *coap, int sd, ev_uint16_t mid, 
-        const struct sockaddr_storage *ss, ev_socklen_t ss_len);
 int evcoap_pdu_sanitize_send(struct evcoap_pdu *pdu);
 int evcoap_pdu_sanitize_send_req(struct evcoap *coap, struct evcoap_pdu *pdu);
 
+evcoap_msg_type_t evcoap_msg_type_decode(ev_uint8_t code);
+int evcoap_method_decode(ev_uint8_t code, evcoap_method_t *pm);
+int evcoap_resp_code_decode(ev_uint8_t code, evcoap_resp_code_t *pc);
+
 /* Received PDUs queue. */
+int evcoap_dup_handler(struct evcoap *coap, int sd, ev_uint16_t mid, 
+        const struct sockaddr_storage *ss, ev_socklen_t ss_len);
 struct evcoap_rcvd_pdu *evcoap_rcvd_pdu_new(ev_uint16_t mid,
         struct timeval *when, const struct sockaddr_storage *ss, 
         ev_socklen_t ss_len);

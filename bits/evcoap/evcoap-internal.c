@@ -267,8 +267,8 @@ void evcoap_input (int sd, short what, void *coap)
 
             /* If no messages are available at the socket, the receive call 
              * waits for a message to arrive, unless the socket is nonblocking 
-             * (see fcntl(2)) in which case the value -1 is returned and the 
-             * external variable errno set to EAGAIN. */
+             * in which case the value -1 is returned and the external variable
+             * errno set to EAGAIN. */
             switch ((e = evutil_socket_geterror(sd)))
             {
                 case EAGAIN:
@@ -289,11 +289,11 @@ void evcoap_input (int sd, short what, void *coap)
         /* See where this PDU comes from and dispatch to the right consumer. */
         if ((bs = evcoap_socket_is_server(coap, sd)) != NULL)
         {
-            dbg_if (evcoap_pdu_server(coap, pdu, bs));
+            dbg_if (evcoap_pdu_server_input(coap, pdu, bs));
         }
         else if ((cs = evcoap_socket_is_client(coap, sd)) != NULL)
         {
-            dbg_if (evcoap_pdu_client(coap, pdu, cs));
+            dbg_if (evcoap_pdu_client_input(coap, pdu, cs));
         }
         else
             u_dbg("%d is neither a client nor a server socket", sd);
@@ -373,15 +373,36 @@ struct evcoap_bound_socket *evcoap_socket_is_server(struct evcoap *coap,
     return NULL;
 }
 
-int evcoap_pdu_client(struct evcoap *coap, struct evcoap_pdu *pdu,
+int evcoap_pdu_client_input(struct evcoap *coap, struct evcoap_pdu *pdu,
         struct evcoap_client_socket *cs)
 {
-    u_con("TODO");
-    /* TODO */
+    struct evcoap_opt *t;
+
+    /* Check if a matching token can be found. */
+    dbg_err_if ((t = evcoap_opt_get(pdu, EVCOAP_OPT_TOKEN)) == NULL);
+
+    /* Check that the token matches the one we sent out with the request. */
+    dbg_err_if (t->l != cs->token_len || memcmp(t->v, cs->token, t->l));
+
+    if (pdu->msg_type == EVCOAP_MSG_TYPE_RESP)
+    {
+        /* Invoke the user supplied callback (XXX 2nd argument ?) */
+        if (cs->cb)
+            cs->cb(pdu, 0, cs->cb_args);
+
+        /* Since this PDU completes the client/server transaction, 
+         * we can free its client socket. */
+        evcoap_client_socket_free(cs);
+    }
+    else
+        u_con("TODO handle non final response messages"); 
+
     return 0;
+err:
+    return -1;
 }
 
-int evcoap_pdu_server(struct evcoap *coap, struct evcoap_pdu *pdu, 
+int evcoap_pdu_server_input(struct evcoap *coap, struct evcoap_pdu *pdu, 
         struct evcoap_bound_socket *bs)
 {
     ev_uint8_t hdr[4];
@@ -391,7 +412,7 @@ int evcoap_pdu_server(struct evcoap *coap, struct evcoap_pdu *pdu,
     
     /* Trust the caller. */
 
-    /* Retrieve the URI, if available. */
+    /* Retrieve the requested resource path, if available. */
     mp = u_uri_get_path(pdu->uri);
 
     /* Dispatch parsed message to the user supplied callback. */
@@ -1024,7 +1045,7 @@ void evcoap_rcvd_pdu_free(struct evcoap_rcvd_pdu *rcvd)
     return;
 }
 
-int evcoap_pdu_dup_handler(struct evcoap *coap, int sd, ev_uint16_t mid,
+int evcoap_dup_handler(struct evcoap *coap, int sd, ev_uint16_t mid,
         const struct sockaddr_storage *ss, ev_socklen_t ss_len)
 {
     struct timeval tv;
@@ -1045,6 +1066,7 @@ int evcoap_pdu_dup_handler(struct evcoap *coap, int sd, ev_uint16_t mid,
              *  request or response in the message only once" */
             if (rcvd->sent_pdu)
             {
+                /* XXX use pdu_send (TODO fragment PDU into h+o+p.) */
                 if (sendto(sd, rcvd->sent_pdu, rcvd->sent_pdu_len, 0,
                             (const struct sockaddr *) ss, ss_len) == -1)
                 {
@@ -1109,31 +1131,21 @@ struct evcoap_pdu *evcoap_pdu_new_received(struct evcoap *coap,
     ev_uint16_t mid;
     struct evcoap_pdu *pdu = NULL;
 
-    /* TTC */
-
-    /* 
-     * Check that at least a full header is present.
-     */
+    /* Check that at least a full header is present. */
     dbg_return_ifm (dlen < EVCOAP_PDU_HDR_LEN, NULL, 
             "not enough bytes to hold a CoAP header");
 
-    /* 
-     * Do early duplicate detection.
-     */
+    /* Do early duplicate detection. */
     mid = ntohs((d[2] << 8) | d[3]);
-    dbg_err_ifm (evcoap_pdu_dup_handler(coap, sd, mid, peer, peer_len),
+
+    /* TODO Discriminate duplicate condition from generic error. */
+    dbg_err_ifm (evcoap_dup_handler(coap, sd, mid, peer, peer_len),
             "Duplicate PDU detected (MID=%u)", mid);
 
-    /* 
-     * Make room for the new PDU.
-     *
-     * XXX This malloc could be posticipated after header has been fully
-     * XXX sanity checked. */
+    /* Make room for the new PDU. */
     dbg_err_sif ((pdu = evcoap_pdu_new_empty()) == NULL);
 
-    /* 
-     * Complete header parsing, and check its consistency (WIP).
-     */
+    /* Complete header parsing, and do consistency check. */
     pdu->t = (d[0] & 0x30) >> 4;
     pdu->oc = d[0] & 0x0f;
     pdu->code = d[1];
@@ -1141,66 +1153,59 @@ struct evcoap_pdu *evcoap_pdu_new_received(struct evcoap *coap,
     dbg_err_ifm ((pdu->ver = (d[0] & 0xc0) >> 6) != COAP_PROTO_VER_1,
             "Unsupported CoAP version %u", pdu->ver);
 
-    /*
-     * Decode message type and method or response code.
-     */
-    switch ((pdu->msg_type = evcoap_pdu_decode_type(pdu->code)))
+    /* Decode message type and method or response code. */
+    switch ((pdu->msg_type = evcoap_msg_type_decode(pdu->code)))
     {
         case EVCOAP_MSG_TYPE_EMPTY:
             dbg_err_ifm (dlen, "non void payload in packet of type empty");
             break;
         case EVCOAP_MSG_TYPE_REQ:
-            dbg_err_ifm (evcoap_pdu_decode_method(pdu->code, &pdu->method),
+            dbg_err_ifm (evcoap_method_decode(pdu->code, &pdu->method),
                     "Method decoding failed");
             break;
         case EVCOAP_MSG_TYPE_RESP:
-            dbg_err_ifm (evcoap_pdu_decode_resp_code(pdu->code, &pdu->rcode),
+            dbg_err_ifm (evcoap_resp_code_decode(pdu->code, &pdu->rcode),
                     "Response code decoding failed");
             break;
         default:
-            dbg_err("CoAP message uses reserved code (%u)", pdu->code);
+            dbg_err("Unknown reserved code (%u) in message", pdu->code);
     }
 
-    /* 
-     * Copy in raw packet (if non-empty.)
-     */
+    /* Copy in raw packet (if non-empty.) */
     if ((pdu->datalen = dlen))
     {
         dbg_err_sif ((pdu->data = u_memdup(d, dlen)) == NULL);
     }
 
-    /* 
-     * Save addressing info and socket descriptor.
-     */
+    /* Save addressing info and make a copy of the socket descriptor. */
     pdu->sd = sd;
     memcpy(&pdu->peer, peer, peer_len);
     pdu->peer_len = peer_len;
     pdu->me_len = sizeof pdu->me;
-    dbg_err_sif (getsockname(sd,
-                (struct sockaddr *) &pdu->me, &pdu->me_len) == -1);
+    dbg_err_sif (getsockname(sd, (struct sockaddr *) &pdu->me, 
+                &pdu->me_len) == -1);
 
-    /* 
-     * Parse options, if any (also set the payload offset pointer.)
-     */
+    /* Parse options, if any (also set the payload offset pointer.) */
     if (pdu->oc)
         dbg_err_ifm (evcoap_opt_parse(pdu), "could not parse options");
 
-    /* 
-     * Reassemble URI (if applicable) from options.
-     */
-    dbg_err_if (evcoap_pdu_uri_compose(pdu));
-
+    /* Reassemble URI (if applicable) from options. */
+    if (pdu->msg_type == EVCOAP_MSG_TYPE_REQ)
     {
         char url[U_URI_STRMAX] = { '\0' };
+
+        dbg_err_if (evcoap_pdu_uri_compose(pdu));
+
         (void) u_uri_knead(pdu->uri, url);
-        EVCOAP_TRACE("CoAP packet:\n" 
-                "\thdr { ver=%u, t=%s, oc=%u, code=%u, mid=%u }\n"
-                "\ttype=%s, method=%s\n"
-                "\turl=%s\n",
-                pdu->ver, evcoap_pdu_types[pdu->t], pdu->oc, pdu->code, 
-                pdu->mid, evcoap_msg_types[pdu->msg_type], 
-                evcoap_methods[pdu->method], *url ? url : "-");
+        EVCOAP_TRACE("%s URL: %s", evcoap_methods[pdu->method], url); 
     }
+
+    EVCOAP_TRACE("Header %s (T=%s, Code=%u, MID=%u)\n"
+            "\toc=%u",
+            (pdu->msg_type == EVCOAP_MSG_TYPE_REQ)
+            ? evcoap_methods[pdu->method] : "...",
+            evcoap_pdu_types[pdu->t], pdu->code, pdu->mid,
+            pdu->oc);
 
     return pdu;
 err:
@@ -1209,7 +1214,7 @@ err:
     return NULL;
 }
 
-evcoap_msg_type_t evcoap_pdu_decode_type(ev_uint8_t code)
+evcoap_msg_type_t evcoap_msg_type_decode(ev_uint8_t code)
 {
     if (code == 0)
         return EVCOAP_MSG_TYPE_EMPTY;
@@ -1221,7 +1226,7 @@ evcoap_msg_type_t evcoap_pdu_decode_type(ev_uint8_t code)
     return EVCOAP_MSG_TYPE_RESERVED;
 }
 
-int evcoap_pdu_decode_resp_code(ev_uint8_t code, evcoap_resp_code_t *pc)
+int evcoap_resp_code_decode(ev_uint8_t code, evcoap_resp_code_t *pc)
 {
     /* Trust the caller. */
 
@@ -1290,7 +1295,7 @@ int evcoap_pdu_decode_resp_code(ev_uint8_t code, evcoap_resp_code_t *pc)
     return -1;
 }
 
-int evcoap_pdu_decode_method(ev_uint8_t code, evcoap_method_t *pm)
+int evcoap_method_decode(ev_uint8_t code, evcoap_method_t *pm)
 {
     /* Trust the caller. */
 
@@ -1536,7 +1541,7 @@ void evcoap_sendreq_dns_cb(int result, struct evutil_addrinfo *res, void *a)
     struct evcoap_sendreq_args *sendreq_args = (struct evcoap_sendreq_args *) a;
     struct evcoap_pdu *pdu = sendreq_args->pdu;
     struct evcoap *coap = sendreq_args->coap;
-    void (*cb)(struct evcoap_pdu *, int, void *) = sendreq_args->cb;
+    evcoap_response_cb_t cb = sendreq_args->cb; 
     void *cb_args = sendreq_args->cb_args;
 
     /* Unset the evdns_getaddrinfo_request pointer, since when we get called
@@ -1546,9 +1551,7 @@ void evcoap_sendreq_dns_cb(int result, struct evutil_addrinfo *res, void *a)
     /* Check DNS return status. */
     if (result != DNS_ERR_NONE)
     {
-        u_dbg("DNS resolution failed for %s: %s", 
-                u_uri_get_host(pdu->uri), 
-                evutil_gai_strerror(result));
+        u_dbg("DNS resolution failed: %s", evutil_gai_strerror(result));
         pdu->send_status = EVCOAP_SEND_STATUS_DNS_FAIL;
         goto err;
     }
@@ -1602,7 +1605,11 @@ err:
         evutil_closesocket(pdu->sd), pdu->sd = -1;
     pdu->send_status = EVCOAP_SEND_STATUS_ERR;
     evcoap_sendreq_args_free(sendreq_args);
-    /* TODO Trigger the user callback ! */
+
+    /* Trigger the user callback. */
+    if (cb)
+        cb(pdu, EVCOAP_SEND_STATUS_ERR, cb_args);
+
     return;
 }
 
@@ -1616,7 +1623,7 @@ void evcoap_client_socket_free(struct evcoap_client_socket *cs)
     if (cs)
     {
         if (cs->ev)
-            event_free(cs->ev);
+            event_free(cs->ev); /* TODO event_del ? */
         u_free(cs);
     } 
     return;
@@ -1648,15 +1655,17 @@ struct evcoap_client_socket *evcoap_client_socket_new(struct evcoap *coap,
     cs->cb = cb;
     cs->cb_args = cb_args;
 
+    /* Make the read event pending in the base. */
+    dbg_err_if (event_add(cs->ev, NULL) == -1);
+
     return cs;
 err:
     evcoap_client_socket_free(cs);    
     return NULL;
 }
 
-int evcoap_client_socket_add(struct evcoap *coap,
-       void (*cb)(struct evcoap_pdu *, int, void *), void *cb_args,
-       struct evcoap_pdu *pdu)
+int evcoap_client_socket_add(struct evcoap *coap, evcoap_response_cb_t cb, 
+        void *cb_args, struct evcoap_pdu *pdu)
 {
     ev_uint16_t mid = 0;
     struct evcoap_opt *t;
@@ -1680,9 +1689,10 @@ err:
     return -1;
 }
 
+/* TODO also supply the hostname so that it can be printed on failure. */
 struct evcoap_sendreq_args *evcoap_sendreq_args_new(struct evcoap *coap, 
-        struct evcoap_pdu *pdu, void (*cb)(struct evcoap_pdu *, int, void *),
-        void *cb_args, struct timeval *timeout)
+        struct evcoap_pdu *pdu, evcoap_response_cb_t cb, void *cb_args, 
+        struct timeval *timeout)
 {
     struct evcoap_sendreq_args *sendreq_args = u_malloc(sizeof(*sendreq_args));
 

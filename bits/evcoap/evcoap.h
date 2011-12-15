@@ -6,7 +6,6 @@
 #include <event2/util.h>
 #include <event2/event.h>
 
-
 #define COAP_DEFAULT_SERVER_PORT        5683
 #define COAP_DEFAULT_SERVER_PORT_STR    "5683"
 
@@ -100,6 +99,14 @@ typedef enum
     EVCOAP_CB_STATUS_ACK_AUTO  = 2      /* Let evcoap handle the ACK logics. */
 } evcoap_cb_status_t;
 
+
+typedef enum 
+{
+    EVCOAP_SEND_STATUS_OK = 0,
+    EVCOAP_SEND_STATUS_ERR,
+    EVCOAP_SEND_STATUS_DNS_FAIL
+} evcoap_send_status_t;
+
 /* Event handling. */
 struct evcoap *evcoap_new(struct event_base *base, struct evdns_base *dns);
 void evcoap_free(struct evcoap *coap);
@@ -134,6 +141,8 @@ int evcoap_del_cb(struct evcoap *coap, const char *pattern);
 
 /* PDU handling. */
 struct evcoap_pdu *evcoap_pdu_new_empty(void);
+
+evcoap_resp_code_t evcoap_pdu_get_resp_status(struct evcoap_pdu *pdu);
 
 /* Payload */
 int evcoap_pdu_set_payload(struct evcoap_pdu *pdu, const ev_uint8_t *p,
@@ -174,8 +183,10 @@ int evcoap_pdu_get_uri_port(struct evcoap_pdu *pdu, ev_uint16_t *port);
 const char *evcoap_pdu_get_proxy_uri(struct evcoap_pdu *pdu);
 
 /* Sending requests. */
+typedef void (*evcoap_response_cb_t)(struct evcoap_pdu *, evcoap_send_status_t,
+        void *);
+
 int evcoap_send_request(struct evcoap *coap, struct evcoap_pdu *pdu,
-        void (*cb)(struct evcoap_pdu *, int, void *), void *cb_args,
-        struct timeval *timeout);
+        evcoap_response_cb_t cb, void *cb_args, struct timeval *timeout);
 
 #endif  /* !_EVCOAP_H_ */

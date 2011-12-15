@@ -6,6 +6,8 @@ export makl_conf_h=evcoap_conf.h
 makl_args_init "$@"
 
 # source command line options' hooks
+# --enable_debug
+# --enable_warns
 . build/mk_enable_debug
 . build/mk_enable_warns
 
@@ -17,20 +19,14 @@ makl_set_var_mk "SRCDIR" "`pwd`"
 
 target="`makl_target_name`"
 case ${target} in
-    *linux*)
-        makl_set_var "OS_LINUX"
-        ;;
     *darwin*)
         makl_set_var "OS_DARWIN"
         # workaround to avoid circular dependecy error on Mac OS X 
         makl_set_var "PRE_LDADD" "-ldl"
         ;;
-    *)
-        makl_err "unsupported platform"
-        ;;
 esac
 
-# local and include's
+# local include path
 makl_append_var_mk "CFLAGS" "-I\$(SRCDIR) -I\$(SRCDIR)/include -DHAVE_CONF_H"
 
 # evcoap requires libevent and libu
