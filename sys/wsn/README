@@ -1,0 +1,49 @@
+Installing Dependencies (TinyOS + Z1)
+^^^^^^^^^^^^^^^^^^^^^^^
+Tested on: Debian 6.0.3 running in VM on Mac OS X host.
+
+(*) Install: makl, libc, libg++, python-serial, automake.
+        
+(*) Configure, Build and Install
+
+    $ cd dep/
+    $ maklconf [--prefix=${PREFIX} ]
+    $ . etc/tinyos.env
+    $ makl
+    $ makl install
+
+Note: you may get warnings about 32-bit or 64-bit executables not being built
+- you can ignore them by pressing Return if you're not aiming at building
+custom RPMs.
+
+Running Sample Apps
+^^^^^^^^^^^^^^^^^^^
+
+(*) Source the installed environment file
+
+    . ${PREFIX}/tinyos.env
+
+Hint: you may prefer to put the above line in a shell configuration file such
+as ~/.bash_profile.
+
+(*) List Z1 motes
+
+    $ motelist-z1
+
+(*) Enter the app directory
+(*) Build app
+
+    $ make z1 
+    $ make z1 install
+
+Troubleshooting
+^^^^^^^^^^^^^^^
+(*) installing on motes yields Protocol Errors
+
+    #  apt-get install build-essential linux-source
+
+(*) Patch drivers/usb/serial/cp210x.c by increasing all occurrences of timeout
+from 300 to 3000, then modprobe -r cp210x
+
+More detail here:
+http://pharos.ece.utexas.edu/wiki/index.php/Fixing_the_cp210x_open_-_Unable_to_enable_UART_Error_-_04/17/2011

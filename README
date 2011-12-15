@@ -5,3 +5,6 @@ CoRE protocols implementation and ramblings.
 
     bits/
         code (evcoap, kink, ...)
+
+    sys/
+        kernel and base system (kink, wsn, ...)
