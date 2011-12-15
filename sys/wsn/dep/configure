@@ -1,0 +1,19 @@
+# don't output conf.h, we just need Makefile.conf
+export makl_conf_h=/dev/null
+
+. "${MAKL_DIR}/cf/makl.init"
+makl_args_init "$@"
+
+makl_pkg_name "swn_deps"
+makl_pkg_version
+
+# set default installation prefix 
+makl_set "__prefix__" "/opt"
+
+# handle command-line arguments
+makl_args_handle "$@"
+
+# do relocation
+makl_file_sub "etc/tinyos.env"
+
+. "${MAKL_DIR}/cf/makl.term"
