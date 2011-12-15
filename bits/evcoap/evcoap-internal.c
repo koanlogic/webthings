@@ -388,7 +388,7 @@ int evcoap_pdu_client_input(struct evcoap *coap, struct evcoap_pdu *pdu,
     {
         /* Invoke the user supplied callback (XXX 2nd argument ?) */
         if (cs->cb)
-            cs->cb(pdu, 0, cs->cb_args);
+            cs->cb(coap, pdu, 0, cs->cb_args);
 
         /* Since this PDU completes the client/server transaction, 
          * we can free its client socket. */
@@ -1578,9 +1578,10 @@ void evcoap_sendreq_dns_cb(int result, struct evutil_addrinfo *res, void *a)
                 pdu->payload_len) == 0)
         {
             char a[256];
-
             EVCOAP_TRACE("request PDU sent to %s",
                     evutil_format_sockaddr_port(ai->ai_addr, a, sizeof a));
+
+            dbg_err_sif (evutil_make_socket_nonblocking(pdu->sd));
             break;
         }
 
@@ -1608,7 +1609,7 @@ err:
 
     /* Trigger the user callback. */
     if (cb)
-        cb(pdu, EVCOAP_SEND_STATUS_ERR, cb_args);
+        cb(coap, pdu, EVCOAP_SEND_STATUS_ERR, cb_args);
 
     return;
 }

@@ -55,6 +55,16 @@ err:
     return NULL;
 }
 
+int evcoap_loopexit(struct evcoap *coap, const struct timeval *tv)
+{
+    return event_base_loopexit(coap->base, tv);
+}
+
+int evcoap_loopbreak(struct evcoap *coap)
+{
+    return event_base_loopbreak(coap->base);
+}
+
 void evcoap_free(struct evcoap *coap)
 {
     u_free(coap);

@@ -110,6 +110,9 @@ typedef enum
 /* Event handling. */
 struct evcoap *evcoap_new(struct event_base *base, struct evdns_base *dns);
 void evcoap_free(struct evcoap *coap);
+int evcoap_loopexit(struct evcoap *coap, const struct timeval *tv);
+int evcoap_loopbreak(struct evcoap *coap);
+
 
 /* Server socket creation. */
 int evcoap_bind_socket(struct evcoap *coap, const char *addr, ev_uint16_t port,
@@ -183,8 +186,8 @@ int evcoap_pdu_get_uri_port(struct evcoap_pdu *pdu, ev_uint16_t *port);
 const char *evcoap_pdu_get_proxy_uri(struct evcoap_pdu *pdu);
 
 /* Sending requests. */
-typedef void (*evcoap_response_cb_t)(struct evcoap_pdu *, evcoap_send_status_t,
-        void *);
+typedef void (*evcoap_response_cb_t)(struct evcoap *, struct evcoap_pdu *, 
+        evcoap_send_status_t, void *);
 
 int evcoap_send_request(struct evcoap *coap, struct evcoap_pdu *pdu,
         evcoap_response_cb_t cb, void *cb_args, struct timeval *timeout);

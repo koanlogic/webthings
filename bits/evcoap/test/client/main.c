@@ -3,14 +3,13 @@
 
 int facility = LOG_LOCAL0;
 
-/* TODO supply the evcoap to manipulate the event core (e.g. exit from loop.) */
-void req_basic_cb(struct evcoap_pdu *pdu, evcoap_send_status_t status, 
-        void *args)
+void req_basic_cb(struct evcoap *coap, struct evcoap_pdu *pdu, 
+        evcoap_send_status_t status, void *args)
 {
     const ev_uint8_t *p = NULL;
     size_t plen;
 
-    con_return_if (status != EVCOAP_SEND_STATUS_OK, );
+    con_err_if (status != EVCOAP_SEND_STATUS_OK);
 
     u_con("got response with code %u", evcoap_pdu_get_resp_status(pdu));
 
@@ -22,6 +21,9 @@ void req_basic_cb(struct evcoap_pdu *pdu, evcoap_send_status_t status,
         default:
             break;
     }
+
+err:
+    evcoap_loopbreak(coap);
     return;
 }
 
@@ -35,9 +37,10 @@ int req_basic(struct evcoap *coap)
                 EVCOAP_METHOD_GET));
 
     /* Force 15 chars limit (extended length option.) */
-//    con_err_if (evcoap_pdu_add_uri_host(pdu, "localhost.home."));
+    //con_err_if (evcoap_pdu_add_uri_host(pdu, "localhost.home."));
     con_err_if (evcoap_pdu_add_uri_host(pdu, "127.0.0.1"));
-//    con_err_if (evcoap_pdu_add_uri_path(pdu, "path-segment1"));
+    con_err_if (evcoap_pdu_add_uri_path(pdu, ".well-known"));
+    con_err_if (evcoap_pdu_add_uri_path(pdu, "core"));
 
     con_err_if (evcoap_send_request(coap, pdu, req_basic_cb, NULL, NULL));
 
