@@ -142,8 +142,19 @@ int evcoap_set_cb(struct evcoap *coap, const char *pattern,
         void *cb_arg);
 int evcoap_del_cb(struct evcoap *coap, const char *pattern);
 
-/* PDU handling. */
+/* PDU creation/handling. */
 struct evcoap_pdu *evcoap_pdu_new_empty(void);
+
+struct evcoap_pdu *evcoap_request_new(evcoap_pdu_type_t pdu_type, 
+        evcoap_method_t method, const char *uri);
+
+struct evcoap_pdu *evcoap_proxy_request_new(evcoap_pdu_type_t pdu_type,
+        evcoap_method_t method, const char *uri, const char *proxy_host, 
+        ev_uint16_t port);
+
+struct evcoap_pdu *evcoap_request_new_ex(evcoap_pdu_type_t pdu_type,
+        evcoap_method_t method, const char *uri, ev_uint8_t use_proxy,
+        const char *proxy_host, ev_uint16_t proxy_port);
 
 evcoap_resp_code_t evcoap_pdu_get_resp_status(struct evcoap_pdu *pdu);
 

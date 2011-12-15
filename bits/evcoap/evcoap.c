@@ -522,3 +522,107 @@ evcoap_resp_code_t evcoap_pdu_get_resp_status(struct evcoap_pdu *pdu)
 
     return pdu->rcode;
 }
+
+struct evcoap_pdu *evcoap_request_new(evcoap_pdu_type_t pdu_type,
+        evcoap_method_t method, const char *uri)
+{
+    return evcoap_request_new_ex(pdu_type, method, uri, 0, NULL, -1);
+}
+
+struct evcoap_pdu *evcoap_proxy_request_new(evcoap_pdu_type_t pdu_type,
+        evcoap_method_t method, const char *uri, const char *proxy_host, 
+        ev_uint16_t port)
+{
+    return evcoap_request_new_ex(pdu_type, method, uri, 1, proxy_host, port);
+}
+
+struct evcoap_pdu *evcoap_request_new_ex(evcoap_pdu_type_t pdu_type,
+        evcoap_method_t method, const char *uri, ev_uint8_t use_proxy,
+        const char *proxy_host, ev_uint16_t proxy_port)
+{
+    const char *p;
+    char path[1024], *r, *s;
+    int port;
+    u_uri_t *u = NULL;
+    struct evcoap_pdu *pdu = NULL;
+
+    dbg_return_if (uri == NULL, NULL);
+    dbg_return_if (use_proxy && (proxy_host == NULL || !proxy_port), NULL);
+
+    /* Accept CON and NON only here (refuse to handle ACK and RST.) */
+    dbg_return_if (pdu_type != EVCOAP_PDU_TYPE_NON
+            && pdu_type != EVCOAP_PDU_TYPE_CON, NULL);
+
+    /* Accept any valid method. */
+    dbg_return_if (!EVCOAP_METHOD_VALID(method), NULL);
+
+    /* Parse URI. */
+    dbg_err_if (u_uri_crumble(uri, 0, &u));
+
+    /* Make room for the PDU. */
+    dbg_return_if ((pdu = evcoap_pdu_new_empty()) == NULL, NULL); 
+
+    /* Set header info. */
+    (void) evcoap_pdu_req_set_header(pdu, pdu_type, method);
+
+    /* DTLS support will be added in release 2, word of honor :-) */
+    dbg_err_ifm (evutil_ascii_strcasecmp(u_uri_get_scheme(u), "coap"),
+            "Only the coap scheme is supported (at present)");
+
+    if (use_proxy)
+    {
+        dbg_err_if (evcoap_pdu_add_proxy_uri(pdu, uri));
+        /* TODO save proxy host and port in pdu. */
+    }
+    else
+    {
+        /* Uri-Host */
+        dbg_err_if (evcoap_pdu_add_uri_host(pdu, u_uri_get_host(u)));
+
+        /* Uri-Port */
+        if ((p = u_uri_get_port(u)) != NULL && *p != '\0')
+        {
+            dbg_err_if (u_atoi(p, &port));
+            dbg_err_if (evcoap_pdu_add_uri_port(pdu, port));
+        }
+
+        /* Uri-Path */
+        dbg_err_if (u_strlcpy(path, u_uri_get_path(u), sizeof path));
+
+        if (path[0] != '\0')
+        {
+            for (s = path; (r = strsep(&s, "/")) != NULL; )
+            {
+                if (*r == '\0')
+                    continue;
+
+                dbg_err_if (evcoap_pdu_add_uri_path(pdu, r));
+            }
+        }
+
+        /* Uri-Query */
+        if ((p = u_uri_get_query(u)) != NULL && *p != '\0')
+            dbg_err_if (evcoap_pdu_add_uri_query(pdu, p));
+
+        /* Fragments are not supported in CoAP, and are silently ignored. */
+    }
+
+    return pdu;
+err:
+    if (u)
+        u_uri_free(u);
+    if (pdu)
+        evcoap_pdu_free(pdu);
+    return NULL;
+}
+
+struct evcoap_pdu *evcoap_pdu_new_empty(void)
+{
+    struct evcoap_pdu *pdu = u_zalloc(sizeof(struct evcoap_pdu));
+
+    dbg_return_sif (pdu == NULL, NULL);
+
+    TAILQ_INIT(&pdu->options);
+
+    return pdu;
+}

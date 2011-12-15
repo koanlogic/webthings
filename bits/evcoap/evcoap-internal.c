@@ -1090,39 +1090,6 @@ err:
     return -1;
 }
 
-struct evcoap_pdu *evcoap_pdu_new_empty(void)
-{
-    struct evcoap_pdu *pdu = NULL;
-
-    dbg_return_sif ((pdu = u_malloc(sizeof(struct evcoap_pdu))) == NULL, NULL);
-
-    TAILQ_INIT(&pdu->options);
-    pdu->noptions = 0;
-
-    /* TODO Add protocol version. */
-    pdu->mid = 0;
-
-    pdu->method = EVCOAP_METHOD_UNSET;
-    pdu->msg_type = EVCOAP_MSG_TYPE_UNSET;
-    pdu->rcode = EVCOAP_RESP_CODE_UNSET;
-
-    pdu->data = NULL;
-    pdu->datalen = 0;
-    pdu->payload = NULL;
-    pdu->payload_len = 0;
-
-    pdu->uri = NULL;
-    pdu->sd = -1;
-    pdu->secure = 0;
-    pdu->send_status = EVCOAP_SEND_STATUS_OK;
-    pdu->gai_req = NULL;
-
-    pdu->peer_len = pdu->me_len = 0;
-    memset(&pdu->peer, 0, sizeof pdu->peer);
-    memset(&pdu->me, 0, sizeof pdu->me);
-
-    return pdu;
-}
 
 struct evcoap_pdu *evcoap_pdu_new_received(struct evcoap *coap, 
         evutil_socket_t sd, const ev_uint8_t *d, size_t dlen,
