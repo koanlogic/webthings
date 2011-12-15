@@ -1,6 +1,10 @@
-Installing Dependencies (TinyOS + Z1)
+Tested on:
+    - host: Mac OS X
+    - OS: Linux Debian 6.0.3 running in VM
+    - motes: Zolertia Z1 (MSP430 cpu, CC2420 transceiver)
+
+Installing Dependencies
 ^^^^^^^^^^^^^^^^^^^^^^^
-Tested on: Debian 6.0.3 running in VM on Mac OS X host.
 
 (*) Install: makl, libc, libg++, python-serial, automake.
         
