@@ -1,5 +1,27 @@
+Contents
 
-1 Client
+  1 Library Initialization
+  2 Client
+  2.1 Create Request
+  2.2 Customize Request
+  2.3 Send Request
+  3 Server
+  3.1 Configure Listening Address
+  3.2 Register per-URI callbacks
+  3.3 Reply
+  4. PDUs Lifetime
+
+1 Library Initialization
+
+  The event handling machinery of evcoap is based on libevent 2.
+  
+  The evcoap event base, which has to be supplied to most of the high level APIs,
+  needs both a basic event base and a DNS event base, and is initialized like 
+  this:
+
+      coap = evcoap_new(event_base_new(), evdns_base_new());
+
+2 Client
 
   Clients do requests and wait for corresponding responses.  Requests and
   responses are paired through CoAP tokens.  The client generates a token and
@@ -7,16 +29,16 @@
   same Token option that was received by the client in the corresponding 
   response.
 
-  Evcoap takes care of the CONfirmable semantics transparently.
+  Evcoap takes care of timeout/retransmission logics of the CONfirmable message
+  model transparently.
 
-1.1 Create Request
+2.1 Create Request
 
-  A new request PDUs is created by specifying a method, an URI and the 
-  underlying messaging model (i.e. CONfirmable or NON-confirmable):
+  The most simple request PDU is created by specifying a method and an URI:
 
       const char *uri = "coap://[::1]:56565/a/b/res";
 
-      req = evcoap_new_request(EVCOAP_NON, EVCOAP_GET, uri);
+      req = evcoap_new_request(EVCOAP_GET, uri);
 
   If the request needs to pass through a CoAP intermediary, then its address
   must be explicitly supplied through the following extended creation interface:
@@ -24,23 +46,29 @@
       const char *proxy = "kink.things.home.";
       ev_uint16_t port = 6565;
 
-      pdu = evcoap_new_proxy_request(EVCOAP_CON, EVCOAP_PUT, uri, proxy, port);
+      pdu = evcoap_new_proxy_request(EVCOAP_PUT, uri, proxy, port);
 
   At present NoSec is the only mode supported, so URIs in the 'coaps' schema
   are rejected.  DTLS support is planned and will be implemented ASAP.
 
-
-1.2 Customize Request
+2.2 Customize Request
 
   Additional options (aside from Uri-* or Proxy-Uri and a default generated
-  Token) may be added like this:
+  Token, implicitly created by evcoap_new_request) may be added like this:
 
       const ev_uint8_t etag[] = { 0xde, 0xad, 0xbe, 0xef };
 
-      evcoap_add_ifmatch_option(pdu, etag, sizeof etag);
-      evcoap_add_accept_option(pdu, EVCOAP_CT_TEXT_PLAIN);
+      evcoap_add_ifmatch_option(req, etag, sizeof etag);
+      evcoap_add_accept_option(req, EVCOAP_CT_TEXT_PLAIN);
+      evcoap_add_accept_option(req, EVCOAP_CT_APPLICATION_JSON);
 
-1.3 Send Request
+  If needed (e.g. when using PUT or POST methods) a payload may be added through:
+
+      const ev_uint8_t payload[] = { 0xca, 0xfe, 0xba, 0xbe };
+
+      evcoap_add_payload(req, payload, sizeof payload);
+
+2.3 Send Request
 
   When sending a request PDU, the user wants to be notified when any event
   related to her request happens.  To achieve that, she will supply a callback
@@ -53,16 +81,20 @@
   starve waiting for a response that never comes back, e.g. due to a crashed
   or nonexistent server, a routing problem, etc.
 
+  The messaging model, be it CONfirmable or NON-confirmable, shall be conveyed
+  in this step. 
+
       void cb(struct evcoap *coap, struct evcoap_pdu *res, 
               evcoap_send_status_t status, void *args) { ... }
 
       struct timeval tout = { .tv_sec = 5, .tv_usec = 125 };
 
-      evcoap_send_request(coap, req, cb, NULL, &tout);
-                            ^    ^    ^   ^      ^
-                            |    |    |   |      |
-                            |    |    |   |      `-- User timeout (may be NULL)
-                            |    |    `---`-- User callback and args 
+      evcoap_send_request(coap, req, EVCOAP_NON, cb, NULL, &tout);
+                            ^    ^   ^           ^   ^      ^
+                            |    |   |           |   |      |
+                            |    |   |           |   |      `-- User timeout
+                            |    |   |           `---`-- User callback and args 
+                            |    |   `-- messaging model
                             |    `-- Request PDU
                             `-- CoAP event base
 
@@ -78,28 +110,26 @@
                evcoap_loopbreak(coap);
           [...]
       }
-     
 
-2 Server
+3 Server
 
   Servers receive requests from clients and to their best to reply something 
   meaningful.
 
-2.1 Configure Listening Address
+3.1 Configure Listening Address
 
   First off, a CoAP server binds one or more addresses:
 
-      evcoap_bind_socket(coap, "127.0.0.1", 50505, 0)
-      evcoap_bind_socket(coap, "[::1]", COAP_DEFAULT_PORT, 0)
+      evcoap_bind_socket(coap, "127.0.0.1", 50505)
+      evcoap_bind_socket(coap, "[::1]", COAP_DEFAULT_PORT)
 
   The underlying sockets will be automatically monitored for incoming PDUs.
 
-  When a new request PDU comes in through one of the configured server 
-  endpoints, an user-defined callback will be possibly triggered (see next
-  paragraph.)
+  When a new (valid, non-duplicate) request PDU comes in through one of the 
+  configured server endpoints, an user-defined callback will be possibly 
+  triggered (see next paragraph.)
 
-
-2.2 Register per-URI callbacks
+3.2 Register per-URI callbacks
 
   A CoAP server hosts resources identified by their URIs.
 
@@ -115,7 +145,7 @@
       evcoap_set_cb(coap, "/.well-known/*", cb, cb_args,
               &(struct timeval){.tv_sec = 5, .tv_usec = 0});
 
-  When the timeout expires, if the user hasn't yet replied a request that came
+  When the timeout expires, and the user hasn't yet replied a request that came
   in with CON semantics, evcoap will automatically generate an ACK message for 
   the client.
 
@@ -131,3 +161,23 @@
   If this has been set, any request with an unmapped URI will trigger it, giving
   the user the opportunity to reply something more interesting than a generic
   4.04 (Not Found) response code.
+
+3.3 Reply
+
+  A response PDU is created from its paired request and a suitable response code:
+
+      res = evcoap_new_response(req, EVCOAP_205);
+
+  Payload and options may be added, if needed, using the same interface as in
+  section 2.2.
+
+  The interface for sending responses has the same signature as that used for
+  sending requests:
+ 
+      evcoap_send_response(coap, res, EVCOAP_NON, cb, NULL, &tout);
+
+4. PDUs Lifetime
+
+    [[TODO]]
+    * who owns what
+    * delete/free interfaces
