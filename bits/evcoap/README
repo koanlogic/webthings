@@ -15,9 +15,9 @@ Contents
 
   The event handling machinery of evcoap is based on libevent 2.
   
-  The evcoap event base, which has to be supplied to most of the high level APIs,
-  needs both a basic event base and a DNS event base, and is initialized like 
-  this:
+  The evcoap event base, which has to be supplied to most of the high level 
+  APIs, needs both a basic event base and a DNS event base, and is initialized
+  like this:
 
       coap = evcoap_new(event_base_new(), evdns_base_new());
 
@@ -62,7 +62,8 @@ Contents
       evcoap_add_accept_option(req, EVCOAP_CT_TEXT_PLAIN);
       evcoap_add_accept_option(req, EVCOAP_CT_APPLICATION_JSON);
 
-  If needed (e.g. when using PUT or POST methods) a payload may be added through:
+  If needed (e.g. when using PUT or POST methods) a payload may be added
+  through:
 
       const ev_uint8_t payload[] = { 0xca, 0xfe, 0xba, 0xbe };
 
@@ -80,9 +81,12 @@ Contents
   The user may also supply a custom request timeout, so that she won't 
   starve waiting for a response that never comes back, e.g. due to a crashed
   or nonexistent server, a routing problem, etc.
+  [[TBD: this may also be used as a "gather period" when the requested resource
+  is multicast.  Multicast support needs some tweaking with the PDU format, 
+  i.e. to support chaining of multiple responses.]]  
 
   The messaging model, be it CONfirmable or NON-confirmable, shall be conveyed
-  in this step. 
+  in this step.
 
       void cb(struct evcoap *coap, struct evcoap_pdu *res, 
               evcoap_send_status_t status, void *args) { ... }
@@ -121,7 +125,7 @@ Contents
   First off, a CoAP server binds one or more addresses:
 
       evcoap_bind_socket(coap, "127.0.0.1", 50505)
-      evcoap_bind_socket(coap, "[::1]", COAP_DEFAULT_PORT)
+      evcoap_bind_socket(coap, "[::1]", EVCOAP_DEFAULT_PORT)
 
   The underlying sockets will be automatically monitored for incoming PDUs.
 
@@ -137,21 +141,76 @@ Contents
   it along with the callback function that she wants to be invoked whenever a 
   client requests an URI matching the pattern:
 
-      evcoap_set_cb(coap, "/.well-known/*", cb, cb_args, NULL); 
-
-  An optional timeout can be provided for cases where the server is not 
-  replying immediately (i.e. within the invoked callback scope):
-
-      evcoap_set_cb(coap, "/.well-known/*", cb, cb_args,
-              &(struct timeval){.tv_sec = 5, .tv_usec = 0});
-
-  When the timeout expires, and the user hasn't yet replied a request that came
-  in with CON semantics, evcoap will automatically generate an ACK message for 
-  the client.
+      evcoap_set_cb(coap, "/.well-known/*", cb, cb_args);
 
   The callback function shall have the following signature:
 
-    void cb(struct evcoap *coap, struct evcoap_pdu *req, void *args) { ... }
+    int cb(struct evcoap *coap, struct evcoap_pdu *req, 
+            struct evcoap_pdu *res, void *args, ev_uint8_t resched,
+            struct timeval *resched_after) { ... }
+
+  which is quite rich and needs some explanation.  First argument is an handler
+  to the evcoap instance that may be used, if needed, as suggested in 2.3; 2nd
+  is the received request PDU; 3rd is a preallocated PDU that will possibly hold
+  the user generated response; 4th is the optional arguments that the user has
+  supplied when installing this callback.
+
+  The 'resched' and 'resched_to' arguments are needed for handling the scenario
+  where the CON messaging model is in use, and the CoAP server isn't able to
+  immediately produce the response (e.g. because producing the resource
+  representation takes some time and you don't want to block the whole I/O
+  machinery in the meanwhile.)
+
+  In cases as such, CoAP provides a "separated ACK" strategy that lets the
+  client know that the response has been taken in charge, and a response will
+  follow as a separate CON message as soon as possible.  The 'resched' parameter
+  is filled by the user to tell evcoap to re-schedule the callback after the
+  supplied time has passed.  The 'resched' argument is a boolean that 
+  distinguishes an invocation due to a newly received request (resched=false),
+  from a "rescheduled" invocation (resched=true.)
+
+  The return code of the callback is '0' in case a reponse has been produced
+  (even if it  holds an error response code) and !0 otherwise, in which case
+  evcoap will automatically send a 5.00 Internal Server Error, message back
+  to the client.
+
+  For an example of reschedulable callback, see the following:
+
+    int lengthy_cb(struct evcoap *coap, struct evcoap_pdu *req, 
+            struct evcoap_pdu *res, void *args, ev_uint8_t resched,
+            struct timeval *resched_after)
+    {
+        if (!resched)
+        {
+            /* Request the creation of the resource representation
+             * and ask evcoap to be called back in 1 second. */
+            ask_resource_creation();
+            *resched_after = { .tv_sec = 1, .tv_usec = 0 };
+            return 0;
+        } 
+        else
+        {
+            /* Check if the resource has been produced. */
+            if (r = lengthy_resource_is_ready(&rlen))
+            {
+                evcoap_add_payload(res, r, rlen);
+                evcoap_set_response_code(res, EVCOAP_205);
+                return 0;
+            }
+            else
+            {
+                /* Nope, call me back in 0.5 seconds we should be
+                 * luckier this time. */
+                *resched_after = { .tv_sec = 0, .tv_usec = 5 };
+                return 0;
+            }
+        }
+    }
+  
+  If the user is able to produce an immediate representation for the resource,
+  or if she don't mind blocking (though this is generally discouraged when using
+  evcoap) the 'state' and 'resched' arguments can be safely ignored.
+
 
   Besides URI specific callbacks, the user can define a catch-all callback
   using:
@@ -164,20 +223,37 @@ Contents
 
 3.3 Reply
 
-  A response PDU is created from its paired request and a suitable response code:
+  As already showed in 3.2, a response PDU is created by evcoap automatically 
+  and supplied as the third argument to the callback.  Allocation/deallocation
+  are handled transparently so that the user doesn't need to take care of it.
 
-      res = evcoap_new_response(req, EVCOAP_205);
+  A mandatory (except when using a separate ACK) response code is set with:
 
-  Payload and options may be added, if needed, using the same interface as in
-  section 2.2.
+      evcoap_set_response_code(res, EVCOAP_205);
+  
+  Payload and options may be added to the response PDU, using the same interface
+  as in section 2.2.
 
-  The interface for sending responses has the same signature as that used for
-  sending requests:
- 
-      evcoap_send_response(coap, res, EVCOAP_NON, cb, NULL, &tout);
+  There is no interface for sending responses: evcoap will handle the needed
+  steps when the user callback returns with a valid response PDU.
 
 4. PDUs Lifetime
 
-    [[TODO]]
-    * who owns what
-    * delete/free interfaces
+   Evcoap always owns both request and response PDUs, with the only exception 
+   of the request PDUs in Client mode, whose ownership is user's until it is 
+   supplied to the send interface.  E.g.:
+
+      req = evcoap_new_request(EVCOAP_GET, uri);
+
+      if (some abnormal condition happens)
+          goto err;
+
+      evcoap_send_request(coap, req, EVCOAP_NON, cb, NULL, &tout);
+      req = NULL; /* After sending, drop ownership */
+
+      [...]
+
+   err:
+      if (req)
+          evcoap_delete_request(req);
+      return -1;
