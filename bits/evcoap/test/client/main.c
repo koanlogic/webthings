@@ -43,7 +43,7 @@ int req_basic(struct evcoap *coap)
 
     /* Force 15 chars limit on Uri-Host (extended length option.) */
     con_err_if ((pdu = evcoap_request_new(EVCOAP_NON, EVCOAP_GET,
-                    "coap://localhost.home.:5684/.well-known/core")) == NULL);
+                    "coap://localhost.home.:5684/")) == NULL);
 
     con_err_if (evcoap_send_request(coap, pdu, req_basic_cb, NULL, NULL));
 

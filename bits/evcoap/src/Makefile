@@ -1,7 +1,8 @@
 include common.mk
-include Makefile.conf
+include ../Makefile.conf
 
-SUBDIR = src
+LIB = evcoap
+SRCS = evcoap.c
 
 CFLAGS += $(LIBU_CFLAGS)
 CFLAGS += $(LIBEVENT_CFLAGS)
@@ -9,7 +10,6 @@ CFLAGS += $(LIBEVENT_CFLAGS)
 LDADD += $(LIBEVENT_LDADD)
 LDADD += $(LIBU_LDADD)
 
-include lib.mk
+CFLAGS += -Wno-unused
 
-SUBDIR = test
-include subdir.mk
+include lib.mk

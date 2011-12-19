@@ -9,7 +9,8 @@ Contents
   3.1 Configure Listening Address
   3.2 Register per-URI callbacks
   3.3 Reply
-  4. PDUs Lifetime
+  4. Observe
+  5. PDUs Lifetime
 
 1 Library Initialization
 
@@ -19,7 +20,7 @@ Contents
   APIs, needs both a basic event base and a DNS event base, and is initialized
   like this:
 
-      coap = evcoap_new(event_base_new(), evdns_base_new());
+      coap = evcoap_init(event_base_new(), evdns_base_new());
 
 2 Client
 
@@ -139,15 +140,18 @@ Contents
 
   The evcoap user supplies an URI path pattern (in fnmatch(3) format) and pair 
   it along with the callback function that she wants to be invoked whenever a 
-  client requests an URI matching the pattern:
+  client requests an URI matching the pattern.  Also, the observe argument
+  shall be set to true if the resource supports CoAP Observations (see 4), false
+  otherwise:
 
-      evcoap_set_cb(coap, "/.well-known/*", cb, cb_args);
+      ev_uint8_t observable = 0;
+
+      evcoap_set_cb(coap, "/.well-known/*", cb, cb_args, observable);
 
   The callback function shall have the following signature:
 
-    int cb(struct evcoap *coap, struct evcoap_pdu *req, 
-            struct evcoap_pdu *res, void *args, ev_uint8_t resched,
-            struct timeval *resched_after) { ... }
+    int cb(evcoap_t *coap, evcoap_pdu_t *req, evcoap_pdu_t *res, void *args, 
+            ev_uint8_t resched, struct timeval *resched_after) { ... }
 
   which is quite rich and needs some explanation.  First argument is an handler
   to the evcoap instance that may be used, if needed, as suggested in 2.3; 2nd
@@ -237,11 +241,21 @@ Contents
   There is no interface for sending responses: evcoap will handle the needed
   steps when the user callback returns with a valid response PDU.
 
-4. PDUs Lifetime
+4. Observe
 
-   Evcoap always owns both request and response PDUs, with the only exception 
-   of the request PDUs in Client mode, whose ownership is user's until it is 
-   supplied to the send interface.  E.g.:
+  An observable resource shall update its state using the following interface:
+
+       int evcoap_update_representation(const char *uri, const ev_uint8_t *rep, 
+               size_t rep_len, evcoap_mt_t media_type);
+
+  [[TODO]]
+
+5. PDUs Lifetime
+
+   Evcoap always owns both request and response PDUs so that the user never has
+   to worry about deallocation, with the only exception of the request PDUs in 
+   Client mode, whose ownership is user's until it is supplied to the send 
+   interface.  E.g.:
 
       req = evcoap_new_request(EVCOAP_GET, uri);
 
@@ -249,7 +263,7 @@ Contents
           goto err;
 
       evcoap_send_request(coap, req, EVCOAP_NON, cb, NULL, &tout);
-      req = NULL; /* After sending, drop ownership */
+      req = NULL; /* After sending, drop ownership. */
 
       [...]
 
