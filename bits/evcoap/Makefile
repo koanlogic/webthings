@@ -2,14 +2,6 @@ include common.mk
 include Makefile.conf
 
 SUBDIR = src
+SUBDIR += test
 
-CFLAGS += $(LIBU_CFLAGS)
-CFLAGS += $(LIBEVENT_CFLAGS)
-
-LDADD += $(LIBEVENT_LDADD)
-LDADD += $(LIBU_LDADD)
-
-include lib.mk
-
-SUBDIR = test
 include subdir.mk
