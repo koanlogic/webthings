@@ -132,8 +132,25 @@ int evcoap_set_payload(evcoap_pdu_t *req, ev_uint8_t *payload, size_t sz);
 
 int evcoap_set_response_code(evcoap_pdu_t *res, evcoap_rc_t rc);
 
-int evcoap_add_ifmatch_option(evcoap_pdu_t *req, ev_uint8_t *tag, size_t sz);
-int evcoap_add_accept_option(evcoap_pdu_t *req, evcoap_mt_t mt);
+int evcoap_add_content_type_option(struct evcoap_pdu_s *req, ev_uint16_t ct);
+int evcoap_add_max_age_option(struct evcoap_pdu_s *req, ev_uint32_t ma);
+int evcoap_add_proxy_uri_option(struct evcoap_pdu_s *req, const char *pu);
+int evcoap_pdu_add_etag(struct evcoap_pdu_s *req, const ev_uint8_t *et,
+        size_t et_len);
+int evcoap_add_uri_host_option(struct evcoap_pdu_s *req, const char  *uh);
+int evcoap_add_location_path_option(struct evcoap_pdu_s *req, const char *lp);
+int evcoap_add_uri_port_option(struct evcoap_pdu_s *req, ev_uint16_t up);
+int evcoap_add_location_query_option(struct evcoap_pdu_s *req, const char *lq);
+int evcoap_add_uri_path_option(struct evcoap_pdu_s *req, const char *up);
+int evcoap_add_token_option(struct evcoap_pdu_s *req, const ev_uint8_t *t,
+        size_t t_len);
+int evcoap_add_accept_option(struct evcoap_pdu_s *req, ev_uint16_t a);
+int evcoap_add_if_match_option(struct evcoap_pdu_s *req, const ev_uint8_t *im,
+        size_t im_len);
+int evcoap_add_uri_query_option(struct evcoap_pdu_s *pdu, const char *uq);
+int evcoap_add_if_none_match_option(struct evcoap_pdu_s *req);
+int evcoap_add_observe_option(struct evcoap_pdu_s *req, ev_uint16_t o);
+int evcoap_add_max_ofe_option(struct evcoap_pdu_s *req, ev_uint32_t mo);
 
 /* Observe API */
 int evcoap_update_representation(const char *uri, const ev_uint8_t *rep,
