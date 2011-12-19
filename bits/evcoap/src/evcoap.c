@@ -1,30 +1,124 @@
 #include <u/libu.h>
 #include "evcoap.h"
 
+#define EVCOAP_OPT_LEN_MAX  270
+
 struct evcoap_s
 {
     struct event_base *base;
     struct evdns_base *dns;
 };
 
+/* When introducing a new option, add a new symbol here and a corresponding
+ * entry into the g_opts array. */
+typedef enum
+{
+    EVCOAP_OPT_NONE = 0,
+    
+    EVCOAP_OPT_CONTENT_TYPE,
+    EVCOAP_OPT_MAX_AGE,
+    EVCOAP_OPT_PROXY_URI,
+    EVCOAP_OPT_ETAG,
+    EVCOAP_OPT_URI_HOST,
+    EVCOAP_OPT_LOCATION_PATH,
+    EVCOAP_OPT_URI_PORT,
+    EVCOAP_OPT_LOCATION_QUERY,
+    EVCOAP_OPT_URI_PATH,
+    EVCOAP_OPT_OBSERVE,
+    EVCOAP_OPT_TOKEN,
+    EVCOAP_OPT_ACCEPT,
+    EVCOAP_OPT_IF_MATCH,
+    EVCOAP_OPT_MAX_OFE,
+    EVCOAP_OPT_URI_QUERY,
+    EVCOAP_OPT_IF_NONE_MATCH,
+    
+    EVCOAP_OPT_MAX = EVCOAP_OPT_IF_NONE_MATCH + 1
+} evcoap_opt_t;
+#define EVCOAP_OPT_SYM_VALID(sy) (sy > EVCOAP_OPT_NONE && sy < EVCOAP_OPT_MAX)
+
+typedef enum
+{
+    EVCOAP_OPT_TYPE_INVALID,
+    EVCOAP_OPT_TYPE_UINT,
+    EVCOAP_OPT_TYPE_STRING,
+    EVCOAP_OPT_TYPE_OPAQUE,
+    EVCOAP_OPT_TYPE_EMPTY   /* No type (e.g. if-none-match) */
+} evcoap_opt_type_t;
+
+struct opt_rec {
+    size_t n;               /* Option number. */
+    const char *s;          /* Option human readable name. */
+    evcoap_opt_type_t t;
+} g_opts[] = {
+    { 0,  "Invalid",        EVCOAP_OPT_TYPE_INVALID },
+    { 1,  "Content-Type",   EVCOAP_OPT_TYPE_UINT },
+    { 2,  "Max-Age",        EVCOAP_OPT_TYPE_UINT },
+    { 3,  "Proxy-URI",      EVCOAP_OPT_TYPE_STRING },
+    { 4,  "ETag",           EVCOAP_OPT_TYPE_OPAQUE },
+    { 5,  "URI-Host",       EVCOAP_OPT_TYPE_STRING },
+    { 6,  "Location-Path",  EVCOAP_OPT_TYPE_STRING },
+    { 7,  "URI-Port",       EVCOAP_OPT_TYPE_UINT },
+    { 8,  "Location-Query", EVCOAP_OPT_TYPE_STRING },
+    { 9,  "URI-Path",       EVCOAP_OPT_TYPE_STRING },
+    { 10, "Observe",        EVCOAP_OPT_TYPE_UINT },
+    { 11, "Token",          EVCOAP_OPT_TYPE_OPAQUE },
+    { 12, "Accept",         EVCOAP_OPT_TYPE_UINT },
+    { 13, "If-Match",       EVCOAP_OPT_TYPE_OPAQUE },
+    { 14, "Max-OFE",        EVCOAP_OPT_TYPE_UINT },
+    { 15, "URI-Query",      EVCOAP_OPT_TYPE_STRING },
+    { 21, "If-None-Match",  EVCOAP_OPT_TYPE_EMPTY }
+};
+#define EVCOAP_OPTS_MAX (sizeof g_opts / sizeof(struct opt_rec))
+
+struct evcoap_opt_s
+{
+    evcoap_opt_t sym;
+    evcoap_opt_type_t t;
+    size_t l;
+    ev_uint8_t *v;
+
+    TAILQ_ENTRY(evcoap_opt_s) next;
+};
+
+struct evcoap_opts_s
+{
+    ev_uint8_t *enc;                    /* Encoded options. */
+    size_t enc_sz;
+
+    TAILQ_HEAD(, evcoap_opt_s) opts;    /* Decoded options. */
+};
+
 struct evcoap_pdu_s
 {
+    enum { EVCOAP_PDU_INVALID, EVCOAP_PDU_REQ, EVCOAP_PDU_RES } what;
+
     evcoap_method_t method;
     u_uri_t *uri;
+
+    ev_uint8_t *payload;
+    size_t payload_sz;
+
+    evcoap_rc_t resp_code;
 
     ev_uint8_t has_proxy;
     char proxy_addr[512];
 
-    TAILQ_ENTRY(evcoap_pdu_s) next;
+    struct evcoap_opts_s opts;
+
+    ev_uint8_t is_mcast;
 };
 
+evcoap_pdu_t *request_new(evcoap_method_t m, const char *uri, 
+        const char *proxy_host, ev_uint16_t proxy_port);
+static void request_free(struct evcoap_pdu_s *req);
 static int request_set_uri(struct evcoap_pdu_s *req, const char *uri);
 static int request_set_method(struct evcoap_pdu_s *req, evcoap_method_t m);
 static int request_set_proxy(struct evcoap_pdu_s *req, const char *proxy_host,
         ev_uint16_t proxy_port);
-static void request_free(struct evcoap_pdu_s *req);
-evcoap_pdu_t *request_new(evcoap_method_t m, const char *uri, 
-        const char *proxy_host, ev_uint16_t proxy_port);
+
+static struct evcoap_opt_s *opt_new(evcoap_opt_t sym, size_t l, ev_uint8_t *v);
+static void opt_free(struct evcoap_opt_s *opt);
+static evcoap_opt_type_t opt_sym2type(evcoap_opt_t sym);
 
 /**
  *  \brief  TODO
@@ -116,7 +210,15 @@ int evcoap_set_gencb(evcoap_t *coap, evcoap_server_cb_t cb, void *cb_args,
  */
 int evcoap_set_payload(evcoap_pdu_t *req, ev_uint8_t *payload, size_t sz)
 {
-    return -1;
+    dbg_return_if (req == NULL || req->what != EVCOAP_PDU_REQ, -1);
+    dbg_return_if (payload == NULL, -1);
+    dbg_return_if (sz == 0, -1);
+
+    dbg_return_sif ((req->payload = u_memdup(payload, sz)) == NULL, -1);
+
+    req->payload_sz = sz;
+
+    return 0;
 }
 
 /**
@@ -124,6 +226,11 @@ int evcoap_set_payload(evcoap_pdu_t *req, ev_uint8_t *payload, size_t sz)
  */
 int evcoap_set_response_code(evcoap_pdu_t *res, evcoap_rc_t rc)
 {
+    dbg_return_if (res == NULL || res->what != EVCOAP_PDU_RES, -1);
+    dbg_return_if (!EVCOAP_IS_RESP_CODE(rc), -1);
+
+    res->resp_code = rc;
+
     return -1;
 }
 
@@ -205,6 +312,9 @@ static void request_free(struct evcoap_pdu_s *req)
     if (req == NULL)
         return;
 
+    dbg_return_if (req->what != EVCOAP_PDU_REQ, );
+
+    u_free(req->payload);
     u_free(req);
 
     return;
@@ -216,6 +326,8 @@ evcoap_pdu_t *request_new(evcoap_method_t m, const char *uri,
     struct evcoap_pdu_s *req = NULL;
 
     dbg_err_sif ((req = u_zalloc(sizeof *req)) == NULL);
+
+    req->what = EVCOAP_PDU_REQ;
 
     /* Must be done first because the following URI validation also
      * depends on the fact that this request is expected to go through
@@ -232,4 +344,57 @@ err:
         request_free(req);
     return NULL;
 }
+
+static struct evcoap_opt_s *opt_new(evcoap_opt_t sym, size_t l, ev_uint8_t *v)
+{
+    size_t vlen;
+    struct evcoap_opt_s *opt = NULL;
+
+    dbg_err_sif ((opt = u_zalloc(sizeof *opt)) == NULL);
+
+    opt->sym = sym;
+
+    switch ((opt->t = opt_sym2type(sym)))
+    {
+        case EVCOAP_OPT_TYPE_INVALID:
+            dbg_err("invalid option type");
+        case EVCOAP_OPT_TYPE_EMPTY:
+            return 0;
+        default:
+            break;
+    }
+
+    dbg_err_if ((opt->l = l) > EVCOAP_OPT_LEN_MAX);
+
+    /* Make room for the option value. */
+    vlen = (opt->t != EVCOAP_OPT_TYPE_STRING) ? opt->l : opt->l + 1;
+    dbg_err_sif ((opt->v = u_malloc(vlen)) == NULL);
+    memcpy(opt->v, v, opt->l);
+
+    /* Be C friendly: NUL-terminate in case it's a string. */
+    if (opt->t == EVCOAP_OPT_TYPE_STRING)
+        opt->v[vlen - 1] = '\0';
+
+    return opt;
+err:
+    if (opt)
+        opt_free(opt);
+    return NULL;
+}
+
+static void opt_free(struct evcoap_opt_s *opt)
+{
+    if (opt)
+    {
+        u_free(opt->v);
+        u_free(opt);
+    }
+}
+
+static evcoap_opt_type_t opt_sym2type(evcoap_opt_t sym)
+{
+    dbg_return_if (!EVCOAP_OPT_SYM_VALID(sym), EVCOAP_OPT_TYPE_INVALID);
+
+    return g_opts[sym].t;
+}   
 

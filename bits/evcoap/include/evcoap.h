@@ -85,6 +85,8 @@ typedef enum
     EVCOAP_PROXYING_NOT_SUPPORTED   = 165,  /* 5.05 */
     EVCOAP_500_UNKNOWN              = 191   /* Highest 5.xx */
 } evcoap_rc_t;
+#define EVCOAP_IS_RESP_CODE(rc) \
+    ((rc) >= EVCOAP_CREATED && (rc) <= EVCOAP_500_UNKNOWN)
 
 /* Final states for the client FSM. */
 typedef enum
