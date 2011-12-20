@@ -20,7 +20,7 @@ Contents
   APIs, needs both a basic event base and a DNS event base, and is initialized
   like this:
 
-      coap = evcoap_init(event_base_new(), evdns_base_new());
+      coap = ec_init(event_base_new(), evdns_base_new());
 
 2 Client
 
@@ -39,7 +39,7 @@ Contents
 
       const char *uri = "coap://[::1]:56565/a/b/res";
 
-      req = evcoap_new_request(EVCOAP_GET, uri);
+      req = ec_new_request(EVCOAP_GET, uri);
 
   If the request needs to pass through a CoAP intermediary, then its address
   must be explicitly supplied through the following extended creation interface:
@@ -47,7 +47,7 @@ Contents
       const char *proxy = "kink.things.home.";
       ev_uint16_t port = 6565;
 
-      pdu = evcoap_new_proxy_request(EVCOAP_PUT, uri, proxy, port);
+      pdu = ec_new_proxy_request(EVCOAP_PUT, uri, proxy, port);
 
   At present NoSec is the only mode supported, so URIs in the 'coaps' schema
   are rejected.  DTLS support is planned and will be implemented ASAP.
@@ -55,20 +55,20 @@ Contents
 2.2 Customize Request
 
   Additional options (aside from Uri-* or Proxy-Uri and a default generated
-  Token, implicitly created by evcoap_new_request) may be added like this:
+  Token, implicitly created by ec_new_request) may be added like this:
 
       const ev_uint8_t etag[] = { 0xde, 0xad, 0xbe, 0xef };
 
-      evcoap_add_ifmatch_option(req, etag, sizeof etag);
-      evcoap_add_accept_option(req, EVCOAP_CT_TEXT_PLAIN);
-      evcoap_add_accept_option(req, EVCOAP_CT_APPLICATION_JSON);
+      ec_add_ifmatch_option(req, etag, sizeof etag);
+      ec_add_accept_option(req, EVCOAP_CT_TEXT_PLAIN);
+      ec_add_accept_option(req, EVCOAP_CT_APPLICATION_JSON);
 
   If needed (e.g. when using PUT or POST methods) a payload may be added
   through:
 
       const ev_uint8_t payload[] = { 0xca, 0xfe, 0xba, 0xbe };
 
-      evcoap_add_payload(req, payload, sizeof payload);
+      ec_add_payload(req, payload, sizeof payload);
 
 2.3 Send Request
 
@@ -89,12 +89,12 @@ Contents
   The messaging model, be it CONfirmable or NON-confirmable, shall be conveyed
   in this step.
 
-      void cb(struct evcoap *coap, struct evcoap_pdu *res, 
-              evcoap_send_status_t status, void *args) { ... }
+      void cb(ec_t *coap, ec_pdu_t *res, ec_send_status_t status, void *args) 
+      { ... }
 
       struct timeval tout = { .tv_sec = 5, .tv_usec = 125 };
 
-      evcoap_send_request(coap, req, EVCOAP_NON, cb, NULL, &tout);
+      ec_send_request(coap, req, EVCOAP_NON, cb, NULL, &tout);
                             ^    ^   ^           ^   ^      ^
                             |    |   |           |   |      |
                             |    |   |           |   |      `-- User timeout
@@ -107,12 +107,11 @@ Contents
   the user may break the event loop or otherwise manipulate it (e.g. add/remove
   her events, etc.), like in the following snippet:
  
-      void cb (struct evcoap *coap, struct evcoap_pdu *res,
-              evcoap_send_status_t status, void *args)
+      void cb (ec_t *coap, ec_pdu_t *res, ec_send_status_t status, void *args)
       {
           /* On error break the event loop. */
           if (status != EVCOAP_SEND_STATUS_OK)
-               evcoap_loopbreak(coap);
+               ec_loopbreak(coap);
           [...]
       }
 
@@ -125,8 +124,8 @@ Contents
 
   First off, a CoAP server binds one or more addresses:
 
-      evcoap_bind_socket(coap, "127.0.0.1", 50505)
-      evcoap_bind_socket(coap, "[::1]", EVCOAP_DEFAULT_PORT)
+      ec_bind_socket(coap, "127.0.0.1", 50505)
+      ec_bind_socket(coap, "[::1]", EVCOAP_DEFAULT_PORT)
 
   The underlying sockets will be automatically monitored for incoming PDUs.
 
@@ -146,11 +145,11 @@ Contents
 
       ev_uint8_t observable = 0;
 
-      evcoap_set_cb(coap, "/.well-known/*", cb, cb_args, observable);
+      ec_set_cb(coap, "/.well-known/*", cb, cb_args, observable);
 
   The callback function shall have the following signature:
 
-    int cb(evcoap_t *coap, evcoap_pdu_t *req, evcoap_pdu_t *res, void *args, 
+    int cb(ec_t *coap, ec_pdu_t *req, ec_pdu_t *res, void *args, 
             ev_uint8_t resched, struct timeval *resched_after) { ... }
 
   which is quite rich and needs some explanation.  First argument is an handler
@@ -180,9 +179,8 @@ Contents
 
   For an example of reschedulable callback, see the following:
 
-    int lengthy_cb(struct evcoap *coap, struct evcoap_pdu *req, 
-            struct evcoap_pdu *res, void *args, ev_uint8_t resched,
-            struct timeval *resched_after)
+    int lengthy_cb(ec_t *coap, ec_pdu_t *req, ec_pdu_t *res, void *args, 
+            ev_uint8_t resched, struct timeval *resched_after)
     {
         if (!resched)
         {
@@ -197,8 +195,8 @@ Contents
             /* Check if the resource has been produced. */
             if (r = lengthy_resource_is_ready(&rlen))
             {
-                evcoap_add_payload(res, r, rlen);
-                evcoap_set_response_code(res, EVCOAP_205);
+                ec_add_payload(res, r, rlen);
+                ec_set_response_code(res, EVCOAP_205);
                 return 0;
             }
             else
@@ -219,7 +217,7 @@ Contents
   Besides URI specific callbacks, the user can define a catch-all callback
   using:
 
-      evcoap_set_gencb(coap, gen_cb, gen_cb_args)
+      ec_set_gencb(coap, gen_cb, gen_cb_args)
 
   If this has been set, any request with an unmapped URI will trigger it, giving
   the user the opportunity to reply something more interesting than a generic
@@ -233,7 +231,7 @@ Contents
 
   A mandatory (except when using a separate ACK) response code is set with:
 
-      evcoap_set_response_code(res, EVCOAP_205);
+      ec_set_response_code(res, EVCOAP_205);
   
   Payload and options may be added to the response PDU, using the same interface
   as in section 2.2.
@@ -245,8 +243,8 @@ Contents
 
   An observable resource shall update its state using the following interface:
 
-       int evcoap_update_representation(const char *uri, const ev_uint8_t *rep, 
-               size_t rep_len, evcoap_mt_t media_type);
+       int ec_update_representation(const char *uri, const ev_uint8_t *rep, 
+               size_t rep_len, ec_mt_t media_type);
 
   [[TODO]]
 
@@ -257,17 +255,17 @@ Contents
    Client mode, whose ownership is user's until it is supplied to the send 
    interface.  E.g.:
 
-      req = evcoap_new_request(EVCOAP_GET, uri);
+      req = ec_new_request(EVCOAP_GET, uri);
 
       if (some abnormal condition happens)
           goto err;
 
-      evcoap_send_request(coap, req, EVCOAP_NON, cb, NULL, &tout);
+      ec_send_request(coap, req, EVCOAP_NON, cb, NULL, &tout);
       req = NULL; /* After sending, drop ownership. */
 
       [...]
 
    err:
       if (req)
-          evcoap_delete_request(req);
+          ec_delete_request(req);
       return -1;

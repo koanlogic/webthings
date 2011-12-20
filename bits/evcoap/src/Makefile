@@ -2,7 +2,9 @@ include common.mk
 include ../Makefile.conf
 
 LIB = evcoap
+
 SRCS = evcoap.c
+SRCS += evcoap_prv.c
 
 CFLAGS += $(LIBU_CFLAGS)
 CFLAGS += $(LIBEVENT_CFLAGS)
