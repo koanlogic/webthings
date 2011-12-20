@@ -25,6 +25,7 @@ struct ec_server_s
     ec_txn_t meta;
     ec_pdu_t req;
     ec_pdu_t res;
+    TAILQ_ENTRY(ec_server_s) next;
 };
 
 typedef struct ec_server_s ec_server_t;
@@ -35,6 +36,7 @@ struct ec_client_s
     ec_txn_t meta;
     ec_pdu_t req;
     TAILQ_HEAD(, ec_pdu_s) res;
+    TAILQ_ENTRY(ec_client_s) next;
 };
 
 typedef struct ec_client_s ec_client_t;

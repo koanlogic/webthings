@@ -8,7 +8,9 @@ typedef struct
 {
     evutil_socket_t sd;
     struct sockaddr_storage us;
+    ev_socklen_t us_len;
     struct sockaddr_storage them;
+    ev_socklen_t them_len;
 
     bool is_multicast;
 

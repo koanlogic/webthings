@@ -37,9 +37,6 @@ int ec_request_send(ec_t *coap, ec_client_t *cli, ec_pdu_type_t pt,
         ec_client_cb_t cb, void *cb_args);
 
 /* Server API */
-typedef int (*ec_server_cb_t)(ec_t *coap, ec_server_t *srv, void *args, 
-        bool resched, struct timeval *resched_after);
-
 int ec_bind_socket(ec_t *coap, const char *addr, ev_uint16_t port);
 
 int ec_set_cb(ec_t *coap, const char *patt, ec_server_cb_t cb,
