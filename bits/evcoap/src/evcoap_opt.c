@@ -1,5 +1,5 @@
 #include <u/libu.h>
-#include "evcoap_prv.h"
+#include "evcoap_opt.h"
 
 static struct opt_rec {
     size_t n;               /* Option number. */
@@ -25,10 +25,6 @@ static struct opt_rec {
     { 21, "If-None-Match",  EC_OPT_TYPE_EMPTY }
 };
 #define EC_OPTS_MAX (sizeof g_opts / sizeof(struct opt_rec))
-
-
-
-
 
 struct ec_opt_s *ec_opt_new(ec_opt_t sym, size_t l, const ev_uint8_t *v)
 {

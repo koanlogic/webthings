@@ -3,6 +3,8 @@
 
 #include <event2/util.h>
 
+#include "evcoap_enums.h"
+
 #define EC_OPT_LEN_MAX  270
 
 /* When introducing a new option, add a new symbol here and a corresponding

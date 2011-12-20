@@ -1,9 +1,5 @@
 #include <u/libu.h>
-#include "evcoap_prv.h"
-
-//int test_suite_options_register(u_test_t *t);
-
-static int test_todo(u_test_case_t *tc);
+#include "evcoap_opt.h"
 
 static int test_todo(u_test_case_t *tc)
 {
