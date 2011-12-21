@@ -28,13 +28,13 @@ int ec_loopexit(ec_t *coap, const struct timeval *tv);
 typedef void (*ec_client_cb_t)(ec_t *coap, ec_client_t *cli,
         ec_client_status_t status, void *args);
 
-ec_client_t *ec_request_new(ec_method_t m, const char *uri);
+ec_client_t *ec_request_new(ec_method_t m, const char *uri, ec_msg_model_t mm);
 
 ec_client_t *ec_proxy_request_new(ec_method_t m, const char *uri,
-        const char *proxy_host, ev_uint16_t proxy_port);
+        ec_msg_model_t mm, const char *proxy_host, ev_uint16_t proxy_port);
 
-int ec_request_send(ec_t *coap, ec_client_t *cli, ec_pdu_type_t pt, 
-        ec_client_cb_t cb, void *cb_args);
+int ec_request_send(ec_t *coap, ec_client_t *cli, ec_client_cb_t cb, 
+        void *cb_args);
 
 /* Server API */
 int ec_bind_socket(ec_t *coap, const char *addr, ev_uint16_t port);

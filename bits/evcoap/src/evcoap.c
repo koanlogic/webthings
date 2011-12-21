@@ -53,26 +53,39 @@ int ec_loopbreak(ec_t *coap)
 /**
  *  \brief  TODO
  */
-ec_client_t *ec_new_request(ec_method_t m, const char *uri)
+ec_client_t *ec_request_new(ec_method_t m, const char *uri, ec_msg_model_t mm)
 {
-    return ec_client_new(m, uri, NULL, 0);
+    return ec_client_new(m, uri, mm, NULL, 0);
 }
 
 /**
  *  \brief  TODO
  */
-ec_client_t *ec_new_proxy_request(ec_method_t m, const char *uri,
-        const char *proxy_host, ev_uint16_t proxy_port)
+ec_client_t *ec_proxy_request_new(ec_method_t m, const char *uri,
+        ec_msg_model_t mm, const char *proxy_host, ev_uint16_t proxy_port)
 {
-    return ec_client_new(m, uri, proxy_host, proxy_port);
+    return ec_client_new(m, uri, mm, proxy_host, proxy_port);
 }
 
 /**
  *  \brief  TODO
+ *
+ *  \param  coap    ...
+ *  \param  cli     ...
+ *  \param  pt      one of EC_CON or EC_NON
+ *  \param  cb      optional callback that will be invoked on response or error 
+ *  \param  cb_args optional arguments to the callback 
  */
-int ec_send_request(ec_t *coap, ec_pdu_t *req, 
-        ec_pdu_type_t pt, ec_client_cb_t cb, void *cb_args)
+int ec_request_send(ec_t *coap, ec_client_t *cli, ec_client_cb_t cb, 
+        void *cb_args)
 {
+    dbg_return_if (coap == NULL, -1);
+    dbg_return_if (cli == NULL, -1);
+
+    /* Sanitize request. */ 
+    
+
+
     return -1;
 }
 
@@ -122,9 +135,9 @@ int ec_response_set_code(ec_server_t *srv, ec_rc_t rc)
     dbg_return_if (srv == NULL, -1);
     dbg_return_if (!EC_IS_RESP_CODE(rc), -1);
 
-    ec_txn_t *meta = &srv->meta;
+    ec_flow_t *flow = &srv->flow;
 
-    meta->resp_code = rc;
+    flow->resp_code = rc;
 
     return -1;
 }

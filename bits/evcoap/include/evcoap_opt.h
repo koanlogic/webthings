@@ -2,6 +2,7 @@
 #define _EC_PRV_H_
 
 #include <event2/util.h>
+#include <u/libu.h>
 
 #include "evcoap_enums.h"
 

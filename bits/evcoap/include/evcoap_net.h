@@ -13,7 +13,7 @@ typedef struct
     ev_socklen_t them_len;
 
     bool is_multicast;
-
+    bool is_confirmable;
     bool use_proxy;
     char proxy_addr[512];
 

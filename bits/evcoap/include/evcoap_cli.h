@@ -1,39 +1,15 @@
-#ifndef _EC_TXN_H_
-#define _EC_TXN_H_
+#ifndef _EC_CLI_H_
+#define _EC_CLI_H_
 
 #include <event2/util.h>
 
 #include "evcoap_enums.h"
 #include "evcoap_pdu.h"
-#include "evcoap_net.h"
-
-typedef struct
-{
-    ec_conn_t conn;
-
-    ec_method_t method;
-    u_uri_t *uri;
-    ec_rc_t resp_code;
-
-    ev_uint8_t token[8];
-    size_t token_sz;
-} ec_txn_t;
-
-struct ec_server_s
-{
-    ec_srv_state_t state;
-    ec_txn_t meta;
-    ec_pdu_t req;
-    ec_pdu_t res;
-    TAILQ_ENTRY(ec_server_s) next;
-};
-
-typedef struct ec_server_s ec_server_t;
 
 struct ec_client_s
 {
     ec_cli_state_t state;
-    ec_txn_t meta;
+    ec_flow_t flow;
     ec_pdu_t req;
     TAILQ_HEAD(, ec_pdu_s) res;
     TAILQ_ENTRY(ec_client_s) next;
@@ -41,7 +17,7 @@ struct ec_client_s
 
 typedef struct ec_client_s ec_client_t;
 
-ec_client_t *ec_client_new(ec_method_t m, const char *uri,
+ec_client_t *ec_client_new(ec_method_t m, const char *uri, ec_msg_model_t mm,
         const char *proxy_host, ev_uint16_t proxy_port);
 
 void ec_client_free(ec_client_t *cli);
@@ -53,4 +29,6 @@ int ec_client_set_method(ec_client_t *cli, ec_method_t m);
 
 int ec_client_set_uri(ec_client_t *cli, const char *uri);
 
-#endif  /* !_EC_TXN_H_ */
+int ec_client_set_msg_model(ec_client_t *cli, bool is_con);
+
+#endif  /* !_EC_CLI_H_ */

@@ -15,9 +15,7 @@ typedef enum
 {
     EC_CON = 0,
     EC_NON = 1,
-    EC_ACK = 2,
-    EC_RST = 3
-} ec_pdu_type_t;
+} ec_msg_model_t;
 
 typedef enum
 {
@@ -95,8 +93,12 @@ typedef enum
     EC_CLI_STATE_COAP_RETRY,
     EC_CLI_STATE_COAP_TIMEOUT,      /* F */
     EC_CLI_STATE_REQ_DONE,          /* F */
-    EC_CLI_STATE_REQ_RESET          /* F */
+    EC_CLI_STATE_REQ_RST,           /* F */
+
+    EC_CLI_STATE_MAX = EC_CLI_STATE_REQ_RST
 } ec_cli_state_t;
+
+const char *ec_cli_state_str(ec_cli_state_t s);
 
 /* TODO map final states of the client FSM */
 typedef enum
@@ -116,6 +118,7 @@ typedef enum
     EC_SRV_STATE_RESP_ACK_TIMEOUT,  /* F */
     EC_SRV_STATE_RESP_DONEa         /* F */
 } ec_srv_state_t;
+
 
 #ifdef __cplusplus
 }

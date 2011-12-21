@@ -12,3 +12,12 @@ int ec_pdu_set_payload(ec_pdu_t *pdu, ev_uint8_t *payload, size_t sz)
 
     return 0;
 }
+
+int ec_pdu_set_flow(ec_pdu_t *pdu, ec_flow_t *flow)
+{
+    dbg_return_if (pdu == NULL, -1);
+
+    pdu->parent_flow = flow;
+
+    return 0;
+}

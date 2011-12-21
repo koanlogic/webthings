@@ -63,12 +63,12 @@ err:
     return NULL;
 }
 
-void opt_free(struct ec_opt_s *opt)
+void ec_opt_free(struct ec_opt_s *o)
 {
-    if (opt)
+    if (o)
     {
-        u_free(opt->v);
-        u_free(opt);
+        u_free(o->v);
+        u_free(o);
     }
 }
 
