@@ -70,7 +70,11 @@ Contents
 
       const ev_uint8_t payload[] = { 0xca, 0xfe, 0xba, 0xbe };
 
-      ec_add_payload(req, payload, sizeof payload);
+      ec_request_set_payload(cli, payload, sizeof payload);
+
+
+                        [[CHECKED]]
+
 
 2.3 Send Request
 

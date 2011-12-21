@@ -21,3 +21,13 @@ int ec_pdu_set_flow(ec_pdu_t *pdu, ec_flow_t *flow)
 
     return 0;
 }
+
+int ec_pdu_init_options(ec_pdu_t *pdu)
+{
+    dbg_return_if (pdu == NULL, -1);
+
+    TAILQ_INIT(&pdu->opts.bundle);
+    pdu->opts.noptions = 0;
+
+    return 0;
+}

@@ -83,7 +83,10 @@ int ec_request_send(ec_t *coap, ec_client_t *cli, ec_client_cb_t cb,
     dbg_return_if (cli == NULL, -1);
 
     /* Sanitize request. */ 
+
+    /* Add token if missing. */
     
+    /* (Async) resolv destination address. */
 
 
     return -1;

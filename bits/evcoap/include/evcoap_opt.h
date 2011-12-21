@@ -4,6 +4,7 @@
 #include <event2/util.h>
 #include <u/libu.h>
 
+#include "evcoap_conf.h"
 #include "evcoap_enums.h"
 
 #define EC_OPT_LEN_MAX  270

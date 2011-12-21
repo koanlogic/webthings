@@ -104,6 +104,7 @@ ec_client_t *ec_client_new(ec_method_t m, const char *uri, ec_msg_model_t mm,
     dbg_err_if (ec_client_set_uri(cli, uri));
     dbg_err_if (ec_client_set_msg_model(cli, mm == EC_CON ? true : false));
     dbg_err_if (ec_pdu_set_flow(&cli->req, &cli->flow));
+    dbg_err_if (ec_pdu_init_options(&cli->req));
 
     return cli;
 err:

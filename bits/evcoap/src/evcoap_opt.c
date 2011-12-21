@@ -226,10 +226,12 @@ int ec_opt_encode_uint(ev_uint64_t ui, ev_uint8_t *e, size_t *elen)
     
     dbg_err_ifm (*elen < i + 1, "not enough bytes for encoding %llu", ui);
     
-    /* XXX Assume LE host. */
-    /* TODO BE host (nop). */
+#ifdef EC_LITTLE_ENDIAN
     for (j = 0; j <= i; ++j)
         e[j] = (ui >> (8 * j)) & 0xff;
+#else
+    #error "TODO big endian uint encoder"
+#endif  /* EC_LITTLE_ENDIAN */
     
     *elen = i + 1;
     
