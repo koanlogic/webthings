@@ -1,8 +1,9 @@
 #!/bin/sh
 
-export makl_conf_h=evcoap_conf.h
+export makl_conf_h="include/evcoap_conf.h"
 
 . "${MAKL_DIR}"/cf/makl.init
+. build/makl_endiannes
 makl_args_init "$@"
 
 # source command line options' hooks
@@ -32,6 +33,9 @@ makl_append_var_mk "CFLAGS" "-I\$(SRCDIR) -I\$(SRCDIR)/include -DHAVE_CONF_H"
 # evcoap requires libevent and libu
 makl_require lib event
 makl_require lib u
+
+# Check endiannes of the host machine
+makl_endiannes
 
 makl_args_handle "$@"
 

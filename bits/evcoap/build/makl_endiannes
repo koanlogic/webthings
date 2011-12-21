@@ -1,0 +1,26 @@
+#
+# #define EC_BIG_ENDIAN/EC_LITTLE_ENDIAN
+#
+makl_endiannes()
+{
+#    [ -z `makl_get "__noconfig__"` ] || return
+
+    makl_info "checking endiannes"
+
+    # Return codes from endiannes.c are:
+    #   - '0' if BE, 
+    #   - '1' if LE, 
+    makl_exec_code 0 build/endiannes.c
+
+    if [ $? -eq 0 ]
+    then
+        makl_info "host machine is big endian"
+        makl_set_var "EC_BIG_ENDIAN"
+    elif [ $? -eq 1 ]
+    then
+        makl_info "host machine is little endian"
+        makl_set_var "EC_LITTLE_ENDIAN"
+    else
+        makl_error "unknown endiannes..."
+    fi
+}
