@@ -6,12 +6,19 @@
 #include "evcoap_enums.h"
 #include "evcoap_pdu.h"
 
+/* Take care of requests to multicast resources. */
+typedef struct ec_res_set_s
+{
+    size_t nres;
+    TAILQ_HEAD(, ec_pdu_s) bundle;
+} ec_res_set_t;
+
 struct ec_client_s
 {
     ec_cli_state_t state;
     ec_flow_t flow;
     ec_pdu_t req;
-    TAILQ_HEAD(, ec_pdu_s) res;
+    ec_res_set_t res_set;
     TAILQ_ENTRY(ec_client_s) next;
 };
 

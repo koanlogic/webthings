@@ -1,17 +1,15 @@
 #ifndef _EC_NET_H_
 #define _EC_NET_H_
 
-#include "event2/util.h"
 #include <stdbool.h>
+
+#include "event2/util.h"
 
 typedef struct
 {
     evutil_socket_t sd;
     struct sockaddr_storage us;
     ev_socklen_t us_len;
-    struct sockaddr_storage them;
-    ev_socklen_t them_len;
-
     bool is_multicast;
     bool is_confirmable;
     bool use_proxy;

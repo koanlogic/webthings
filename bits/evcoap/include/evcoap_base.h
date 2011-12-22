@@ -3,6 +3,7 @@
 
 #include <event2/event.h>
 #include <event2/dns.h>
+
 #include "evcoap_cli.h"
 #include "evcoap_srv.h"
 

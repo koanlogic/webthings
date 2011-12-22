@@ -1,6 +1,7 @@
 #ifndef _EC_SRV_H_
 #define _EC_SRV_H_
 
+#include <u/libu.h>
 #include <event2/util.h>
 
 #include "evcoap_enums.h"
