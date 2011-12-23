@@ -41,7 +41,7 @@ Contents
       ec_client_t *cli;
       const char *uri = "coap://[::1]:56565/a/b/res";
 
-      cli = ec_request_new(EC_GET, uri, EC_NON);
+      cli = ec_request_new(coap, EC_GET, uri, EC_NON);
 
   If the request needs to pass through a CoAP intermediary, then its address
   must be explicitly supplied through the following extended creation interface:
@@ -49,7 +49,7 @@ Contents
       const char *proxy = "kink.things.home.";
       ev_uint16_t port = 6565;
 
-      cli = ec_proxy_request_new(EC_PUT, uri, EC_NON, proxy, port);
+      cli = ec_proxy_request_new(coap, EC_PUT, uri, EC_NON, proxy, port);
 
   At present NoSec is the only mode supported, so URIs in the 'coaps' schema
   are rejected.  DTLS support is planned and will be implemented ASAP.

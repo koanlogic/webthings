@@ -33,7 +33,7 @@ typedef enum
     EC_OPT_IF_NONE_MATCH,
     
     EC_OPT_MAX = EC_OPT_IF_NONE_MATCH + 1
-} ec_opt_t;
+} ec_opt_sym_t;
 #define EC_OPT_SYM_VALID(sy) (sy > EC_OPT_NONE && sy < EC_OPT_MAX)
 
 typedef enum
@@ -50,7 +50,7 @@ typedef enum
 
 struct ec_opt_s
 {
-    ec_opt_t sym;
+    ec_opt_sym_t sym;
     ec_opt_type_t t;
     size_t l;
     ev_uint8_t *v;
@@ -67,19 +67,46 @@ struct ec_opts_s
     TAILQ_HEAD(ec_opts, ec_opt_s) bundle;
 };
 
-struct ec_opt_s *ec_opt_new(ec_opt_t sym, size_t l, const ev_uint8_t *v);
-void ec_opt_free(struct ec_opt_s *opt);
-ec_opt_type_t ec_opt_sym2type(ec_opt_t sym);
-int ec_opt_add(struct ec_opts_s *opts, ec_opt_t sym, const ev_uint8_t *v, 
+typedef struct ec_opts_s ec_opts_t;
+typedef struct ec_opt_s ec_opt_t;
+
+ec_opt_t *ec_opt_new(ec_opt_sym_t sym, size_t l, const ev_uint8_t *v);
+void ec_opt_free(ec_opt_t *opt);
+ec_opt_type_t ec_opt_sym2type(ec_opt_sym_t sym);
+int ec_opts_push(ec_opts_t *opts, ec_opt_t *o);
+
+int ec_opts_add(ec_opts_t *opts, ec_opt_sym_t sym, const ev_uint8_t *v, 
         size_t l);
-int ec_opt_add_empty(struct ec_opts_s *opts, ec_opt_t sym);
-int ec_opt_add_opaque(struct ec_opts_s *opts, ec_opt_t sym, const ev_uint8_t *v,
+int ec_opts_add_empty(ec_opts_t *opts, ec_opt_sym_t sym);
+int ec_opts_add_opaque(ec_opts_t *opts, ec_opt_sym_t sym, const ev_uint8_t *v,
         size_t l);
-int ec_opt_add_raw(struct ec_opts_s *opts, ec_opt_t sym, const ev_uint8_t *v,
+int ec_opts_add_raw(ec_opts_t *opts, ec_opt_sym_t sym, const ev_uint8_t *v,
         size_t l);
-int ec_opt_add_string(struct ec_opts_s *opts, ec_opt_t sym, const char *s);
-int ec_opt_add_uint(struct ec_opts_s *opts, ec_opt_t sym, ev_uint64_t v);
+int ec_opts_add_string(ec_opts_t *opts, ec_opt_sym_t sym, const char *s);
+int ec_opts_add_uint(ec_opts_t *opts, ec_opt_sym_t sym, ev_uint64_t v);
+int ec_opts_add_content_type(ec_opts_t *opts, ev_uint16_t ct);
+int ec_opts_add_max_age(ec_opts_t *opts, ev_uint32_t ma);
+int ec_opts_add_proxy_uri(ec_opts_t *opts, const char *pu);
+int ec_opts_add_etag(ec_opts_t *opts, const ev_uint8_t *et, size_t et_len);
+int ec_opts_add_uri_host(ec_opts_t *opts, const char  *uh);
+int ec_opts_add_location_path(ec_opts_t *opts, const char *lp);
+int ec_opts_add_uri_port(ec_opts_t *opts, ev_uint16_t up);
+int ec_opts_add_location_query(ec_opts_t *opts, const char *lq);
+int ec_opts_add_uri_path(ec_opts_t *opts, const char *up);
+int ec_opts_add_token(ec_opts_t *opts, const ev_uint8_t *t, size_t t_len);
+int ec_opts_add_accept(ec_opts_t *opts, ev_uint16_t a);
+int ec_opts_add_if_match(ec_opts_t *opts, const ev_uint8_t *im, size_t im_len);
+int ec_opts_add_uri_query(ec_opts_t *opts, const char *uq);
+int ec_opts_add_if_none_match(ec_opts_t *opts);
+int ec_opts_add_observe(ec_opts_t *opts, ev_uint16_t o);
+int ec_opts_add_max_ofe(ec_opts_t *opts, ev_uint32_t mo);
+ec_opt_t *ec_opts_get_nth(ec_opts_t *opts, ec_opt_sym_t sym, size_t n);
+ec_opt_t *ec_opts_get(ec_opts_t *opts, ec_opt_sym_t sym);
+const char *ec_opts_get_string(ec_opts_t *opts, ec_opt_sym_t sym);
+const char *ec_opts_get_uri_host(ec_opts_t *opts);
+int ec_opts_get_uri_port(ec_opts_t *opts, ev_uint16_t *port);
+
+int ec_opt_decode_uint(const ev_uint8_t *v, size_t l, ev_uint64_t *ui);
 int ec_opt_encode_uint(ev_uint64_t ui, ev_uint8_t *e, size_t *elen);
-int ec_opt_push(struct ec_opts_s *opts, struct ec_opt_s *o);
 
 #endif  /* !_EC_PRV_H_ */

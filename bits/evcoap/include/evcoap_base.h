@@ -14,6 +14,7 @@ typedef int (*ec_server_cb_t)(struct ec_s *, ec_server_t *, void *, bool,
 
 typedef int (*ec_catchall_cb_t)(struct ec_s *, ec_server_t *, void *);
 
+/* An hosted resource. */
 struct ec_resource_s
 {
     const char *path;
@@ -23,6 +24,7 @@ struct ec_resource_s
     TAILQ_ENTRY(ec_resource_s) next;
 };
 
+/* A listening CoAP endpoint. */
 struct ec_listener_s
 {
     evutil_socket_t sd;
@@ -31,6 +33,7 @@ struct ec_listener_s
     TAILQ_ENTRY(ec_listener_s) next;
 };
 
+/* Synoptic of last received PDUs, for duplicate detection. */
 struct ec_recvd_pdu_s
 {
     struct timeval when;

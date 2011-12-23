@@ -14,9 +14,13 @@ typedef struct
     bool is_confirmable;
     bool use_proxy;
     char proxy_addr[512];
+    ev_uint16_t proxy_port;
 
     /* TODO The security context goes here. */
 
 } ec_conn_t;
+
+evutil_socket_t ec_net_bind_socket(struct sockaddr_storage *ss, 
+        ev_socklen_t ss_len);
 
 #endif  /* !_EC_NET_H_ */

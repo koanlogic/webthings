@@ -6,6 +6,7 @@ LIB = evcoap
 SRCS = evcoap.c
 SRCS += evcoap_opt.c
 SRCS += evcoap_cli.c
+SRCS += evcoap_srv.c
 SRCS += evcoap_pdu.c
 SRCS += evcoap_net.c
 SRCS += evcoap_enums.c
