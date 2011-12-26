@@ -48,8 +48,7 @@ Let's start:
 
     $ cd "${BDIR}"/webthings/bits/evcoap
     $ makl-conf --libs="${IDIR}" --prefix="${IDIR}" --enable_{debug,warns,extra}
-    $ makl
-    # makl install
+    $ makl all install
 
 You may now play with CoAP test client and server (see test/client and 
 test/server directories.)

@@ -3,6 +3,8 @@
 
 static int test_0(u_test_case_t *tc)
 {
+    u_unused_args(tc);
+
     return U_TEST_SUCCESS;
 }
 

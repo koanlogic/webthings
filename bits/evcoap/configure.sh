@@ -37,6 +37,9 @@ makl_append_var_mk "CFLAGS" "-I\$(SRCDIR)"
 makl_append_var_mk "CFLAGS" "-I\$(SRCDIR)/include"
 makl_append_var_mk "CFLAGS" "-I\$(SRCDIR)/extra/include"
 makl_append_var_mk "CFLAGS" "-DHAVE_CONF_H"
+# define features
+makl_append_var_mk "CFLAGS" "-D_POSIX_SOURCE"
+makl_append_var_mk "CFLAGS" "-D_BSD_SOURCE"
 
 # evcoap requires libevent and libu
 makl_require lib event

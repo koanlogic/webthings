@@ -1,4 +1,6 @@
 #include <unistd.h>
+#include <getopt.h>
+#include <strings.h>
 #include <evcoap.h>
 #include <u/libu.h>
 
