@@ -7,7 +7,7 @@
 
 typedef struct
 {
-    evutil_socket_t sd;
+    evutil_socket_t socket;
     struct sockaddr_storage us;
     ev_socklen_t us_len;
     bool is_multicast;
@@ -20,7 +20,6 @@ typedef struct
 
 } ec_conn_t;
 
-evutil_socket_t ec_net_bind_socket(struct sockaddr_storage *ss, 
-        ev_socklen_t ss_len);
+evutil_socket_t ec_net_bind_socket(struct sockaddr_storage *ss, int ss_len);
 
 #endif  /* !_EC_NET_H_ */

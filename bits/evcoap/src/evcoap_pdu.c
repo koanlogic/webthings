@@ -31,3 +31,22 @@ int ec_pdu_init_options(ec_pdu_t *pdu)
 
     return 0;
 }
+
+int ec_pdu_send(ec_pdu_t *pdu, const struct sockaddr_storage *dest)
+{
+    dbg_return_if (pdu == NULL, -1);
+    dbg_return_if (dest == NULL, -1);
+
+    /* TODO */
+
+    return 0;
+}
+
+int ec_pdu_encode(ec_pdu_t *pdu)
+{
+    dbg_return_if (pdu == NULL, -1);
+
+    /* TODO */
+
+    return 0;
+}

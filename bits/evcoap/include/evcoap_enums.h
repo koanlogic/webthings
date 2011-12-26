@@ -84,6 +84,7 @@ typedef enum
 typedef enum
 {
     EC_CLI_STATE_NONE = 0,
+    EC_CLI_STATE_INTERNAL_ERR,      /* F */
     EC_CLI_STATE_DNS_FAILED,        /* F */
     EC_CLI_STATE_DNS_OK,
     EC_CLI_STATE_SEND_FAILED,       /* F */
@@ -100,23 +101,18 @@ typedef enum
 
 const char *ec_cli_state_str(ec_cli_state_t s);
 
-/* TODO map final states of the client FSM */
-typedef enum
-{
-    EC_SEND_STATUS_OK = 0
-} ec_client_status_t;
-
 /* Server transaction states. */
 typedef enum 
 {
     EC_SRV_STATE_NONE = 0,
+    EC_SRV_STATE_INTERNAL_ERR,      /* F */
     EC_SRV_STATE_DUP_REQ,           /* F */
     EC_SRV_STATE_BAD_REQ,           /* F */
     EC_SRV_STATE_REQ_OK,
     EC_SRV_STATE_ACK_SENT,
     EC_SRV_STATE_WAIT_ACK,
     EC_SRV_STATE_RESP_ACK_TIMEOUT,  /* F */
-    EC_SRV_STATE_RESP_DONEa         /* F */
+    EC_SRV_STATE_RESP_DONE          /* F */
 } ec_srv_state_t;
 
 

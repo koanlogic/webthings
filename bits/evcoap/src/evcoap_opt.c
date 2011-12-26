@@ -41,8 +41,12 @@ ec_opt_t *ec_opt_new(ec_opt_sym_t sym, size_t l, const ev_uint8_t *v)
             dbg_err("invalid option type");
         case EC_OPT_TYPE_EMPTY:
             return 0;
-        default:
+        case EC_OPT_TYPE_UINT:
+        case EC_OPT_TYPE_STRING:
+        case EC_OPT_TYPE_OPAQUE:
             break;
+        default:
+            dbg_err("unknown option type");
     }
 
     dbg_err_if ((o->l = l) > EC_OPT_LEN_MAX);
@@ -182,7 +186,7 @@ int ec_opts_add_string(ec_opts_t *opts, ec_opt_sym_t sym, const char *s)
 {
     dbg_return_if (ec_opt_sym2type(sym) != EC_OPT_TYPE_STRING, -1);
 
-    return ec_opts_add_raw(opts, sym, (ev_uint8_t *) s, strlen(s));
+    return ec_opts_add_raw(opts, sym, (const ev_uint8_t *) s, strlen(s));
 }
 
 int ec_opts_add_opaque(ec_opts_t *opts, ec_opt_sym_t sym, const ev_uint8_t *v,

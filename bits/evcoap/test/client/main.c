@@ -16,7 +16,7 @@ int main(void)
     con_err_if ((dns = evdns_base_new(base, 1)) == NULL);
     con_err_if ((coap = ec_init(base, dns)) == NULL);
 
-    con_err_if ((cli = ec_request_new(EC_GET, uri, EC_NON)) == NULL);
+    con_err_if ((cli = ec_request_new(coap, EC_GET, uri, EC_NON)) == NULL);
 
     con_err_if (ec_request_add_if_match(cli, etag, sizeof etag));
     con_err_if (ec_request_add_accept(cli, EC_MT_TEXT_PLAIN));

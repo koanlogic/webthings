@@ -2,8 +2,11 @@
 #include <u/libu.h>
 #include "evcoap_cli.h"
 #include "evcoap_base.h"
+#include "evcoap_debug.h"
 
 #define EMPTY_STRING(s)  ((s) == NULL || *(s) == '\0')
+
+static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a);
 
 int ec_client_set_method(ec_client_t *cli, ec_method_t m)
 {
@@ -64,7 +67,7 @@ void ec_client_free(ec_client_t *cli)
         ec_conn_t *conn = &flow->conn;
 
         /* Close socket. */
-        evutil_closesocket(conn->sd);
+        evutil_closesocket(conn->socket);
 
         /* Free URI. */
         u_uri_free(flow->uri);
@@ -172,16 +175,91 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args)
     hints.ai_flags = 0;
 
     /* Pass the ball to evdns.  In case the evdns resolved immediately,
-     * we return the send operation status hold by pdu->send_status.
+     * we return the send operation status hold by pdu->state.
      * Otherwise return ok and let the status of the send operation be 
      * given back to the user supplied callback.
      * Save the evdns_getaddrinfo_request pointer (may be NULL in case
      * of immediate resolution) so that the request can be canceled 
      * in a later moment if needed. */
-//    cli->gai_req = 
-        evdns_getaddrinfo(cli->base->dns, host, sport, &hints, NULL, NULL);
+    cli->dns_req = evdns_getaddrinfo(cli->base->dns, host, sport, &hints, 
+            ec_client_dns_cb, cli);
 
-    return 0;   /* TODO */
+    /* If we get here, either the client FSM has reached a final state (since
+     * the callback has been shortcircuited), or the it's not yet started. */
+    return 0;
 err:
     return -1;
+}
+
+static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
+{
+    struct evutil_addrinfo *ai;
+    ec_client_t *cli = (ec_client_t *) a;
+    ec_pdu_t *req = &cli->req;
+    ec_conn_t *conn = &cli->flow.conn;
+
+#define EC_CLI_ERR_IF(e, state)                 \
+    do {                                        \
+        if ((e))                                \
+        {                                       \
+            ec_client_set_state(cli, state);    \
+            goto err;                           \
+        }                                       \
+    } while (0)
+
+    /* Unset the evdns_getaddrinfo_request pointer, since when we get called
+     * its lifetime is complete. */
+    cli->dns_req = NULL;
+
+    EC_CLI_ERR_IF(result != DNS_ERR_NONE, EC_CLI_STATE_DNS_FAILED);
+
+    ec_client_set_state(cli, EC_CLI_STATE_DNS_OK);
+
+    /* Encode options and header. */
+    EC_CLI_ERR_IF(ec_pdu_encode(req), EC_CLI_STATE_INTERNAL_ERR);
+
+    for (conn->socket = -1, ai = res; ai != NULL; ai = ai->ai_next)
+    {
+        conn->socket = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+
+        if (conn->socket == -1)
+           continue;
+
+        /* Send the request PDU. */
+        if (ec_pdu_send(req, (const struct sockaddr_storage *) ai->ai_addr))
+        {
+            /* Mark this socket as failed and try again. */
+            evutil_closesocket(conn->socket), conn->socket = -1;
+            continue;
+        }
+
+        EC_CLI_ERR_IF(evutil_make_socket_nonblocking(conn->socket),
+                EC_CLI_STATE_INTERNAL_ERR);
+
+        ec_client_set_state(cli, EC_CLI_STATE_REQ_SENT);
+        break;
+    }
+
+    /* Check whether the request PDU was actually sent out on any socket. */
+    EC_CLI_ERR_IF(conn->socket == -1, EC_CLI_STATE_INTERNAL_ERR);
+
+    /* TODO add this to the pending clients' list. */
+
+    return;
+err:
+    return;
+    /* Invoke user callback. */
+}
+#undef EC_CLI_ERR_IF
+
+void ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
+{
+    /* TODO check that state transition is valid: panic in case an invalid
+     * TODO transition was requested. */
+
+    /* TODO handle timers */
+
+    cli->state = state;
+
+    return;
 }

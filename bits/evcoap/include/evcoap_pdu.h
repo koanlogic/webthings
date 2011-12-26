@@ -30,5 +30,7 @@ typedef struct ec_pdu_s ec_pdu_t;
 int ec_pdu_set_payload(ec_pdu_t *pdu, ev_uint8_t *payload, size_t sz);
 int ec_pdu_set_flow(ec_pdu_t *pdu, ec_flow_t *flow);
 int ec_pdu_init_options(ec_pdu_t *pdu);
+int ec_pdu_send(ec_pdu_t *pdu, const struct sockaddr_storage *dest);
+int ec_pdu_encode(ec_pdu_t *pdu);
 
 #endif  /* !_EC_PDU_H_ */

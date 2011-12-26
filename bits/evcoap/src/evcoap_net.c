@@ -1,8 +1,7 @@
 #include <u/libu.h>
 #include "evcoap_net.h"
 
-evutil_socket_t ec_net_bind_socket(struct sockaddr_storage *ss, 
-        ev_socklen_t ss_len)
+evutil_socket_t ec_net_bind_socket(struct sockaddr_storage *ss, int ss_len)
 {
     int sd = -1;
     const struct sockaddr *sa = (const struct sockaddr *) ss;

@@ -1,5 +1,9 @@
 #include <u/libu.h>
+#include <event2/util.h>
 #include "evcoap.h"
+#include "evcoap_cli.h"
+#include "evcoap_net.h"
+#include "evcoap_opt.h"
 
 /**
  *  \brief  TODO
@@ -56,7 +60,7 @@ int ec_loopbreak(ec_t *coap)
 ec_client_t *ec_request_new(ec_t *coap, ec_method_t m, const char *uri, 
         ec_msg_model_t mm)
 {
-    return ec_client_new(coap, m, uri, mm, NULL, 0);
+    return ec_client_new(coap, m, uri, mm, NULL, (ev_uint16_t) 0);
 }
 
 /**

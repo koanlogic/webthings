@@ -2,6 +2,7 @@
 #define _EC_CLI_H_
 
 #include <event2/util.h>
+#include <event2/dns.h>
 
 #include "evcoap_enums.h"
 #include "evcoap_pdu.h"
@@ -18,6 +19,7 @@ typedef struct ec_res_set_s
 struct ec_client_s
 {
     struct ec_s *base;
+    struct evdns_getaddrinfo_request *dns_req;
     ec_cli_state_t state;
     ec_flow_t flow;
     ec_pdu_t req;
@@ -28,7 +30,7 @@ struct ec_client_s
 typedef struct ec_client_s ec_client_t;
 
 typedef void (*ec_client_cb_t)(struct ec_s *coap, ec_client_t *cli,
-        ec_client_status_t status, void *args);
+        ec_cli_state_t fsm_state, void *args);
 
 ec_client_t *ec_client_new(struct ec_s *coap, ec_method_t m, const char *uri, 
         ec_msg_model_t mm, const char *proxy_host, ev_uint16_t proxy_port);
@@ -44,5 +46,7 @@ int ec_client_set_uri(ec_client_t *cli, const char *uri);
 int ec_client_set_msg_model(ec_client_t *cli, bool is_con);
 
 int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args);
+
+void ec_client_set_state(ec_client_t *cli, ec_cli_state_t state);
 
 #endif  /* !_EC_CLI_H_ */
