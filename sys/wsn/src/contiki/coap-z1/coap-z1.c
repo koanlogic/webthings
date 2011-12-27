@@ -73,7 +73,9 @@ void leds_handler(void* request, void* response, uint8_t *buffer, uint16_t
     else
         leds_off(col);
 
+    return;
 err:
+    REST.set_response_status(response, REST.status.BAD_REQUEST);
     return;
 }
 
@@ -108,7 +110,9 @@ void tmp_handler(void* request, void* response, uint8_t *buffer, uint16_t
     REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
     REST.set_response_payload(response, buffer, length);
 
+    return;
 err:
+    REST.set_response_status(response, REST.status.BAD_REQUEST);
     return;
 }
 
@@ -132,7 +136,9 @@ void acc_handler(void* request, void* response, uint8_t *buffer, uint16_t
     REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
     REST.set_response_payload(response, buffer, length);
 
+    return;
 err:
+    REST.set_response_status(response, REST.status.BAD_REQUEST);
     return;
 }
 
