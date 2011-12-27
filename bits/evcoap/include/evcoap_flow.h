@@ -1,5 +1,5 @@
-#ifndef _EC_TXN_H_
-#define _EC_TXN_H_
+#ifndef _EC_FLOW_H_
+#define _EC_FLOW_H_
 
 #include <u/libu.h>
 #include <event2/util.h>
@@ -20,4 +20,4 @@ typedef struct
     size_t token_sz;
 } ec_flow_t;
 
-#endif  /* !_EC_TXN_H_ */
+#endif  /* !_EC_FLOW_H_ */

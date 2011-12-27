@@ -7,7 +7,12 @@
 #include "evcoap_conf.h"
 #include "evcoap_enums.h"
 
-#define EC_OPT_LEN_MAX  270
+#define EC_COAP_OPT_LEN_MAX     270
+#define EC_COAP_MAX_OPTIONS     15
+
+/* TODO take care of option delta and length fields overhead which should be
+ * TODO a maximum of 4 bytes per option. */
+#define EC_OPTS_MAX_LEN         (EC_COAP_MAX_OPTIONS * EC_COAP_OPT_LEN_MAX)
 
 /* When introducing a new option, add a new symbol here and a corresponding
  * entry into the g_opts array. */
@@ -58,9 +63,10 @@ struct ec_opt_s
     TAILQ_ENTRY(ec_opt_s) next;
 };
 
+
 struct ec_opts_s
 {
-    ev_uint8_t *enc;
+    ev_uint8_t enc[EC_OPTS_MAX_LEN];
     size_t enc_sz;
 
     size_t noptions;
@@ -73,6 +79,9 @@ typedef struct ec_opt_s ec_opt_t;
 ec_opt_t *ec_opt_new(ec_opt_sym_t sym, size_t l, const ev_uint8_t *v);
 void ec_opt_free(ec_opt_t *opt);
 ec_opt_type_t ec_opt_sym2type(ec_opt_sym_t sym);
+size_t ec_opt_sym2num(ec_opt_sym_t sym);
+const char *ec_opt_sym2str(ec_opt_sym_t sym);
+
 int ec_opts_push(ec_opts_t *opts, ec_opt_t *o);
 
 int ec_opts_add(ec_opts_t *opts, ec_opt_sym_t sym, const ev_uint8_t *v, 
@@ -108,5 +117,7 @@ int ec_opts_get_uri_port(ec_opts_t *opts, ev_uint16_t *port);
 
 int ec_opt_decode_uint(const ev_uint8_t *v, size_t l, ev_uint64_t *ui);
 int ec_opt_encode_uint(ev_uint64_t ui, ev_uint8_t *e, size_t *elen);
+
+int ec_opts_encode(ec_opts_t *opts);
 
 #endif  /* !_EC_PRV_H_ */

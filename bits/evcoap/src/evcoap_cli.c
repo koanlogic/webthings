@@ -226,7 +226,7 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
            continue;
 
         /* Send the request PDU. */
-        if (ec_pdu_send(req, (const struct sockaddr_storage *) ai->ai_addr))
+        if (ec_pdu_send(req, (struct sockaddr_storage *) ai->ai_addr))
         {
             /* Mark this socket as failed and try again. */
             evutil_closesocket(conn->socket), conn->socket = -1;

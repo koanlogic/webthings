@@ -4,7 +4,7 @@
 static struct opt_rec {
     size_t n;               /* Option number. */
     const char *s;          /* Option human readable name. */
-    ec_opt_type_t t;
+    ec_opt_type_t t;        /* Option implicit type. */
 } g_opts[] = {
     { 0,  "Invalid",        EC_OPT_TYPE_INVALID },
     { 1,  "Content-Type",   EC_OPT_TYPE_UINT },
@@ -49,7 +49,7 @@ ec_opt_t *ec_opt_new(ec_opt_sym_t sym, size_t l, const ev_uint8_t *v)
             dbg_err("unknown option type");
     }
 
-    dbg_err_if ((o->l = l) > EC_OPT_LEN_MAX);
+    dbg_err_if ((o->l = l) > EC_COAP_OPT_LEN_MAX);
 
     /* Make room for the option value. */
     vlen = (o->t != EC_OPT_TYPE_STRING) ? o->l : o->l + 1;
@@ -82,6 +82,20 @@ ec_opt_type_t ec_opt_sym2type(ec_opt_sym_t sym)
 
     return g_opts[sym].t;
 }   
+
+size_t ec_opt_sym2num(ec_opt_sym_t sym)
+{
+    dbg_return_if (!EC_OPT_SYM_VALID(sym), EC_OPT_NONE);
+
+    return g_opts[sym].n;
+}
+
+const char *ec_opt_sym2str(ec_opt_sym_t sym)
+{
+    dbg_return_if (!EC_OPT_SYM_VALID(sym), NULL);
+
+    return g_opts[sym].s;
+}
 
 int ec_opts_push(ec_opts_t *opts, ec_opt_t *o)
 {
@@ -141,8 +155,8 @@ int ec_opts_add_raw(ec_opts_t *opts, ec_opt_sym_t sym, const ev_uint8_t *v,
         size_t l)
 {
     size_t nseg, offset = 0,
-           full_seg_no = l / EC_OPT_LEN_MAX,
-           rem = l % EC_OPT_LEN_MAX,
+           full_seg_no = l / EC_COAP_OPT_LEN_MAX,
+           rem = l % EC_COAP_OPT_LEN_MAX,
            to_be_used_opts = (full_seg_no + ((rem || !l) ? 1 : 0));
     
     /* First off, check if we have enough slots available
@@ -153,10 +167,10 @@ int ec_opts_add_raw(ec_opts_t *opts, ec_opt_sym_t sym, const ev_uint8_t *v,
     /* Handle option fragmentation. */
     for (nseg = 0; nseg < full_seg_no; nseg++)
     {
-        dbg_err_if (ec_opts_add(opts, sym, v + offset, EC_OPT_LEN_MAX));
+        dbg_err_if (ec_opts_add(opts, sym, v + offset, EC_COAP_OPT_LEN_MAX));
     
         /* Shift offset to point next fragment. */
-        offset = nseg * EC_OPT_LEN_MAX;
+        offset = nseg * EC_COAP_OPT_LEN_MAX;
     }
     
     /* Take care of the "remainder" slot (or an empty option.)
@@ -511,3 +525,66 @@ int ec_opts_add_max_ofe(ec_opts_t *opts, ev_uint32_t mo)
 
     return ec_opts_add_uint(opts, EC_OPT_MAX_OFE, mo);
 }
+
+int ec_opts_encode(ec_opts_t *opts)
+{
+    ec_opt_t *opt;
+    size_t cur, last = 0, delta, left, elen;
+    ev_uint8_t *p;
+
+    dbg_return_if (opts == NULL, -1);
+
+    p = opts->enc;
+    opts->enc_sz = sizeof opts->enc;
+
+    /* Assume options are already ordered from lowest to highest. */
+    TAILQ_FOREACH(opt, &opts->bundle, next)
+    {
+        /* Pop next option and process it. */
+        dbg_err_if ((cur = ec_opt_sym2num(opt->sym)) == EC_OPT_NONE);
+
+        /* Compute how much space we're going to consume, so that we don't
+         * have to check at each encode step. */
+        elen = ((opt->l > 14) ? 2 : 1) + opt->l;
+
+        dbg_err_ifm (elen > left,
+                "Not enough space (%zu vs %zu) to encode %s",
+                elen, left, ec_opt_sym2str(opt->sym));
+
+        /* Delta encode the option number. */
+        dbg_err_if ((delta = cur - last) > 14);
+#ifdef TODO
+        /* Insert the needed fenceposts. */
+        ++opts->noptions;
+        dbg_err_if (!(p = add_fencepost(p, &left, cur, delta)));
+#endif
+        /* Encode length. */
+        if (opt->l > 14)
+        {
+            *p++ = (delta << 4) | 0x0f;
+            *p++ = opt->l - 15;
+        }
+        else
+            *p++ = (delta << 4) | (opt->l & 0x0f);
+
+        /* Put value. */
+        if (opt->v)
+        {
+            memcpy(p, opt->v, opt->l);
+            p += opt->l;
+        }
+
+        /* Decrement available bytes. */
+        left -= elen;
+
+        /* Update state for delta computation. */
+        last = cur;
+    }
+
+    opts->enc_sz -= left;
+
+    return 0;
+err:
+    return -1;
+}
+
