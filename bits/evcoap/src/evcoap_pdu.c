@@ -37,15 +37,16 @@ int ec_pdu_init_options(ec_pdu_t *pdu)
     return 0;
 }
 
-int ec_pdu_send(ec_pdu_t *pdu, struct sockaddr_storage *dest)
+int ec_pdu_send(ec_pdu_t *pdu, struct sockaddr_storage *d, ev_socklen_t d_sz)
 {
     struct msghdr msg;
-    struct iovec iov[3];
     size_t iov_idx = 0;
+    struct iovec iov[3];
 
     dbg_return_if (pdu == NULL, -1);
     dbg_return_if (pdu->hdr == NULL, -1);
-    dbg_return_if (dest == NULL, -1);
+    dbg_return_if (d == NULL, -1);
+    dbg_return_if (d_sz == 0, -1);
 
     /* Header is non optional. */
     iov[iov_idx].iov_base = (void *) pdu->hdr;
@@ -70,8 +71,8 @@ int ec_pdu_send(ec_pdu_t *pdu, struct sockaddr_storage *dest)
         ++iov_idx;
     }
 
-    msg.msg_name = (void *) dest;
-    msg.msg_namelen = dest->ss_len;
+    msg.msg_name = (void *) d;
+    msg.msg_namelen = d_sz;
     msg.msg_iov = iov;
     msg.msg_iovlen = iov_idx;
     msg.msg_control = NULL;
@@ -136,5 +137,7 @@ static void encode_header(ec_pdu_t *pdu, ev_uint8_t code, ev_uint8_t t)
     pdu->hdr[1] = code;
     pdu->hdr[2] = (htons(mid) & 0xff00) >> 8;
     pdu->hdr[3] = htons(mid) & 0x00ff;
+
+    return;
 }
 

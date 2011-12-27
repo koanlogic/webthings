@@ -535,7 +535,7 @@ int ec_opts_encode(ec_opts_t *opts)
     dbg_return_if (opts == NULL, -1);
 
     p = opts->enc;
-    opts->enc_sz = sizeof opts->enc;
+    left = opts->enc_sz = sizeof opts->enc;
 
     /* Assume options are already ordered from lowest to highest. */
     TAILQ_FOREACH(opt, &opts->bundle, next)

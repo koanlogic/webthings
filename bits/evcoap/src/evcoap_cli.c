@@ -38,21 +38,44 @@ err:
 
 int ec_client_set_uri(ec_client_t *cli, const char *uri)
 {
-    ec_conn_t *conn = &cli->flow.conn;
+    ec_opts_t *opts;
+    ec_conn_t *conn;
+    const char *scheme, *host, *p;
     u_uri_t *u = NULL;
-    const char *scheme, *host;
 
-    /* Parse URI. */
+    opts = &cli->req.opts;
+    conn = &cli->flow.conn;
+
+    /* Do minimal URI validation: parse it according to STD 66 + expect
+     * at least non empty scheme and host. */
     dbg_err_if (u_uri_crumble(uri, 0, &u));
-
-    /* Do minimal URI validation: expect non empty scheme and host,
-     * at least. */
     dbg_err_if ((scheme = u_uri_get_scheme(u)) == NULL || *scheme == '\0');
     dbg_err_if ((host = u_uri_get_host(u)) == NULL || *host == '\0');
 
-    /* Expect scheme==coap for any non proxy request. */
-    dbg_err_ifm (!conn->use_proxy && strcasecmp(scheme, "coap"),
-            "expect URI with coap scheme when doing non-proxy requests");
+    /* Set options. */
+    if (conn->use_proxy)
+        dbg_err_if (ec_opts_add_proxy_uri(opts, uri));
+    else
+    {
+        /* Expect scheme==coap for any non proxy request. */
+        if (strcasecmp(scheme, "coap"))
+            dbg_err("expect URI with coap scheme on non-proxy requests");
+
+        dbg_err_if (ec_opts_add_uri_host(opts, host));
+
+        if ((p = u_uri_get_port(u)) && *p != '\0')
+        {
+            int port;
+            dbg_err_if (u_atoi(p, &port));
+            dbg_err_if (ec_opts_add_uri_port(opts, (ev_uint16_t) port));
+        }
+
+        if ((p = u_uri_get_path(u)) && *p != '\0')
+            dbg_err_if (ec_opts_add_uri_path(opts, p));
+
+        if ((p = u_uri_get_query(u)) && *p != '\0')
+            dbg_err_if (ec_opts_add_uri_query(opts, p));
+    }
 
     return 0;
 err:
@@ -99,16 +122,16 @@ ec_client_t *ec_client_new(struct ec_s *coap, ec_method_t m, const char *uri,
     dbg_err_sif ((cli = u_zalloc(sizeof *cli)) == NULL);
 
     /* Must be done first because the following URI validation (namely the
-     * scheme compliance) depends on the fact that this request is expected 
-     * to go through a proxy or not. */
+     * scheme compliance test) depends on the fact that this request is 
+     * expected to go through a proxy or not. */
     if (proxy_host)
         dbg_err_if (ec_client_set_proxy(cli, proxy_host, proxy_port));
 
+    dbg_err_if (ec_pdu_init_options(&cli->req));
     dbg_err_if (ec_client_set_method(cli, m));
     dbg_err_if (ec_client_set_uri(cli, uri));
     dbg_err_if (ec_client_set_msg_model(cli, mm == EC_CON ? true : false));
     dbg_err_if (ec_pdu_set_flow(&cli->req, &cli->flow));
-    dbg_err_if (ec_pdu_init_options(&cli->req));
 
     /* Cache the base so that we don't need to pass it around every function
      * that manipulates the transaction. */
@@ -226,7 +249,8 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
            continue;
 
         /* Send the request PDU. */
-        if (ec_pdu_send(req, (struct sockaddr_storage *) ai->ai_addr))
+        if (ec_pdu_send(req, (struct sockaddr_storage *) ai->ai_addr,
+                    ai->ai_addrlen))
         {
             /* Mark this socket as failed and try again. */
             evutil_closesocket(conn->socket), conn->socket = -1;
