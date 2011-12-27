@@ -19,7 +19,7 @@ int main(void)
     con_err_if ((coap = ec_init(base, dns)) == NULL);
     con_err_if ((http = evhttp_new(base)) == NULL);
 
-    con_err_if (evhttp_bind_socket(http, "0.0.0.0", 50505));
+    con_err_if (evhttp_bind_socket(http, "0.0.0.0", 5683));
 
     evhttp_set_gencb(http, process_http_request, NULL);
     event_base_dispatch(base);
@@ -47,9 +47,11 @@ u_con("requested URI: %s", huri);
 
     /* URI map is just a scheme substitution. */
     (void) u_uri_set_scheme(u, "coap");
+    (void) u_uri_set_host(u, "zrs");
+
     con_err_if (u_uri_knead(u, curi));
 
-u_con("mapped URI: %s", curi);
+    u_con("mapped URI: %s", curi);
 
     con_err_if ((ccli = ec_request_new(coap, EC_GET, curi, EC_CON)) == NULL);
     con_err_if (ec_request_send(ccli, process_coap_response, req, &tout));
