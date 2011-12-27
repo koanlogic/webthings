@@ -106,7 +106,6 @@ void tmp_handler(void* request, void* response, uint8_t *buffer, uint16_t
     memcpy(buffer, s_tmp, length);
 
     REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
-    REST.set_header_etag(response, (uint8_t *) &length, 1);
     REST.set_response_payload(response, buffer, length);
 
 err:
@@ -131,7 +130,6 @@ void acc_handler(void* request, void* response, uint8_t *buffer, uint16_t
     memcpy(buffer, s_acc, length);
 
     REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
-    REST.set_header_etag(response, (uint8_t *) &length, 1);
     REST.set_response_payload(response, buffer, length);
 
 err:
