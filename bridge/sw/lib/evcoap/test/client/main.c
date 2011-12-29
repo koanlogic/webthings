@@ -316,8 +316,16 @@ int client_set_payload_file(const char *s)
 
 int client_save_to_file(const uint8_t *pl, size_t pl_sz)
 {
-    FILE *fp = fopen(g_ctx.ofn, "w");
+    FILE *fp = NULL;
 
+    if (g_ctx.ofn[0] == '-')
+    {
+        con_err_sifm (fwrite(pl, pl_sz, 1, stdout) != 1,
+                "could not write to %s", g_ctx.ofn);
+        return 0;
+    }
+
+    fp = fopen(g_ctx.ofn, "w");
     con_err_sifm (fp == NULL, "could not open %s", g_ctx.ofn);
 
     con_err_sifm (fwrite(pl, pl_sz, 1, fp) != 1, 
