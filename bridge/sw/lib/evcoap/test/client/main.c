@@ -10,7 +10,6 @@ int facility = LOG_LOCAL0;
 
 #define DEFAULT_URI "coap://[::1]/.well-known/core"
 #define DEFAULT_OFN "./response.payload"
-#define DEFAULT_PFN "/etc/hosts"
 #define DEFAULT_TOUT 60
 
 typedef struct 
@@ -40,7 +39,7 @@ ctx_t g_ctx = {
     .app_tout = { .tv_sec = DEFAULT_TOUT, .tv_usec = 0 },
     .etag = { 0xde, 0xad, 0xbe, 0xef },
     .ofn = DEFAULT_OFN,
-    .pfn = DEFAULT_PFN,
+    .pfn = NULL,
     .verbose = false
 };
 
@@ -163,7 +162,7 @@ void usage(const char *prog)
         "       -m <GET|POST|PUT|DELETE>    (default is GET)               \n"
         "       -M <CON|NON>                (default is NON)               \n"
         "       -o <file>                   (default is "DEFAULT_OFN")     \n"
-        "       -p <file>                   (default is "DEFAULT_PFN")     \n"
+        "       -p <file>                   (default is NULL)              \n"
         "       -u <uri>                    (default is "DEFAULT_URI")     \n"
         "       -t <timeout>                (default is %u sec)            \n"
         "                                                                  \n"
@@ -202,8 +201,8 @@ int client_run(void)
     dbg_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, g_ctx.method, 
                     g_ctx.uri, g_ctx.model)) == NULL);
 
-    /* In case of POST/PUT load payload from file. */
-    if (g_ctx.method == EC_POST || g_ctx.method == EC_PUT)
+    /* In case of POST/PUT load payload from file (if not NULL). */
+    if ((g_ctx.method == EC_POST || g_ctx.method == EC_PUT) && g_ctx.pfn)
     {
         dbg_err_if (u_load_file(g_ctx.pfn, 0, (char **) &payload, &payload_sz));
         dbg_err_if (ec_request_set_payload(g_ctx.cli, payload, payload_sz));
