@@ -156,7 +156,6 @@ int ec_register_fb(ec_t *coap, ec_server_cb_t fb, void *fb_args)
 int ec_request_set_block1(ec_client_t *cli, uint32_t bnum, bool more,
         size_t bsz)
 {
-    enum { MIN_BSZ = 16, MAX_BSZ = 1024 };
     ec_opts_t *opts;
     size_t sz;
     uint8_t i, szx;
@@ -164,7 +163,7 @@ int ec_request_set_block1(ec_client_t *cli, uint32_t bnum, bool more,
 
     dbg_err_if (cli == NULL);
     dbg_err_if (more != true && more != false);
-    dbg_err_if (bsz < MIN_BSZ || bsz > MAX_BSZ);
+    dbg_err_if (bsz < EC_COAP_BLOCK_MIN || bsz > EC_COAP_BLOCK_MAX);
     dbg_err_if ((bsz & (~bsz + 1)) != bsz);  /* not a power of 2 */
 
     dbg_err_if ((opts = ec_client_get_request_options(cli)) == NULL);
@@ -172,13 +171,13 @@ int ec_request_set_block1(ec_client_t *cli, uint32_t bnum, bool more,
     dbg_err_ifm (ec_opts_get_uint(opts, EC_OPT_BLOCK1, &tmp) == 0,
             "Block Option MUST NOT occur more than once");
 
-    for (i = 0, sz = MIN_BSZ; sz <= MAX_BSZ; i++, sz <<= 1)
+    for (i = 0, sz = EC_COAP_BLOCK_MIN; sz <= EC_COAP_BLOCK_MAX; i++, sz <<= 1)
         if (bsz == sz)
         {
             szx = i;
             break;
         }
-    dbg_err_if (sz > MAX_BSZ);
+    dbg_err_if (sz > EC_COAP_BLOCK_MAX);
 
     dbg_err_if (ec_opts_add_block1(opts, bnum, more, szx));
 
@@ -193,7 +192,6 @@ err:
 int ec_request_set_block2(ec_client_t *cli, uint32_t bnum, bool more,
         size_t bsz)
 {
-    enum { MIN_BSZ = 16, MAX_BSZ = 1024 };
     ec_opts_t *opts;
     size_t sz;
     uint8_t i, szx;
@@ -201,7 +199,7 @@ int ec_request_set_block2(ec_client_t *cli, uint32_t bnum, bool more,
 
     dbg_err_if (cli == NULL);
     dbg_err_if (more != true && more != false);
-    dbg_err_if (bsz < MIN_BSZ || bsz > MAX_BSZ);
+    dbg_err_if (bsz < EC_COAP_BLOCK_MIN || bsz > EC_COAP_BLOCK_MAX);
     dbg_err_if ((bsz & (~bsz + 1)) != bsz);  /* not a power of 2 */
 
     dbg_err_if ((opts = ec_client_get_request_options(cli)) == NULL);
@@ -209,13 +207,13 @@ int ec_request_set_block2(ec_client_t *cli, uint32_t bnum, bool more,
     dbg_err_ifm (ec_opts_get_uint(opts, EC_OPT_BLOCK2, &tmp) == 0,
             "Block Option MUST NOT occur more than once");
 
-    for (i = 0, sz = MIN_BSZ; sz <= MAX_BSZ; i++, sz <<= 1)
+    for (i = 0, sz = EC_COAP_BLOCK_MIN; sz <= EC_COAP_BLOCK_MAX; i++, sz <<= 1)
         if (bsz == sz)
         {
             szx = i;
             break;
         }
-    dbg_err_if (sz > MAX_BSZ);
+    dbg_err_if (sz > EC_COAP_BLOCK_MAX);
 
     dbg_err_if (ec_opts_add_block2(opts, bnum, more, szx));
 
