@@ -114,6 +114,7 @@ int ec_opts_add_block2(ec_opts_t *opts, uint32_t num, bool more,
         uint8_t szx);
 ec_opt_t *ec_opts_get_nth(ec_opts_t *opts, ec_opt_sym_t sym, size_t n);
 ec_opt_t *ec_opts_get(ec_opts_t *opts, ec_opt_sym_t sym);
+int ec_opts_get_uint(ec_opts_t *opts, ec_opt_sym_t sym, uint64_t *ui);
 const char *ec_opts_get_string(ec_opts_t *opts, ec_opt_sym_t sym);
 const char *ec_opts_get_uri_host(ec_opts_t *opts);
 int ec_opts_get_uri_port(ec_opts_t *opts, uint16_t *port);

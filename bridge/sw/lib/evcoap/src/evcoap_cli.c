@@ -832,6 +832,30 @@ int ec_res_set_clear(ec_res_set_t *rset)
     return 0;
 }
 
+ec_pdu_t *ec_client_get_request_pdu(ec_client_t *cli)
+{
+    dbg_return_if (cli == NULL, NULL);
+
+    return &cli->req;
+err:
+    return NULL;
+}
+
+ec_opts_t *ec_client_get_request_options(ec_client_t *cli)
+{
+    ec_pdu_t *req;
+    ec_opts_t *opts;
+
+    dbg_return_if (cli == NULL, NULL);
+
+    dbg_err_if ((req = ec_client_get_request_pdu(cli)) == NULL);
+
+    return &req->opts;
+err:
+    return NULL;
+}
+
+
 /* Unicast only. */
 ec_pdu_t *ec_client_get_response_pdu(ec_client_t *cli)
 {

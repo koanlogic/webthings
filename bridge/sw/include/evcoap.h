@@ -45,6 +45,10 @@ int ec_register_fb(ec_t *coap, ec_server_cb_t cb, void *cb_args);
 
 /* PDU manipulation API */
 int ec_request_set_payload(ec_client_t *cli, uint8_t *payload, size_t sz);
+int ec_request_set_block1(ec_client_t *cli, uint32_t bnum, bool more,
+        size_t bsz);
+int ec_request_set_block2(ec_client_t *cli, uint32_t bnum, bool more,
+        size_t bsz);
 
 int ec_request_add_content_type(ec_client_t *cli, uint16_t ct);
 int ec_request_add_max_age(ec_client_t *cli, uint32_t ma);

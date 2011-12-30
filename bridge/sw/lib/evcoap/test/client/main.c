@@ -12,6 +12,13 @@ int facility = LOG_LOCAL0;
 #define DEFAULT_OFN "./response.payload"
 #define DEFAULT_TOUT 60
 
+typedef struct
+{
+    uint32_t block_no;
+    bool more;
+    size_t block_sz;
+} blockopt_t;
+
 typedef struct 
 {
     ec_t *coap;
@@ -26,6 +33,7 @@ typedef struct
     const char *ofn;
     const char *pfn;
     bool verbose;
+    blockopt_t bopt;
 } ctx_t;
 
 ctx_t g_ctx = {
@@ -98,7 +106,13 @@ int main(int ac, char *av[])
     }
 
     con_err_if (client_init());
-    con_err_if (client_run());
+
+    /* Keep on running until all blocks are exhausted. */
+    do
+    {
+        con_err_if (client_run());
+    }
+    while (g_ctx.bopt.more);
 
     client_term();
     return EXIT_SUCCESS;
@@ -125,20 +139,22 @@ void cb(ec_client_t *cli)
 
     if (rc == EC_CONTENT)
     {
-        uint32_t block_no;
-        bool more;
         uint8_t *pl;
-        size_t pl_sz, block_sz;
+        uint32_t bnum;
+        size_t pl_sz;
 
         /* Get response payload. */
         con_err_ifm ((pl = ec_response_get_payload(cli, &pl_sz)) == NULL,
                     "empty payload");
 
-        /* Try to see if it is fragmented. */
-        if (ec_response_get_block2(cli, &block_no, &more, &block_sz))
+        /* If fragmented will set g_ctx.bopt. */
+        if (ec_response_get_block2(cli, &bnum, &g_ctx.bopt.more,
+                    &g_ctx.bopt.block_sz) && g_ctx.bopt.more)
         {
-            if (more)
-                u_con("Payload has been chopped!");
+            /* Blockwise transfer - make sure requested block was returned. */
+            dbg_err_if (bnum != g_ctx.bopt.block_no);
+
+            g_ctx.bopt.block_no = bnum;
         }
 
         /* Save payload to file. */
@@ -179,6 +195,11 @@ int client_init(void)
     dbg_err_if ((g_ctx.dns = evdns_base_new(g_ctx.base, 1)) == NULL);
     dbg_err_if ((g_ctx.coap = ec_init(g_ctx.base, g_ctx.dns)) == NULL);
 
+    /* Other local initialisations. */
+    g_ctx.bopt.block_no = 0;
+    g_ctx.bopt.more = 0;
+    g_ctx.bopt.block_sz = 0;
+
     return 0;
 err:
     client_term();
@@ -197,9 +218,22 @@ int client_run(void)
 {
     uint8_t *payload = NULL;
     size_t payload_sz;
-    
+
     dbg_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, g_ctx.method, 
                     g_ctx.uri, g_ctx.model)) == NULL);
+
+    /* Handle blockwise transfer. */
+    if (g_ctx.bopt.more)
+    {
+        g_ctx.bopt.block_no++;
+
+        CHAT("requesting block n.%u (size: %u)", g_ctx.bopt.block_no,
+                g_ctx.bopt.block_sz);
+
+        /* The client MUST set the M bit of a Block2 Option to zero. */
+        dbg_err_if (ec_request_set_block2(g_ctx.cli, g_ctx.bopt.block_no,
+                    0, g_ctx.bopt.block_sz) == -1);
+    }
 
     /* In case of POST/PUT load payload from file (if not NULL). */
     if ((g_ctx.method == EC_POST || g_ctx.method == EC_PUT) && g_ctx.pfn)
