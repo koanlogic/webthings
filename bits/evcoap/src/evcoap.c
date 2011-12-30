@@ -20,6 +20,9 @@ ec_t *ec_init(struct event_base *base, struct evdns_base *dns)
     coap->base = base;
     coap->dns = dns;
 
+    TAILQ_INIT(&coap->clients);
+    TAILQ_INIT(&coap->servers);
+
     return coap;
 err:
     return NULL;

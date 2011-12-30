@@ -1,3 +1,4 @@
+#include <event2/event.h>
 #include <event2/util.h>
 #include <u/libu.h>
 #include "evcoap_cli.h"
@@ -190,6 +191,9 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args)
 
     dbg_err_if (u_snprintf(sport, sizeof sport, "%u", port));
 
+    cli->cb = cb;
+    cli->cb_args = cb_args;
+
     /* Set up hints needed by evdns_getaddrinfo(). */
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
@@ -221,7 +225,7 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
     ec_pdu_t *req = &cli->req;
     ec_conn_t *conn = &cli->flow.conn;
 
-#define EC_CLI_ERR_IF(e, state)                 \
+#define EC_CLI_ASSERT(e, state)                 \
     do {                                        \
         if ((e))                                \
         {                                       \
@@ -234,12 +238,12 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
      * its lifetime is complete. */
     cli->dns_req = NULL;
 
-    EC_CLI_ERR_IF(result != DNS_ERR_NONE, EC_CLI_STATE_DNS_FAILED);
+    EC_CLI_ASSERT(result != DNS_ERR_NONE, EC_CLI_STATE_DNS_FAILED);
 
     ec_client_set_state(cli, EC_CLI_STATE_DNS_OK);
 
     /* Encode options and header. */
-    EC_CLI_ERR_IF(ec_pdu_encode(req), EC_CLI_STATE_INTERNAL_ERR);
+    EC_CLI_ASSERT(ec_pdu_encode(req), EC_CLI_STATE_INTERNAL_ERR);
 
     for (conn->socket = -1, ai = res; ai != NULL; ai = ai->ai_next)
     {
@@ -257,7 +261,7 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
             continue;
         }
 
-        EC_CLI_ERR_IF(evutil_make_socket_nonblocking(conn->socket),
+        EC_CLI_ASSERT(evutil_make_socket_nonblocking(conn->socket),
                 EC_CLI_STATE_INTERNAL_ERR);
 
         ec_client_set_state(cli, EC_CLI_STATE_REQ_SENT);
@@ -265,16 +269,19 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
     }
 
     /* Check whether the request PDU was actually sent out on any socket. */
-    EC_CLI_ERR_IF(conn->socket == -1, EC_CLI_STATE_INTERNAL_ERR);
+    EC_CLI_ASSERT(conn->socket == -1, EC_CLI_STATE_INTERNAL_ERR);
 
-    /* TODO add this to the pending clients' list. */
+    /* Add this to the pending clients' list. */
+    EC_CLI_ASSERT(ec_client_register(cli), EC_CLI_STATE_INTERNAL_ERR);
+
+    /* TODO add to the duplicate machinery */
 
     return;
 err:
     return;
-    /* Invoke user callback. */
+    /* TODO Invoke user callback with the failure code. */
 }
-#undef EC_CLI_ERR_IF
+#undef EC_CLI_ASSERT
 
 void ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
 {
@@ -286,4 +293,72 @@ void ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
     cli->state = state;
 
     return;
+}
+
+int ec_client_register(ec_client_t *cli)
+{
+    ec_t *coap;
+    ec_conn_t *conn;
+    struct event *ev_input = NULL;
+
+    dbg_return_if (cli == NULL, -1);
+        
+    coap = cli->base;
+    conn = &cli->flow.conn;
+
+    /* Attach server response events to this socket.
+     * (XXX still not sure about what is to be supplied to the callback.) */
+    dbg_err_if ((ev_input = event_new(coap->base, conn->socket, 
+                    EV_READ | EV_PERSIST, ec_client_input, cli)) == NULL);
+
+    /* Make the read event pending in the base. */
+    dbg_err_if (event_add(ev_input, NULL) == -1);
+    
+    /* Push the event deep into the client. */
+    conn->ev_input = ev_input, ev_input = NULL;
+
+    TAILQ_INSERT_HEAD(&coap->clients, cli, next);
+
+    return 0;
+err:
+    if (ev_input)
+        event_del(ev_input);
+    return -1;
+}
+
+/* XXX bad name, could lead to confusion. */
+struct ec_s *ec_client_get_base(ec_client_t *cli)
+{
+    dbg_return_if (cli == NULL, NULL);
+
+    return cli->base;
+}
+
+ec_cli_state_t ec_client_get_state(ec_client_t *cli)
+{
+    /* We don't have any meaningful return code to return in case a bad
+     * client was supplied.  Just trace this into the log and core dump
+     * on subsequent dereference attempt. */
+    dbg_if (cli == NULL);
+
+    return cli->state;
+}
+
+int ec_client_handle_pdu(ev_uint8_t *raw, size_t raw_sz, void *arg)
+{
+    ec_client_t *cli = (ec_client_t *) arg;
+
+    /* TODO */
+    u_con("TODO %s", __func__);
+
+    return 0;
+}
+
+void ec_client_input(evutil_socket_t sd, short u, void *arg)
+{
+    ec_client_t *cli = (ec_client_t *) arg;
+
+    u_unused_args(u);
+
+    ec_net_dispatch(sd, ec_client_handle_pdu, cli);
 }

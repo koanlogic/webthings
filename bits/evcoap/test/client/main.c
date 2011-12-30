@@ -3,8 +3,11 @@
 
 int facility = LOG_LOCAL0;
 
-void cb(ec_t *coap, ec_client_t *cli, ec_cli_state_t fsm_state, void *args)
+void cb(ec_client_t *cli, void *args)
 {
+    ec_t *coap = ec_client_get_base(cli);
+    ec_cli_state_t fsm_state = ec_client_get_state(cli);
+
     u_con("YAHOO!!!");
 }
 
@@ -23,7 +26,7 @@ int main(void)
 
     con_err_if ((cli = ec_request_new(coap, EC_GET, uri, EC_NON)) == NULL);
 
-    con_err_if (ec_request_add_if_match(cli, etag, sizeof etag));
+    /* con_err_if (ec_request_add_if_match(cli, etag, sizeof etag)); */
     con_err_if (ec_request_add_accept(cli, EC_MT_TEXT_PLAIN));
     con_err_if (ec_request_add_accept(cli, EC_MT_APPLICATION_JSON));
 
