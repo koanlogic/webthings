@@ -9,7 +9,7 @@
 
 struct ec_pdu_s
 {
-    ev_uint8_t hdr[4];
+    ev_uint8_t hdr[EC_COAP_HDR_SIZE];
 
     ev_uint16_t mid;
 
@@ -33,5 +33,6 @@ int ec_pdu_set_flow(ec_pdu_t *pdu, ec_flow_t *flow);
 int ec_pdu_init_options(ec_pdu_t *pdu);
 int ec_pdu_send(ec_pdu_t *pdu, struct sockaddr_storage *d, ev_socklen_t d_sz);
 int ec_pdu_encode(ec_pdu_t *pdu);
+ec_pdu_t *ec_pdu_new_empty(void);
 
 #endif  /* !_EC_PDU_H_ */

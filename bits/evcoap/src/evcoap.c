@@ -103,7 +103,7 @@ int ec_bind_socket(ec_t *coap, const char *addr, ev_uint16_t port)
     dbg_return_if (addr == NULL, -1);
 
     if (port == 0)
-        port = EC_DEFAULT_PORT;
+        port = EC_COAP_DEFAULT_PORT;
 
     dbg_err_if (u_snprintf(addrport, sizeof addrport, "%s:%u", addr, port));
 

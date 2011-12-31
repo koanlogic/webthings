@@ -9,14 +9,17 @@
 extern "C" {
 #endif  /* __cplusplus */
 
-#define EC_DEFAULT_PORT     5683
-
-#define EC_COAP_VERSION_1   1
+#define EC_COAP_VERSION_1       1
+#define EC_COAP_DEFAULT_PORT    5683
 
 #define EC_COAP_CON    0
 #define EC_COAP_NON    1
 #define EC_COAP_ACK    2
 #define EC_COAP_RST    3
+
+#define EC_COAP_OPT_LEN_MAX 270
+#define EC_COAP_MAX_OPTIONS 15
+#define EC_COAP_HDR_SIZE    4
 
 typedef enum
 {

@@ -7,9 +7,6 @@
 #include "evcoap_conf.h"
 #include "evcoap_enums.h"
 
-#define EC_COAP_OPT_LEN_MAX     270
-#define EC_COAP_MAX_OPTIONS     15
-
 /* TODO take care of option delta and length fields overhead which should be
  * TODO a maximum of 4 bytes per option. */
 #define EC_OPTS_MAX_LEN         (EC_COAP_MAX_OPTIONS * EC_COAP_OPT_LEN_MAX)
@@ -119,5 +116,7 @@ int ec_opt_decode_uint(const ev_uint8_t *v, size_t l, ev_uint64_t *ui);
 int ec_opt_encode_uint(ev_uint64_t ui, ev_uint8_t *e, size_t *elen);
 
 int ec_opts_encode(ec_opts_t *opts);
+int ec_opts_decode(ec_opts_t *opts, const ev_uint8_t *pdu, size_t pdu_sz,
+        ev_uint8_t oc, size_t *olen);
 
 #endif  /* !_EC_PRV_H_ */

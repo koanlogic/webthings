@@ -60,4 +60,6 @@ ec_cli_state_t ec_client_get_state(ec_client_t *cli);
 
 void ec_client_input(evutil_socket_t sd, short u, void *arg);
 
+int ec_client_handle_empty_pdu(ec_client_t *cli, ev_uint8_t t, ev_uint16_t mid);
+
 #endif  /* !_EC_CLI_H_ */

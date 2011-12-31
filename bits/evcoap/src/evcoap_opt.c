@@ -588,3 +588,97 @@ err:
     return -1;
 }
 
+int ec_opts_decode(ec_opts_t *opts, const ev_uint8_t *pdu, size_t pdu_sz, 
+        ev_uint8_t oc, size_t *olen)
+{
+    ev_uint8_t opt_len, skip_this;
+    size_t opt_num = 0;
+    unsigned int opt_count;
+    ec_opt_t *opt = NULL;
+    ev_uint8_t *opt_p;
+
+    dbg_return_if (pdu == NULL, -1);
+    dbg_return_if (pdu_sz <= EC_COAP_HDR_SIZE, -1);
+    dbg_return_if (opts == NULL, -1);
+    dbg_return_if (olen == NULL, -1);
+
+    *olen = 0;
+
+    if ((opt_count = oc) == 0)
+        return 0;
+
+    opt_p = pdu + EC_COAP_HDR_SIZE;
+
+    for (; opt_count > 0; opt_count--)
+    {
+        /* A priori, all options are equal.  While processing them, though,
+         * we'll discover that some are more equal than others (unrecognized
+         * elective options and fence-posts will assert this flag.) */
+        skip_this = 0;
+
+        /* Read delta and deduce option number. */ 
+        opt_num += (*opt_p >> 4);
+
+        switch (opt_num)
+        {
+            case EC_OPT_PROXY_URI:
+            case EC_OPT_CONTENT_TYPE:
+            case EC_OPT_MAX_AGE:
+            case EC_OPT_ETAG:
+            case EC_OPT_URI_HOST:
+            case EC_OPT_LOCATION_PATH:
+            case EC_OPT_URI_PORT:
+            case EC_OPT_LOCATION_QUERY:
+            case EC_OPT_URI_PATH:
+            case EC_OPT_OBSERVE:
+            case EC_OPT_TOKEN:
+            case EC_OPT_ACCEPT:
+            case EC_OPT_IF_MATCH:
+            case EC_OPT_MAX_OFE:
+            case EC_OPT_URI_QUERY:
+            case EC_OPT_IF_NONE_MATCH:
+                break;
+            default:
+                /* Unrecognized options of class "critical" that occur in 
+                 * a confirmable request MUST cause the return of a 4.02 
+                 * (Bad Option) response.  This response SHOULD include a 
+                 * human-readable error message describing the unrecognized
+                 * option(s). */
+                if (opt_num % 2) /* Even option number == critical. */
+                {
+                    /* TODO */
+                    dbg_err_ifm(1, "unknown CoAP Option %zu", opt_num);
+                }
+                else
+                {
+                    skip_this = 1;
+                    break;
+                }
+        }
+
+        /* Read length (base or extended.) */
+        if ((opt_len = (*opt_p & 0x0f)) == 0x0f)
+            opt_len = *(opt_p + 1) + 15;
+
+        /* Jump over the lenght indicators to get to the option value. */
+        opt_p += ((opt_len > 15) ? 2 : 1);
+
+        /* Extract option and add it to the pool. */
+        if (!skip_this)
+        {
+            dbg_err_if (evcoap_opts_add(opts, evcoap_opt_num2sym(opt_num), 
+                        opt_p, opt_len));
+        }
+
+        /* Jump over this option's value and come again. */
+        opt_p += opt_len;
+    }
+
+    /* Set payload offset. */
+
+    *olen = opt_p - (pdu + EC_COAP_HDR_SIZE); 
+
+    return 0;
+err:
+    return -1;
+}

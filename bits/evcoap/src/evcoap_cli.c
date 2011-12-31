@@ -26,7 +26,7 @@ int ec_client_set_proxy(ec_client_t *cli, const char *host, ev_uint16_t port)
 
     dbg_return_if (EMPTY_STRING(host), -1);
 
-    conn->proxy_port = (port == 0) ? EC_DEFAULT_PORT : port;
+    conn->proxy_port = (port == 0) ? EC_COAP_DEFAULT_PORT : port;
 
     dbg_err_if (u_strlcpy(conn->proxy_addr, host, sizeof conn->proxy_addr));
 
@@ -186,7 +186,7 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args)
         dbg_err_if ((host = ec_opts_get_uri_host(&req->opts)) == NULL);
 
         if (ec_opts_get_uri_port(&req->opts, &port))
-            port = EC_DEFAULT_PORT;
+            port = EC_COAP_DEFAULT_PORT;
     }
 
     dbg_err_if (u_snprintf(sport, sizeof sport, "%u", port));
@@ -306,15 +306,14 @@ int ec_client_register(ec_client_t *cli)
     coap = cli->base;
     conn = &cli->flow.conn;
 
-    /* Attach server response events to this socket.
-     * (XXX still not sure about what is to be supplied to the callback.) */
+    /* Attach server response events to this socket. */
     dbg_err_if ((ev_input = event_new(coap->base, conn->socket, 
                     EV_READ | EV_PERSIST, ec_client_input, cli)) == NULL);
 
     /* Make the read event pending in the base. */
     dbg_err_if (event_add(ev_input, NULL) == -1);
     
-    /* Push the event deep into the client. */
+    /* Attach input event on this socket. */
     conn->ev_input = ev_input, ev_input = NULL;
 
     TAILQ_INSERT_HEAD(&coap->clients, cli, next);
@@ -326,7 +325,7 @@ err:
     return -1;
 }
 
-/* XXX bad name, could lead to confusion. */
+/* XXX bad function name, could lead to confusion. */
 struct ec_s *ec_client_get_base(ec_client_t *cli)
 {
     dbg_return_if (cli == NULL, NULL);
@@ -336,9 +335,9 @@ struct ec_s *ec_client_get_base(ec_client_t *cli)
 
 ec_cli_state_t ec_client_get_state(ec_client_t *cli)
 {
-    /* We don't have any meaningful return code to return in case a bad
-     * client was supplied.  Just trace this into the log and core dump
-     * on subsequent dereference attempt. */
+    /* We don't have any meaningful return code to return in case a NULL
+     * client was supplied.  Trace this into the log just before we core 
+     * dump on subsequent dereference attempt. */
     dbg_if (cli == NULL);
 
     return cli->state;
@@ -347,13 +346,63 @@ ec_cli_state_t ec_client_get_state(ec_client_t *cli)
 int ec_client_handle_pdu(ev_uint8_t *raw, size_t raw_sz, void *arg)
 {
     ec_client_t *cli = (ec_client_t *) arg;
+    size_t olen = 0, plen;
+    ev_uint8_t ver, t, oc, code;
+    ev_uint16_t mid;
+    ec_pdu_t *res = NULL;
 
+    dbg_return_ifm (raw_sz < EC_COAP_HDR_SIZE, -1, 
+            "not enough bytes to hold a CoAP header");
+
+    /* Decode header. */
+    ver = (raw[0] & 0xc0) >> 6;
+    t = (raw[0] & 0x30) >> 4;
+    oc = raw[0] & 0x0f;
+    code = raw[1];
+    mid = ntohs((raw[2] << 8) | raw[3]);
+
+    /* Consistency checks. */
+
+    dbg_err_ifm (ver != EC_COAP_VERSION_1,
+            "unsupported CoAP version %u", ver);
+
+    dbg_err_ifm (code >= 1 && code <= 31, 
+            "unexpected request code in client response context");
+
+    /*
+     * TODO pass mid and source to the dup handler machinery... 
+     */
+    
+    /* Handle empty responses (i.e. resets and separated acknowledgements)
+     * specially. */
+    if (!code)
+        return ec_client_handle_empty_pdu(cli, t, mid);
+
+    dbg_err_sif ((res = ec_pdu_new_empty()) == NULL);
+
+    /* Parse options, if any. */
+    dbg_err_ifm (oc && ec_opts_decode(&res->opts, raw, raw_sz, oc, &olen),
+            "could not parse options");
+
+    /* Attach payload, if any. */
+    if ((plen = raw_sz - (olen + EC_COAP_HDR_SIZE)))
+        (void) ec_pdu_set_payload(res, raw + EC_COAP_HDR_SIZE + olen, plen);
+
+    /* TODO fill in the residual info. */
+
+
+    return 0;
+err:
+    return -1;
+}
+
+int ec_client_handle_empty_pdu(ec_client_t *cli, ev_uint8_t t, ev_uint16_t mid)
+{
     /* TODO */
-    u_con("TODO %s", __func__);
-
     return 0;
 }
 
+/* Just a wrapper around ec_net_dispatch(). */
 void ec_client_input(evutil_socket_t sd, short u, void *arg)
 {
     ec_client_t *cli = (ec_client_t *) arg;

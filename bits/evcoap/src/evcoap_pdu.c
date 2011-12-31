@@ -141,3 +141,15 @@ static void encode_header(ec_pdu_t *pdu, ev_uint8_t code, ev_uint8_t t)
     return;
 }
 
+ec_pdu_t *ec_pdu_new_empty(void)
+{
+    ec_pdu_t *pdu = NULL;
+
+    dbg_err_sif ((pdu = u_zalloc(sizeof *pdu)) == NULL);
+
+    (void) ec_pdu_init_options(pdu);
+
+    return pdu;
+err:
+    return NULL;
+}
