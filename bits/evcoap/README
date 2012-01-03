@@ -20,7 +20,7 @@ Contents
   APIs, needs both a basic event base and a DNS event base, and is initialized
   like this:
 
-      coap = ec_init(event_base_new(), evdns_base_new());
+      ec_t *coap = ec_init(event_base_new(), evdns_base_new());
 
 2 Client
 
@@ -38,10 +38,8 @@ Contents
   The most simple request PDU is created by specifying a method, an URI and
   a messaging model (confirmable or non-confirmable):
 
-      ec_client_t *cli;
       const char *uri = "coap://[::1]:56565/a/b/res";
-
-      cli = ec_request_new(coap, EC_GET, uri, EC_NON);
+      ec_client_t *cli = ec_request_new(coap, EC_GET, uri, EC_NON);
 
   If the request needs to pass through a CoAP intermediary, then its address
   must be explicitly supplied through the following extended creation interface:
@@ -73,14 +71,11 @@ Contents
       ec_request_set_payload(cli, payload, sizeof payload);
 
 
-                        [[CHECKED]]
-
-
 2.3 Send Request
 
   When sending a request PDU, the user wants to be notified when any event
   related to her request happens.  To achieve that, she will supply a callback
-  (and args) to the send_request interface.  The callback will be invoked 
+  (and args) to the ec_request_send() interface.  The callback will be invoked 
   whenever an interesting event related to the ongoing request happens -- namely
   a RST condition, or the response coming back (note that ACKs are managed 
   transparently.)
@@ -92,31 +87,28 @@ Contents
   is multicast.  Multicast support needs some tweaking with the PDU format, 
   i.e. to support chaining of multiple responses.]]  
 
-  The messaging model, be it CONfirmable or NON-confirmable, shall be conveyed
-  in this step.
-
-      void cb(ec_t *coap, ec_pdu_t *res, ec_send_status_t status, void *args) 
-      { ... }
+      void cb(ec_client_t *cli) { ... }
 
       struct timeval tout = { .tv_sec = 5, .tv_usec = 125 };
 
-      ec_send_request(coap, req, EVCOAP_NON, cb, NULL, &tout);
-                            ^    ^   ^           ^   ^      ^
-                            |    |   |           |   |      |
-                            |    |   |           |   |      `-- User timeout
-                            |    |   |           `---`-- User callback and args 
-                            |    |   `-- messaging model
-                            |    `-- Request PDU
-                            `-- CoAP event base
+      ec_request_send(cli, cb, NULL, &tout);
+                      ^    ^   ^     ^
+                      |    |   |     |
+                      |    |   |     `-- User timeout
+                      |    `---`-- User callback and args 
+                      `-- Client transaction object
 
-  The CoAP event base is supplied as an auto parameter to the callback so that
+  The CoAP event base can be easily accessed in the callback context so that
   the user may break the event loop or otherwise manipulate it (e.g. add/remove
   her events, etc.), like in the following snippet:
  
-      void cb (ec_t *coap, ec_pdu_t *res, ec_send_status_t status, void *args)
+      void cb (ec_client_t *cli)
       {
+          ec_t *coap = ec_client_get_base(cli);
+          ec_cli_state_t st = ec_client_get_state(cli);
+
           /* On error break the event loop. */
-          if (status != EVCOAP_SEND_STATUS_OK)
+          if (st != EC_CLI_STATE_REQ_DONE)
                ec_loopbreak(coap);
           [...]
       }

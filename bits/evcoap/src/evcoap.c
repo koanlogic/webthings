@@ -82,11 +82,12 @@ ec_client_t *ec_proxy_request_new(ec_t *coap, ec_method_t m, const char *uri,
  *  \param  cb      optional callback that will be invoked on response or error 
  *  \param  cb_args optional arguments to the callback 
  */
-int ec_request_send(ec_client_t *cli, ec_client_cb_t cb, void *cb_args)
+int ec_request_send(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
+        struct timeval *tout)
 {
     dbg_return_if (cli == NULL, -1);
 
-    return ec_client_go(cli, cb, cb_args);
+    return ec_client_go(cli, cb, cb_args, tout);
 }
 
 /**

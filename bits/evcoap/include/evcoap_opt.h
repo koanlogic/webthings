@@ -78,6 +78,7 @@ void ec_opt_free(ec_opt_t *opt);
 ec_opt_type_t ec_opt_sym2type(ec_opt_sym_t sym);
 size_t ec_opt_sym2num(ec_opt_sym_t sym);
 const char *ec_opt_sym2str(ec_opt_sym_t sym);
+ec_opt_sym_t ec_opt_num2sym(size_t num);
 
 int ec_opts_push(ec_opts_t *opts, ec_opt_t *o);
 

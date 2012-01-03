@@ -72,7 +72,19 @@ int ec_client_set_uri(ec_client_t *cli, const char *uri)
         }
 
         if ((p = u_uri_get_path(u)) && *p != '\0')
-            dbg_err_if (ec_opts_add_uri_path(opts, p));
+        {
+            char *r, *s, path[1024];    /* TODO check path len. */
+
+            dbg_err_if (u_strlcpy(path, p, sizeof path));
+
+            for (s = path; (r = strsep(&s, "/")) != NULL; )
+            {
+                if (*r == '\0')
+                    continue;
+
+                dbg_err_if (ec_opts_add_uri_path(opts, r));
+            }
+        }
 
         if ((p = u_uri_get_query(u)) && *p != '\0')
             dbg_err_if (ec_opts_add_uri_query(opts, p));
@@ -145,7 +157,8 @@ err:
     return NULL;
 }
 
-int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args)
+int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
+        struct timeval *tout)
 {
     ec_pdu_t *req;
     ec_flow_t *flow;
@@ -159,13 +172,18 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args)
 
     dbg_return_if (cli == NULL, -1);
 
+    /* Expect client with state NONE.  Otherwise we jump to err where the 
+     * state is set to INTERNAL_ERR. */
+    dbg_err_ifm (cli->state != EC_CLI_STATE_NONE,
+            "unexpected state %u", cli->state);
+
     req = &cli->req;
     flow = &cli->flow;
     conn = &flow->conn;
 
     /* TODO Sanitize request. */ 
 
-    /* Add token if missing. */
+    /* Add token option if missing. */
     if (!ec_opts_get(&req->opts, EC_OPT_TOKEN))
     {
         evutil_secure_rng_get_bytes(tok, sizeof tok);
@@ -215,6 +233,7 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args)
      * the callback has been shortcircuited), or the it's not yet started. */
     return 0;
 err:
+    ec_client_set_state(cli, EC_CLI_STATE_INTERNAL_ERR);
     return -1;
 }
 
@@ -285,10 +304,48 @@ err:
 
 void ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
 {
-    /* TODO check that state transition is valid: panic in case an invalid
-     * TODO transition was requested. */
+    ec_cli_state_t cur = cli->state;
 
-    /* TODO handle timers */
+    u_dbg("[client=%p] transition request from '%s' to '%s'",
+            cli, ec_cli_state_str(cur), ec_cli_state_str(state));
+
+    /* Check that the requested state transition is valid.  Panic in case an 
+     * invalid transition was requested. */
+    switch (state)
+    {
+        case EC_CLI_STATE_INTERNAL_ERR:
+            break;
+
+        case EC_CLI_STATE_DNS_FAILED:
+        case EC_CLI_STATE_DNS_OK:
+            die_if (cur != EC_CLI_STATE_NONE);
+            break;
+
+        case EC_CLI_STATE_SEND_FAILED:
+        case EC_CLI_STATE_REQ_SENT:
+            die_if (cur != EC_CLI_STATE_DNS_OK
+                    && cur != EC_CLI_STATE_COAP_RETRY);
+            break;
+
+        case EC_CLI_STATE_REQ_ACKD:
+        case EC_CLI_STATE_COAP_RETRY:
+        case EC_CLI_STATE_COAP_TIMEOUT:
+            die_if (cur != EC_CLI_STATE_REQ_SENT);
+            break;
+
+        case EC_CLI_STATE_APP_TIMEOUT:
+        case EC_CLI_STATE_REQ_DONE:
+        case EC_CLI_STATE_REQ_RST:
+            die_if (cur != EC_CLI_STATE_REQ_SENT
+                    && cur != EC_CLI_STATE_REQ_ACKD);
+            break;
+
+        case EC_CLI_STATE_NONE:
+        default:
+            die(EXIT_FAILURE, "transaction cannot be set to state %u", state);
+    }
+
+    /* TODO handle timers and stuff... */
 
     cli->state = state;
 
@@ -388,8 +445,18 @@ int ec_client_handle_pdu(ev_uint8_t *raw, size_t raw_sz, void *arg)
     if ((plen = raw_sz - (olen + EC_COAP_HDR_SIZE)))
         (void) ec_pdu_set_payload(res, raw + EC_COAP_HDR_SIZE + olen, plen);
 
-    /* TODO fill in the residual info. */
+    /* TODO fill in the residual info (e.g. socket...). */
 
+    /* Just before invoking the client callback, set state to DONE. */
+    ec_client_set_state(cli, EC_CLI_STATE_REQ_DONE);
+
+    /* Invoke the client callback */
+    if (cli->cb)
+        cli->cb(cli);
+    else
+    {
+        /* TODO respond something standard in case there's no callback. */
+    }
 
     return 0;
 err:
@@ -410,4 +477,11 @@ void ec_client_input(evutil_socket_t sd, short u, void *arg)
     u_unused_args(u);
 
     ec_net_dispatch(sd, ec_client_handle_pdu, cli);
+}
+
+void *ec_client_get_args(ec_client_t *cli)
+{
+    dbg_return_if (cli == NULL, NULL);
+
+    return cli->cb_args;
 }

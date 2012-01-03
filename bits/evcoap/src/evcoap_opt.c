@@ -90,6 +90,21 @@ size_t ec_opt_sym2num(ec_opt_sym_t sym)
     return g_opts[sym].n;
 }
 
+ec_opt_sym_t ec_opt_num2sym(size_t num)
+{
+    size_t i;
+
+    for (i = 0; i < EC_OPTS_MAX; ++i)
+    {
+        if (num == g_opts[i].n)
+            return (ec_opt_sym_t) i;
+    }
+
+    u_dbg("option with number %zu could not be resolved", num);
+
+    return EC_OPT_NONE;
+}
+
 const char *ec_opt_sym2str(ec_opt_sym_t sym)
 {
     dbg_return_if (!EC_OPT_SYM_VALID(sym), NULL);
@@ -595,7 +610,7 @@ int ec_opts_decode(ec_opts_t *opts, const ev_uint8_t *pdu, size_t pdu_sz,
     size_t opt_num = 0;
     unsigned int opt_count;
     ec_opt_t *opt = NULL;
-    ev_uint8_t *opt_p;
+    const ev_uint8_t *opt_p;
 
     dbg_return_if (pdu == NULL, -1);
     dbg_return_if (pdu_sz <= EC_COAP_HDR_SIZE, -1);
@@ -666,8 +681,9 @@ int ec_opts_decode(ec_opts_t *opts, const ev_uint8_t *pdu, size_t pdu_sz,
         /* Extract option and add it to the pool. */
         if (!skip_this)
         {
-            dbg_err_if (evcoap_opts_add(opts, evcoap_opt_num2sym(opt_num), 
-                        opt_p, opt_len));
+            ec_opt_sym_t sym = ec_opt_num2sym(opt_num);
+
+            dbg_err_if (ec_opts_add(opts, sym, opt_p, opt_len));
         }
 
         /* Jump over this option's value and come again. */
