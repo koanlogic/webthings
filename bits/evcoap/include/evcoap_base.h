@@ -9,9 +9,8 @@
 
 struct ec_s;
 
-typedef int (*ec_server_cb_t)(struct ec_s *, ec_server_t *, void *, bool,
-        struct timeval *);
-
+/* ec_server_cb_t prototype may change */
+typedef int (*ec_server_cb_t)(struct ec_s *, ec_server_t *, void *);
 typedef int (*ec_catchall_cb_t)(struct ec_s *, ec_server_t *, void *);
 
 /* An hosted resource. */
@@ -25,13 +24,13 @@ struct ec_resource_s
 };
 
 /* A listening CoAP endpoint. */
-struct ec_listener_s
+typedef struct ec_listener_s
 {
     evutil_socket_t sd;
-    /* Security context goes here. */
-    struct event *req_event;
+    /* TODO Security context goes here. */
+    struct event *ev_input;
     TAILQ_ENTRY(ec_listener_s) next;
-};
+} ec_listener_t;
 
 /* Synoptic of last received PDUs, for duplicate detection. */
 struct ec_recvd_pdu_s
@@ -66,5 +65,9 @@ typedef struct ec_s
     struct event_base *base;
     struct evdns_base *dns;
 } ec_t;
+
+int ec_listeners_add(ec_t *coap, evutil_socket_t sd);
+ec_listener_t *ec_listener_new(ec_t *coap, evutil_socket_t sd);
+void ec_listener_free(ec_listener_t *l);
 
 #endif  /* !_EC_BASE_H_ */

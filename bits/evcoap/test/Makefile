@@ -1,5 +1,5 @@
 SUBDIR += unit 
 SUBDIR += client 
-#SUBDIR += server
+SUBDIR += server
 
 include subdir.mk

@@ -67,10 +67,12 @@ int ec_client_set_uri(ec_client_t *cli, const char *uri)
         if ((p = u_uri_get_port(u)) && *p != '\0')
         {
             int port;
+
             dbg_err_if (u_atoi(p, &port));
             dbg_err_if (ec_opts_add_uri_port(opts, (ev_uint16_t) port));
         }
 
+        /* Separate path components. */
         if ((p = u_uri_get_path(u)) && *p != '\0')
         {
             char *r, *s, path[1024];    /* TODO check path len. */
@@ -86,6 +88,7 @@ int ec_client_set_uri(ec_client_t *cli, const char *uri)
             }
         }
 
+        /* Add query, if available. */
         if ((p = u_uri_get_query(u)) && *p != '\0')
             dbg_err_if (ec_opts_add_uri_query(opts, p));
     }
@@ -239,11 +242,6 @@ err:
 
 static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
 {
-    struct evutil_addrinfo *ai;
-    ec_client_t *cli = (ec_client_t *) a;
-    ec_pdu_t *req = &cli->req;
-    ec_conn_t *conn = &cli->flow.conn;
-
 #define EC_CLI_ASSERT(e, state)                 \
     do {                                        \
         if ((e))                                \
@@ -252,6 +250,11 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
             goto err;                           \
         }                                       \
     } while (0)
+
+    struct evutil_addrinfo *ai;
+    ec_client_t *cli = (ec_client_t *) a;
+    ec_pdu_t *req = &cli->req;
+    ec_conn_t *conn = &cli->flow.conn;
 
     /* Unset the evdns_getaddrinfo_request pointer, since when we get called
      * its lifetime is complete. */
@@ -299,8 +302,8 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
 err:
     return;
     /* TODO Invoke user callback with the failure code. */
-}
 #undef EC_CLI_ASSERT
+}
 
 void ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
 {

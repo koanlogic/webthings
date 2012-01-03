@@ -2,6 +2,7 @@
 #include <event2/util.h>
 #include "evcoap.h"
 #include "evcoap_cli.h"
+#include "evcoap_srv.h"
 #include "evcoap_net.h"
 #include "evcoap_opt.h"
 
@@ -22,6 +23,7 @@ ec_t *ec_init(struct event_base *base, struct evdns_base *dns)
 
     TAILQ_INIT(&coap->clients);
     TAILQ_INIT(&coap->servers);
+    TAILQ_INIT(&coap->listeners);
 
     return coap;
 err:
@@ -103,10 +105,8 @@ int ec_bind_socket(ec_t *coap, const char *addr, ev_uint16_t port)
     dbg_return_if (coap == NULL, -1);
     dbg_return_if (addr == NULL, -1);
 
-    if (port == 0)
-        port = EC_COAP_DEFAULT_PORT;
-
-    dbg_err_if (u_snprintf(addrport, sizeof addrport, "%s:%u", addr, port));
+    dbg_err_if (u_snprintf(addrport, sizeof addrport, "%s:%u", 
+                addr, !port ? EC_COAP_DEFAULT_PORT : port));
 
     dbg_err_ifm (evutil_parse_sockaddr_port(addrport, (struct sockaddr *) &ss,
                 &ss_len), "Error parsing %s", addrport);
@@ -114,31 +114,24 @@ int ec_bind_socket(ec_t *coap, const char *addr, ev_uint16_t port)
     dbg_err_ifm ((sd = ec_net_bind_socket(&ss, ss_len)) == -1, 
             "Error binding %s", addrport);
 
+    /* Make bound socket non-blocking. */
     dbg_err_sif (evutil_make_socket_nonblocking(sd));
 
-    /* TODO add to servers. */
+    /* Register a listener. */
+    dbg_err_if (ec_listeners_add(coap, sd));
 
     return 0;
 err:
+    /* TODO */
     return -1;
 }
 
 /**
  *  \brief  TODO
  */
-int ec_set_cb(ec_t *coap, const char *patt, ec_server_cb_t cb,
-        void *cb_args, ev_uint8_t observable)
+int ec_register_any(ec_t *coap, ec_server_cb_t cb, void *cb_args)
 {
-    return -1;
-}
-
-/**
- *  \brief  TODO
- */
-int ec_set_gencb(ec_t *coap, ec_server_cb_t cb, void *cb_args,
-        ev_uint8_t observable)
-{
-    return -1;
+    return 0;
 }
 
 /**
@@ -381,3 +374,12 @@ int ec_update_representation(const char *uri, const ev_uint8_t *rep,
 {
     return -1;
 }
+
+/**
+ *  \brief  TODO
+ */ 
+int ec_register_url(ec_t *coap, const char *url, ec_server_cb_t cb, void *args)
+{
+    return 0;
+}
+

@@ -20,7 +20,9 @@ Contents
   APIs, needs both a basic event base and a DNS event base, and is initialized
   like this:
 
-      ec_t *coap = ec_init(event_base_new(), evdns_base_new());
+      struct event_base *base = event_base_new();
+
+      ec_t *coap = ec_init(base, evdns_base_new(base, 1));
 
 2 Client
 
@@ -102,7 +104,7 @@ Contents
   the user may break the event loop or otherwise manipulate it (e.g. add/remove
   her events, etc.), like in the following snippet:
  
-      void cb (ec_client_t *cli)
+      void cb(ec_client_t *cli)
       {
           ec_t *coap = ec_client_get_base(cli);
           ec_cli_state_t st = ec_client_get_state(cli);
@@ -137,13 +139,13 @@ Contents
 
   The evcoap user supplies an URI path pattern (in fnmatch(3) format) and pair 
   it along with the callback function that she wants to be invoked whenever a 
-  client requests an URI matching the pattern.  Also, the observe argument
-  shall be set to true if the resource supports CoAP Observations (see 4), false
-  otherwise:
+  client requests an URI matching the pattern.  
+  
+  [[TODO observable resources.]]
 
-      ev_uint8_t observable = 0;
+      ec_register_url(coap, "/.well-known/*", cb, cb_args);
 
-      ec_set_cb(coap, "/.well-known/*", cb, cb_args, observable);
+      [[CHECKED]]
 
   The callback function shall have the following signature:
 

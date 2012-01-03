@@ -3,65 +3,43 @@
 
 int facility = LOG_LOCAL0;
 
-evcoap_cb_status_t coap_well_known(struct evcoap_pdu *pdu, const char *path,
-        void *u)
+int well_known_cb(ec_t *coap, ec_server_t *srv, void *args)
 {
-    u_unused_args(pdu, u);
-    u_con("(%s) TODO serve '%s'", __func__, path);
-    return EVCOAP_CB_STATUS_RESP_SENT;
+    return 0;
 }
 
-evcoap_cb_status_t coap_serve_con(struct evcoap_pdu *pdu, const char *path,
-        void *u)
+int fallback(ec_t *coap, ec_server_t *srv, void *args)
 {
-    u_unused_args(pdu, u);
-    u_con("(%s) TODO serve '%s'", __func__, path);
-    return EVCOAP_CB_STATUS_ACK_AUTO;
-}
-
-evcoap_cb_status_t coap_serve_non(struct evcoap_pdu *pdu, const char *path,
-        void *u)
-{
-    u_unused_args(pdu, u);
-    u_con("(%s) TODO serve '%s'", __func__, path);
-    return EVCOAP_CB_STATUS_RESP_SENT;
-}
-
-void coap_gen_callback(struct evcoap_pdu *pdu, const char *path, void *u)
-{
-    u_unused_args(pdu, u);
-    u_con("(%s) TODO serve '%s'", __func__, path);
+    return 0;
 }
 
 int main(void)
 {
-    struct event_base *eb = NULL;
-    struct evdns_base *ed = NULL;
-    struct evcoap *ec = NULL;
+    ec_t *coap = NULL;
+    struct event_base *base = NULL;
+    struct evdns_base *dns = NULL;
 
-    dbg_err_if ((eb = event_base_new()) == NULL);
-    dbg_err_if ((ed = evdns_base_new(eb, 1)) == NULL);
+    con_err_if ((base = event_base_new()) == NULL);
+    con_err_if ((dns = evdns_base_new(base, 1)) == NULL);
+    con_err_if ((coap = ec_init(base, dns)) == NULL);
 
-    dbg_err_if ((ec = evcoap_new(eb, ed)) == NULL);
+    con_err_if (ec_bind_socket(coap, "127.0.0.1", 50505));
+/*    con_err_if (ec_bind_socket(coap, "[::1]", EC_COAP_DEFAULT_PORT)); */
+    con_err_if (ec_bind_socket(coap, "[::1]", 50505));
 
-    dbg_err_if (evcoap_bind_socket(ec, "127.0.0.1", 50505, 0));
-    dbg_err_if (evcoap_bind_socket(ec, "[::1]", COAP_DEFAULT_SERVER_PORT, 0));
-    dbg_err_if (evcoap_set_cb_ex(ec, "/con/*", coap_serve_con, NULL,
-                &(struct timeval){.tv_sec = 5, .tv_usec = 0}));
-    dbg_err_if (evcoap_set_cb(ec, "/non/*", coap_serve_non, NULL));
-    dbg_err_if (evcoap_set_cb(ec, "/.well-known/core", coap_well_known, NULL));
-    dbg_err_if (evcoap_set_gencb(ec, coap_gen_callback, NULL));
+    con_err_if (ec_register_url(coap, ".well-known/core", well_known_cb, NULL));
+    con_err_if (ec_register_any(coap, fallback, NULL));
 
-    (void) event_base_dispatch(eb);
+    (void) event_base_dispatch(base);
 
     return EXIT_SUCCESS;
 err:
-    if (eb)
-        event_base_free(eb);
-    if (ed)
-        evdns_base_free(ed, 0);
-    if (ec)
-        evcoap_free(ec);
+    if (base)
+        event_base_free(base);
+    if (dns)
+        evdns_base_free(dns, 0);
+    if (coap)
+        ec_term(coap);
 
     return EXIT_FAILURE;
 }

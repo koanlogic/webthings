@@ -38,11 +38,8 @@ int ec_request_send(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
 /* Server API */
 int ec_bind_socket(ec_t *coap, const char *addr, ev_uint16_t port);
 
-int ec_set_cb(ec_t *coap, const char *patt, ec_server_cb_t cb,
-        void *cb_args, ev_uint8_t observable);
-
-int ec_set_gencb(ec_t *coap, ec_server_cb_t cb, void *cb_args,
-        ev_uint8_t observable);
+int ec_register_url(ec_t *coap, const char *url, ec_server_cb_t cb, void *args);
+int ec_register_any(ec_t *coap, ec_server_cb_t cb, void *cb_args);
 
 /* PDU manipulation API */
 int ec_request_set_payload(ec_client_t *cli, ev_uint8_t *payload, size_t sz);
