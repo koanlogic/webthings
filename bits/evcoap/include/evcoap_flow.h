@@ -5,7 +5,6 @@
 #include <event2/util.h>
 
 #include "evcoap_enums.h"
-#include "evcoap_pdu.h"
 #include "evcoap_net.h"
 
 typedef struct
@@ -19,5 +18,7 @@ typedef struct
     ev_uint8_t token[8];
     size_t token_sz;
 } ec_flow_t;
+
+int ec_flow_save_token(ec_flow_t *flow, ev_uint8_t *tok, size_t tok_sz);
 
 #endif  /* !_EC_FLOW_H_ */

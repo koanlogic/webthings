@@ -405,28 +405,23 @@ ec_cli_state_t ec_client_get_state(ec_client_t *cli)
 
 int ec_client_handle_pdu(ev_uint8_t *raw, size_t raw_sz, void *arg)
 {
-    ec_client_t *cli = (ec_client_t *) arg;
+    ec_opt_t *t;
+    ec_client_t *cli;
     size_t olen = 0, plen;
-    ev_uint8_t ver, t, oc, code;
-    ev_uint16_t mid;
     ec_pdu_t *res = NULL;
 
-    dbg_return_ifm (raw_sz < EC_COAP_HDR_SIZE, -1, 
-            "not enough bytes to hold a CoAP header");
+    dbg_return_if ((cli = (ec_client_t *) arg) == NULL, -1);
 
-    /* Decode header. */
-    ver = (raw[0] & 0xc0) >> 6;
-    t = (raw[0] & 0x30) >> 4;
-    oc = raw[0] & 0x0f;
-    code = raw[1];
-    mid = ntohs((raw[2] << 8) | raw[3]);
+    /* Make room for the new PDU. */
+    dbg_err_sif ((res = ec_pdu_new_empty()) == NULL);
 
-    /* Consistency checks. */
+    /* Decode CoAP header and save it into the client context. */
+    dbg_err_if (ec_pdu_decode_header(res, raw, raw_sz));
 
-    dbg_err_ifm (ver != EC_COAP_VERSION_1,
-            "unsupported CoAP version %u", ver);
+    ec_hdr_t *h = &res->hdr_bits;   /* shortcut */
+    ec_flow_t *flow = &cli->flow;   /* shortcut */
 
-    dbg_err_ifm (code >= 1 && code <= 31, 
+    dbg_err_ifm (h->code >= 1 && h->code <= 31, 
             "unexpected request code in client response context");
 
     /*
@@ -435,14 +430,19 @@ int ec_client_handle_pdu(ev_uint8_t *raw, size_t raw_sz, void *arg)
     
     /* Handle empty responses (i.e. resets and separated acknowledgements)
      * specially. */
-    if (!code)
-        return ec_client_handle_empty_pdu(cli, t, mid);
+    if (!h->code)
+        return ec_client_handle_empty_pdu(cli, h->t, h->mid);
 
-    dbg_err_sif ((res = ec_pdu_new_empty()) == NULL);
+    /* Parse options.  At least one option (namely the Token) must be present
+     * because evcoap always sends one non-empty Token to its clients. */
+    dbg_err_ifm (!h->oc, "no options in response !");
+    dbg_err_ifm (ec_opts_decode(&res->opts, raw, raw_sz, h->oc, &olen),
+            "CoAP options could not be parsed correctly");
 
-    /* Parse options, if any. */
-    dbg_err_ifm (oc && ec_opts_decode(&res->opts, raw, raw_sz, oc, &olen),
-            "could not parse options");
+    /* Check that there is a token and it matches the one we sent out with the 
+     * request. */
+    dbg_err_if ((t = ec_opts_get(&res->opts, EC_OPT_TOKEN)) == NULL);
+    dbg_err_if (t->l != flow->token_sz || memcmp(t->v, flow->token, t->l));
 
     /* Attach payload, if any. */
     if ((plen = raw_sz - (olen + EC_COAP_HDR_SIZE)))

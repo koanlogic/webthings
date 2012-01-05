@@ -1,5 +1,13 @@
 #include <u/libu.h>
+#include <event2/util.h>
 #include "evcoap_opt.h"
+
+const char *evutil_format_sockaddr_port(const struct sockaddr *sa, char *out,
+        size_t outlen);
+
+static u_uri_t *compose_proxy_uri(ec_opts_t *opts);
+static u_uri_t *compose_uri(ec_opts_t *opts, struct sockaddr_storage *us, 
+        bool nosec);
 
 static struct opt_rec {
     size_t n;               /* Option number. */
@@ -697,4 +705,160 @@ int ec_opts_decode(ec_opts_t *opts, const ev_uint8_t *pdu, size_t pdu_sz,
     return 0;
 err:
     return -1;
+}
+
+u_uri_t *ec_opts_compose_url(ec_opts_t *opts, struct sockaddr_storage *us,
+        bool nosec)
+{
+    dbg_return_if (opts == NULL, NULL);
+
+    u_uri_t *url = compose_proxy_uri(opts);
+
+    return url ? url : compose_uri(opts, us, nosec);
+}
+
+static u_uri_t *compose_uri(ec_opts_t *opts, struct sockaddr_storage *us,
+        bool nosec)
+{
+    ec_opt_t *o;
+    u_uri_t *u = NULL;
+    char host[U_URI_STRMAX], port[U_URI_STRMAX], path[U_URI_STRMAX],
+         query[U_URI_STRMAX], authority[U_URI_STRMAX];
+   
+    /* Initialize tokens to empty. */
+    host[0] = port[0] = path[0] = query[0] = authority[0] = '\0';
+
+    TAILQ_FOREACH(o, &opts->bundle, next)
+    {
+        /* 
+         * XXX verify the following...
+         * Spec says: "Uri-Host and Uri-Port MUST NOT occur more than once".
+         * Here this is relaxed to ignore possible duplicates.
+         */
+
+        if (o->sym >= EC_OPT_URI_HOST
+                && host[0] == '\0'
+                && authority[0] == '\0')
+        {
+            /* Check whether there is no explicit Uri-Host. */
+            if (o->sym > EC_OPT_URI_HOST)
+            {
+                char a[sizeof host]; 
+                const char *ap;
+
+                /* "The default value of the Uri-Host Option is the IP literal
+                 *  representing the destination IP address of the request 
+                 *  message" */
+                ap = evutil_format_sockaddr_port((struct sockaddr *) us,
+                        a, sizeof a);
+
+                /* Cook the whole meal (address and port) at once. */ 
+                dbg_err_if (u_strlcpy(authority, ap, sizeof authority));
+            }
+            else
+            {
+                dbg_err_if (u_strlcpy(host, (const char *) o->v, sizeof host));
+            }
+        }
+
+        /* Give precedence to authority, in case it was set by the Uri-Host
+         * handler. */
+        if (o->sym >= EC_OPT_URI_PORT
+                && port[0] == '\0' 
+                && authority[0] == '\0')
+        {
+            ev_uint64_t p;
+            const struct sockaddr *sa = (const struct sockaddr *) us;
+            const struct sockaddr_in6 *s6;
+            const struct sockaddr_in *s4;
+
+            /* "[...] the default value of the Uri-Port Option is the 
+             *  destination UDP port." */
+            if (o->sym != EC_OPT_URI_PORT)
+            {
+                switch (sa->sa_family)
+                {
+                    case AF_INET6:
+                        s6 = (const struct sockaddr_in6 *) sa;
+                        p = ntohs(s6->sin6_port);
+                        break;
+                    case AF_INET:
+                        s4 = (const struct sockaddr_in *) sa;
+                        p = ntohs(s4->sin_port);
+                        break;
+                    default:
+                        dbg_err("Unsupported address family");
+                }
+            }
+            else
+                dbg_err_if (ec_opt_decode_uint(o->v, o->l, &p));
+
+            dbg_err_if (u_snprintf(port, sizeof port, "%llu", p));
+        }
+
+        if (o->sym == EC_OPT_URI_PATH)
+        {
+            dbg_err_if (u_strlcat(path, "/", sizeof path));
+            dbg_err_if (u_strlcat(path, (const char *) o->v, sizeof path));
+        }
+
+        if (o->sym == EC_OPT_URI_QUERY)
+        {
+            if (query[0] == '\0')
+                dbg_err_if (u_strlcat(query, "?", sizeof query));
+            else
+                dbg_err_if (u_strlcat(query, "&", sizeof query));
+
+            dbg_err_if (u_strlcat(query, (const char *) o->v, sizeof query));
+        }
+    }
+
+    /* Assemble the URI from tokens. */
+    dbg_err_if (u_uri_new(0, &u));
+
+    (void) u_uri_set_scheme(u, nosec ? "coap" : "coaps");
+
+    if (authority[0] == '\0')
+    {
+        (void) u_uri_set_host(u, host);
+        (void) u_uri_set_port(u, port);
+    }
+    else
+        (void) u_uri_set_authority(u, authority);
+
+    (void) u_uri_set_path(u, path[0] == '\0' ? "/" : path);
+
+    if (query[0] != '\0')
+        (void) u_uri_set_query(u, query);
+
+    return u;
+err:
+    if (u)
+        u_uri_free(u);
+    return NULL;
+}
+
+static u_uri_t *compose_proxy_uri(ec_opts_t *opts)
+{
+    u_uri_t *uri = NULL;
+    char pxu[U_URI_STRMAX] = { '\0' };
+    ec_opt_t *o;
+
+    dbg_return_if (opts == NULL, NULL);
+
+    /* "Proxy-URI MAY occur one or more times and MUST take precedence over
+     * any of the Uri-Host, Uri-Port, Uri-Path or Uri-Query options." */
+    TAILQ_FOREACH(o, &opts->bundle, next)
+    {
+        /* Reassemble all Proxy-URI fragments. */
+        if (o->sym == EC_OPT_PROXY_URI)
+            dbg_err_if (u_strlcat(pxu, (const char *) o->v, sizeof pxu));
+    }
+
+    if (pxu[0] != '\0')
+        dbg_err_if (u_uri_crumble(pxu, 0, &uri));
+
+    return uri;
+err:
+    return NULL;
 }

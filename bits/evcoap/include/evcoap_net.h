@@ -38,4 +38,8 @@ void ec_net_dispatch(evutil_socket_t sd, ec_pdu_handler_t pdu_proc, void *arg);
 ev_ssize_t ec_net_pullup(evutil_socket_t sd, ev_uint8_t *b, size_t b_sz,
         int *flags, struct sockaddr *peer, ev_socklen_t *peerlen, int *e);
 
+int ec_net_send(ev_uint8_t h[4], ev_uint8_t *o, size_t o_sz, ev_uint8_t *p,
+        size_t p_sz, evutil_socket_t sd, struct sockaddr_storage *d,
+        ev_socklen_t d_sz);
+
 #endif  /* !_EC_NET_H_ */

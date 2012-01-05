@@ -361,7 +361,7 @@ int ec_response_set_payload(ec_server_t *srv, ev_uint8_t *payload, size_t sz)
 {
     dbg_return_if (srv == NULL, -1);
 
-    ec_pdu_t *res = &srv->res;
+    ec_pdu_t *res = srv->res;
 
     return ec_pdu_set_payload(res, payload, sz);
 }

@@ -120,4 +120,7 @@ int ec_opts_encode(ec_opts_t *opts);
 int ec_opts_decode(ec_opts_t *opts, const ev_uint8_t *pdu, size_t pdu_sz,
         ev_uint8_t oc, size_t *olen);
 
+u_uri_t *ec_opts_compose_url(ec_opts_t *opts, struct sockaddr_storage *us,
+        bool nosec);
+
 #endif  /* !_EC_PRV_H_ */

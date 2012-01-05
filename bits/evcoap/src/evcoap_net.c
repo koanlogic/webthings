@@ -95,3 +95,53 @@ void ec_net_dispatch(evutil_socket_t sd, ec_pdu_handler_t pdu_proc, void *arg)
     }
 }
 
+int ec_net_send(ev_uint8_t h[4], ev_uint8_t *o, size_t o_sz, ev_uint8_t *p,
+        size_t p_sz, evutil_socket_t sd, struct sockaddr_storage *d, 
+        ev_socklen_t d_sz)
+{
+    struct msghdr msg;
+    size_t iov_idx = 0;
+    struct iovec iov[3];
+
+    dbg_return_if (h == NULL, -1);
+    dbg_return_if (sd == -1, -1);
+    dbg_return_if (d == NULL, -1);
+    dbg_return_if (d_sz == 0, -1);
+
+    /* Header is non optional. */
+    iov[iov_idx].iov_base = (void *) h;
+    iov[iov_idx].iov_len = 4;
+    ++iov_idx;
+
+    /* Add options, if any. */
+    if (o && o_sz)
+    {
+        iov[iov_idx].iov_base = (void *) o;
+        iov[iov_idx].iov_len = o_sz;
+        ++iov_idx;
+    }
+    
+    /* Add payload, if any. */
+    if (p && p_sz)
+    {
+        iov[iov_idx].iov_base = (void *) p;
+        iov[iov_idx].iov_len = p_sz;
+        ++iov_idx;
+    }
+
+    msg.msg_name = (void *) d;
+    msg.msg_namelen = d_sz;
+    msg.msg_iov = iov;
+    msg.msg_iovlen = iov_idx;
+    msg.msg_control = NULL;
+    msg.msg_controllen = 0;
+    msg.msg_flags = 0;
+
+    dbg_err_sif (sendmsg(sd, &msg, 0) == -1);
+
+    return 0;
+err:
+    return -1;
+}
+
+

@@ -39,53 +39,16 @@ int ec_pdu_init_options(ec_pdu_t *pdu)
 
 int ec_pdu_send(ec_pdu_t *pdu, struct sockaddr_storage *d, ev_socklen_t d_sz)
 {
-    struct msghdr msg;
-    size_t iov_idx = 0;
-    struct iovec iov[3];
-
     dbg_return_if (pdu == NULL, -1);
     dbg_return_if (pdu->hdr == NULL, -1);
     dbg_return_if (d == NULL, -1);
     dbg_return_if (d_sz == 0, -1);
 
-    /* Header is non optional. */
-    iov[iov_idx].iov_base = (void *) pdu->hdr;
-    iov[iov_idx].iov_len = 4;
-    ++iov_idx;
+    ec_opts_t *opts = &pdu->opts;           /* shortcut */
+    ec_conn_t *conn = &pdu->flow->conn;     /* ditto */
 
-    ec_opts_t *opts = &pdu->opts;
-
-    /* Add options, if any. */
-    if (opts->enc && opts->enc_sz)
-    {
-        iov[iov_idx].iov_base = (void *) opts->enc;
-        iov[iov_idx].iov_len = opts->enc_sz;
-        ++iov_idx;
-    }
-    
-    /* Add payload, if any. */
-    if (pdu->payload && pdu->payload_sz)
-    {
-        iov[iov_idx].iov_base = (void *) pdu->payload;
-        iov[iov_idx].iov_len = pdu->payload_sz;
-        ++iov_idx;
-    }
-
-    msg.msg_name = (void *) d;
-    msg.msg_namelen = d_sz;
-    msg.msg_iov = iov;
-    msg.msg_iovlen = iov_idx;
-    msg.msg_control = NULL;
-    msg.msg_controllen = 0;
-    msg.msg_flags = 0;
-
-    ec_conn_t *conn = &pdu->flow->conn;
-
-    dbg_err_sif (sendmsg(conn->socket, &msg, 0) == -1);
-
-    return 0;
-err:
-    return -1;
+    return ec_net_send(pdu->hdr, opts->enc, opts->enc_sz, pdu->payload,
+            pdu->payload_sz, conn->socket, d, d_sz);
 }
 
 int ec_pdu_encode(ec_pdu_t *pdu)
@@ -93,9 +56,10 @@ int ec_pdu_encode(ec_pdu_t *pdu)
     dbg_return_if (pdu == NULL, -1);
 
     ec_flow_t *flow = pdu->flow;
+    ec_hdr_t *h = &pdu->hdr_bits;
 
-    if (!pdu->mid)
-        evutil_secure_rng_get_bytes(&pdu->mid, sizeof pdu->mid);
+    if (!h->mid)
+        evutil_secure_rng_get_bytes(&h->mid, sizeof h->mid);
 
     /* Encode options.  This is needed before header encoding because it sets
      * the 'oc' field. */
@@ -108,6 +72,36 @@ int ec_pdu_encode(ec_pdu_t *pdu)
         encode_res_header(pdu);
     else
         dbg_err("WTF ?");
+
+    return 0;
+err:
+    return -1;
+}
+
+int ec_pdu_decode_header(ec_pdu_t *pdu, const ev_uint8_t *raw, size_t raw_sz)
+{
+    ev_uint8_t ver;
+
+    dbg_return_if (pdu == NULL, -1);
+    dbg_return_if (raw == NULL, -1);
+
+    dbg_return_ifm (raw_sz < EC_COAP_HDR_SIZE, -1,
+            "not enough bytes to hold a CoAP header");
+
+    dbg_err_ifm ((ver = (raw[0] & 0xc0) >> 6) != EC_COAP_VERSION_1,
+            "unsupported CoAP version %u", ver);
+
+    ec_hdr_t *h = &pdu->hdr_bits;
+
+    h->t = (raw[0] & 0x30) >> 4;
+    h->oc = raw[0] & 0x0f;
+    h->code = raw[1];
+    h->mid = ntohs((raw[2] << 8) | raw[3]);
+
+    /* Make a copy of the raw bytes. */
+    memcpy(&pdu->hdr, raw, EC_COAP_HDR_SIZE);
+
+    /* TODO some generic consistency check ? */
 
     return 0;
 err:
@@ -130,7 +124,7 @@ static void encode_res_header(ec_pdu_t *pdu)
 
 static void encode_header(ec_pdu_t *pdu, ev_uint8_t code, ev_uint8_t t)
 {
-    ev_uint16_t mid = pdu->mid;
+    ev_uint16_t mid = pdu->hdr_bits.mid;
     ev_uint8_t ver = EC_COAP_VERSION_1, oc = pdu->opts.noptions;
 
     pdu->hdr[0] = ((ver & 0x03) << 6) | ((t & 0x03) << 4) | (oc & 0x0f);
