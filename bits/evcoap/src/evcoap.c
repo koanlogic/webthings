@@ -6,6 +6,10 @@
 #include "evcoap_net.h"
 #include "evcoap_opt.h"
 
+static ec_resource_t *ec_resource_new(const char *url, ec_server_cb_t cb,
+        void *args);
+static void ec_resource_free(ec_resource_t *r);
+
 /**
  *  \brief  TODO
  */
@@ -24,6 +28,7 @@ ec_t *ec_init(struct event_base *base, struct evdns_base *dns)
     TAILQ_INIT(&coap->clients);
     TAILQ_INIT(&coap->servers);
     TAILQ_INIT(&coap->listeners);
+    TAILQ_INIT(&coap->resources);
 
     return coap;
 err:
@@ -380,6 +385,51 @@ int ec_update_representation(const char *uri, const ev_uint8_t *rep,
  */ 
 int ec_register_url(ec_t *coap, const char *url, ec_server_cb_t cb, void *args)
 {
+    ec_resource_t *tmp, *r;
+
+    dbg_return_if (coap == NULL, -1);
+    dbg_return_if (url == NULL, -1);
+    dbg_return_if (cb == NULL, -1);
+
+    TAILQ_FOREACH(tmp, &coap->resources, next)
+    {
+        dbg_err_ifm (!evutil_ascii_strcasecmp(tmp->path, url),
+                "%s already registered", url);
+    }
+
+    /* Create a new resource record and stick it to the global context. */
+    dbg_err_sif ((r = ec_resource_new(url, cb, args)) == NULL);
+    TAILQ_INSERT_TAIL(&coap->resources, r, next);
+
     return 0;
+err:
+    if (r)
+        ec_resource_free(r);
+    return -1;
 }
 
+static ec_resource_t *ec_resource_new(const char *url, ec_server_cb_t cb,
+        void *args)
+{
+    ec_resource_t *r = NULL;
+
+    dbg_err_sif ((r = u_zalloc(sizeof *r)) == NULL);
+    dbg_err_sif ((r->path = u_strdup(url)) == NULL);
+    r->cb = cb;
+    r->cb_args = args;
+
+    return r;
+err:
+    if (r)
+        u_free(r);
+    return NULL;
+}
+
+static void ec_resource_free(ec_resource_t *r)
+{
+    if (r)
+    {
+        u_free(r->path);
+        u_free(r);
+    }
+}

@@ -91,6 +91,16 @@ err:
     return -1;
 }
 
+int ec_server_set_req(ec_server_t *srv, ec_pdu_t *req)
+{
+    dbg_return_if (srv == NULL, -1);
+    dbg_return_if (req == NULL, -1);
+
+    srv->req = req;
+
+    return 0;
+}
+
 void ec_server_set_state(ec_server_t *srv, ec_srv_state_t state)
 {
     /* TODO check valid transitions, timers, etc. */

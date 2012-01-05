@@ -14,14 +14,14 @@ typedef int (*ec_server_cb_t)(struct ec_s *, ec_server_t *, void *);
 typedef int (*ec_catchall_cb_t)(struct ec_s *, ec_server_t *, void *);
 
 /* An hosted resource. */
-struct ec_resource_s
+typedef struct ec_resource_s
 {
-    const char *path;
+    char *path;
     ec_server_cb_t cb;
     void *cb_args;
     /* TODO busy flag + resched timer */
     TAILQ_ENTRY(ec_resource_s) next;
-};
+} ec_resource_t;
 
 /* A listening CoAP endpoint. */
 typedef struct ec_listener_s
