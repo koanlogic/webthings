@@ -126,6 +126,14 @@ typedef enum
     EC_SRV_STATE_RESP_DONE          /* F */
 } ec_srv_state_t;
 
+/* Callback to evcoap contract. */
+typedef enum
+{
+    EC_CBRC_READY = 0,
+    EC_CBRC_WAIT,
+    EC_CBRC_POLL,
+    EC_CBRC_ERROR
+} ec_cbrc_t;
 
 #ifdef __cplusplus
 }

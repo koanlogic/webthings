@@ -8,10 +8,9 @@ Contents
   3 Server
   3.1 Configure Listening Address
   3.2 Register per-URI callbacks
-  3.3 Reply
   4. Observe
   5. PDUs Lifetime
-
+  
 1 Library Initialization
 
   The event handling machinery of evcoap is based on libevent 2.
@@ -145,58 +144,77 @@ Contents
 
       ec_register_url(coap, "/.well-known/*", cb, cb_args);
 
-      [[CHECKED]]
-
   The callback function shall have the following signature:
 
-    int cb(ec_t *coap, ec_pdu_t *req, ec_pdu_t *res, void *args, 
-            ev_uint8_t resched, struct timeval *resched_after) { ... }
+    ec_cbrc_t cb(ec_server_t *srv, void *args, struct timeval *interval,
+            bool resched) { ... }
 
-  which is quite rich and needs some explanation.  First argument is an handler
-  to the evcoap instance that may be used, if needed, as suggested in 2.3; 2nd
-  is the received request PDU; 3rd is a preallocated PDU that will possibly hold
-  the user generated response; 4th is the optional arguments that the user has
-  supplied when installing this callback.
+  which is quite rich and needs some explanation.  First off the easy stuff:
+  1st argument is the server transaction record containing information regarding
+  the received request that must be handled; 2nd is the optional arguments that
+  the user has supplied when installing this callback.
 
-  The 'resched' and 'resched_to' arguments are needed for handling the scenario
-  where the CON messaging model is in use, and the CoAP server isn't able to
-  immediately produce the response (e.g. because producing the resource
-  representation takes some time and you don't want to block the whole I/O
-  machinery in the meanwhile.)
+  The 3rd and 4th arguments, 'interval' and 'resched', and the callback return 
+  code need some more context to be fully understood.  Basically there are two 
+  different use cases: 
+   (a) server responds immediately to a request, i.e. within the callback scope;
+   (b) server needs some time to produce the response (i.e. when acting as a
+       proxy, or when producing the resource representation takes some 
+       blocking/long computation.)
 
-  In cases as such, CoAP provides a "separated ACK" strategy that lets the
-  client know that the response has been taken in charge, and a response will
-  follow as a separate CON message as soon as possible.  The 'resched' parameter
-  is filled by the user to tell evcoap to re-schedule the callback after the
-  supplied time has passed.  The 'resched' argument is a boolean that 
-  distinguishes an invocation due to a newly received request (resched=false),
-  from a "rescheduled" invocation (resched=true.)
+  In case (a) the callback in charge of producing the response PDU, by providing
+  the following information:
+    - response code
+    - optional payload and Content-Type option
+    - further options
+  the user shall return a EC_CBRC_READY code to the evcoap core.
+  The 'resched' and 'interval' arguments are unused.
 
-  The return code of the callback is '0' in case a reponse has been produced
-  (even if it  holds an error response code) and !0 otherwise, in which case
-  evcoap will automatically send a 5.00 Internal Server Error, message back
-  to the client.
+  In case (b) the callback shall, at its first invocation (i.e. resched==false),
+  return one of the following:
+    - EC_CBRC_WAIT: this will be used whenever the user expects the
+      representation to be ready after the 'interval' time (passed as a result
+      argument to the callback) has elapsed, and basically asks evcoap to
+      be rescheduled in some point of time after 'interval' has elapsed.  
+      Next time the callback will be invoked, it has the 'resched' parameter
+      set to true.
+    - EC_CBRC_POLL: this will be used whenever the user can't predict how long
+      will it take to produce the requested representation.  The user basically
+      asks evcoap to monitor the supplied server transaction record to catch
+      when its .ready flag is set.
+
+  The 'resched' argument is a boolean that distinguishes an invocation due to 
+  a newly received request (resched=false), from a "rescheduled" invocation 
+  (resched=true.)
+
+  When returning EC_CBRC_ERROR, evcoap will automatically produce a 5.00 (i.e.
+  internal server error) response to the client.
 
   For an example of reschedulable callback, see the following:
 
-    int lengthy_cb(ec_t *coap, ec_pdu_t *req, ec_pdu_t *res, void *args, 
-            ev_uint8_t resched, struct timeval *resched_after)
+    ec_cbrc_t lengthy_cb(ec_server_t *srv, void *args, struct timeval *interval,
+            bool resched)
     {
+        u_unused_args(args);
+
         if (!resched)
         {
             /* Request the creation of the resource representation
              * and ask evcoap to be called back in 1 second. */
             ask_resource_creation();
-            *resched_after = { .tv_sec = 1, .tv_usec = 0 };
+            *interval = { .tv_sec = 1, .tv_usec = 0 };
             return 0;
         } 
-        else
+        else    /* rescheduled */
         {
+            ev_uint8_t *r;
+            size_t r_sz;
+
             /* Check if the resource has been produced. */
-            if (r = lengthy_resource_is_ready(&rlen))
+            if (r = lengthy_resource_is_ready(&r_sz))
             {
-                ec_add_payload(res, r, rlen);
-                ec_set_response_code(res, EVCOAP_205);
+                ec_response_set_payload(srv, r, rlen);
+                ec_response_set_code(srv, EC_CONTENT);
                 return 0;
             }
             else
@@ -211,33 +229,16 @@ Contents
   
   If the user is able to produce an immediate representation for the resource,
   or if she don't mind blocking (though this is generally discouraged when using
-  evcoap) the 'state' and 'resched' arguments can be safely ignored.
-
+  evcoap) the 'interval' and 'resched' arguments can be safely ignored.
 
   Besides URI specific callbacks, the user can define a catch-all callback
   using:
 
-      ec_set_gencb(coap, gen_cb, gen_cb_args)
+      ec_register_any(coap, gen_cb, gen_cb_args)
 
   If this has been set, any request with an unmapped URI will trigger it, giving
   the user the opportunity to reply something more interesting than a generic
   4.04 (Not Found) response code.
-
-3.3 Reply
-
-  As already showed in 3.2, a response PDU is created by evcoap automatically 
-  and supplied as the third argument to the callback.  Allocation/deallocation
-  are handled transparently so that the user doesn't need to take care of it.
-
-  A mandatory (except when using a separate ACK) response code is set with:
-
-      ec_set_response_code(res, EVCOAP_205);
-  
-  Payload and options may be added to the response PDU, using the same interface
-  as in section 2.2.
-
-  There is no interface for sending responses: evcoap will handle the needed
-  steps when the user callback returns with a valid response PDU.
 
 4. Observe
 
@@ -250,22 +251,5 @@ Contents
 
 5. PDUs Lifetime
 
-   Evcoap always owns both request and response PDUs so that the user never has
-   to worry about deallocation, with the only exception of the request PDUs in 
-   Client mode, whose ownership is user's until it is supplied to the send 
-   interface.  E.g.:
+  [[TODO: use light ownership]]
 
-      req = ec_new_request(EVCOAP_GET, uri);
-
-      if (some abnormal condition happens)
-          goto err;
-
-      ec_send_request(coap, req, EVCOAP_NON, cb, NULL, &tout);
-      req = NULL; /* After sending, drop ownership. */
-
-      [...]
-
-   err:
-      if (req)
-          ec_delete_request(req);
-      return -1;

@@ -100,9 +100,15 @@ int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, void *arg)
         if (fnmatch(r->path, rp, flags) == FNM_NOMATCH)
             continue;
 
+        struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
+
         /* TODO handle return code. */
-        switch (r->cb(srv, r->cb_args))
+        switch (r->cb(srv, r->cb_args, &tv, false))
         {
+            case EC_CBRC_READY:
+            case EC_CBRC_WAIT:
+            case EC_CBRC_POLL:
+            case EC_CBRC_ERROR:
             default:
                break;
         }
@@ -114,8 +120,12 @@ int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, void *arg)
     if (coap->fb)
     {
         /* TODO handle return code. */
-        switch (coap->fb(srv, coap->fb_args))
+        switch (coap->fb(srv, coap->fb_args, NULL, false))
         {
+            case EC_CBRC_READY:
+            case EC_CBRC_WAIT:
+            case EC_CBRC_POLL:
+            case EC_CBRC_ERROR:
             default:
                 break;
         }

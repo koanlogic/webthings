@@ -404,6 +404,7 @@ int ec_register_url(ec_t *coap, const char *url, ec_server_cb_t cb, void *args)
 
     /* Create a new resource record and stick it to the global context. */
     dbg_err_sif ((r = ec_resource_new(url, cb, args)) == NULL);
+
     TAILQ_INSERT_TAIL(&coap->resources, r, next);
 
     return 0;
@@ -434,7 +435,8 @@ static void ec_resource_free(ec_resource_t *r)
 {
     if (r)
     {
-        u_free(r->path);
+        if (r->path)
+            u_free(r->path);
         u_free(r);
     }
 }
