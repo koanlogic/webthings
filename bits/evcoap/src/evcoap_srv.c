@@ -20,7 +20,7 @@ void ec_server_input(evutil_socket_t sd, short u, void *arg)
 
     u_unused_args(u);
 
-    ec_net_dispatch(sd, ec_server_handle_pdu, coap);
+    ec_net_pullup_all(sd, ec_server_handle_pdu, coap);
 }
 
 /* TODO also supply the related ec_conn_t object. */
@@ -28,12 +28,15 @@ void ec_server_input(evutil_socket_t sd, short u, void *arg)
  *      decoding */
 int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, void *arg)
 {
+    ec_resource_t *r;
     size_t olen = 0, plen;
-    int TODO_sd = -1;
+    int flags, TODO_sd = -1;
     ec_pdu_t *req = NULL;
     ec_server_t *srv = NULL;
     ec_t *coap;
     u_uri_t *url = NULL;
+    bool nosec = true;
+    const char *rp;
 
     dbg_return_if ((coap = (ec_t *) arg) == NULL, -1);
     dbg_return_if (raw == NULL, -1);
@@ -74,21 +77,61 @@ int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, void *arg)
     dbg_err_if (ec_flow_save_token(flow, t ? t->v : NULL, t ? t->l : 0));
 
     /* Recompose the requested URI (assume NoSec is the sole supported mode.) */
-    bool nosec = true;
     flow->uri = ec_opts_compose_url(&req->opts, &conn->us, nosec);
     dbg_err_if (flow->uri == NULL);
 
-    /* Everything has gone smoothly, set state accordingly. */
+    /* Everything has gone smoothly, so set state accordingly. */
     (void) ec_server_set_req(srv, req);
     ec_server_set_state(srv, EC_SRV_STATE_REQ_OK);
 
-    /* TODO invoke callback registered for the requested URI (or fallback
-     * TODO to generic URI handler if none matches.) */
+    /* Now it's time to invoke the callback registered for the requested URI,
+     * or to fallback to generic URI handler if none matches.
+     * TODO virtual hosting. */
+
+    if ((rp = u_uri_get_path(flow->uri)) == NULL
+            || *rp == '\0')
+        rp = "/";
+
+    /* TODO check fnmatch flags. */
+    flags = FNM_PATHNAME | FNM_PERIOD | FNM_CASEFOLD | FNM_LEADING_DIR;
+
+    TAILQ_FOREACH(r, &coap->resources, next)
+    {
+        if (fnmatch(r->path, rp, flags) == FNM_NOMATCH)
+            continue;
+
+        /* TODO handle return code. */
+        switch (r->cb(srv, r->cb_args))
+        {
+            default:
+               break;
+        }
+
+        return 0;
+    }
+
+    /* Fall back to catch-all function, if set. */
+    if (coap->fb)
+    {
+        /* TODO handle return code. */
+        switch (coap->fb(srv, coap->fb_args))
+        {
+            default:
+                break;
+        }
+    }
 
     return 0;
 err:
     ec_server_set_state(srv, EC_CLI_STATE_INTERNAL_ERR);
     return -1;
+}
+
+struct ec_s *ec_server_get_base(ec_server_t *srv)
+{
+    dbg_return_if (srv == NULL, NULL);
+
+    return srv->base;
 }
 
 int ec_server_set_req(ec_server_t *srv, ec_pdu_t *req)

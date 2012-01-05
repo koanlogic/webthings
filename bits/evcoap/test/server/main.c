@@ -3,13 +3,21 @@
 
 int facility = LOG_LOCAL0;
 
-int well_known_cb(ec_t *coap, ec_server_t *srv, void *args)
+int well_known_cb(ec_server_t *srv, void *args)
 {
+    ec_t *coap = ec_server_get_base(srv);
+
+    u_con("%s", __func__);
+
     return 0;
 }
 
-int fallback(ec_t *coap, ec_server_t *srv, void *args)
+int fallback(ec_server_t *srv, void *args)
 {
+    ec_t *coap = ec_server_get_base(srv);
+
+    u_con("%s", __func__);
+
     return 0;
 }
 
@@ -18,6 +26,7 @@ int main(void)
     ec_t *coap = NULL;
     struct event_base *base = NULL;
     struct evdns_base *dns = NULL;
+    const char *wkc = "/.well-known/core";
 
     con_err_if ((base = event_base_new()) == NULL);
     con_err_if ((dns = evdns_base_new(base, 1)) == NULL);
@@ -27,7 +36,7 @@ int main(void)
 /*    con_err_if (ec_bind_socket(coap, "[::1]", EC_COAP_DEFAULT_PORT)); */
     con_err_if (ec_bind_socket(coap, "[::1]", 50505));
 
-    con_err_if (ec_register_url(coap, ".well-known/core", well_known_cb, NULL));
+    con_err_if (ec_register_url(coap, wkc, well_known_cb, NULL));
     con_err_if (ec_register_any(coap, fallback, NULL));
 
     (void) event_base_dispatch(base);

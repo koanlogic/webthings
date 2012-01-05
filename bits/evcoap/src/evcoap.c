@@ -136,6 +136,11 @@ err:
  */
 int ec_register_any(ec_t *coap, ec_server_cb_t cb, void *cb_args)
 {
+    dbg_return_if (coap == NULL, -1);
+
+    coap->fb = cb;
+    coap->fb_args = cb_args;
+
     return 0;
 }
 

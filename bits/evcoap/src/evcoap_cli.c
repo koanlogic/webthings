@@ -472,14 +472,14 @@ int ec_client_handle_empty_pdu(ec_client_t *cli, ev_uint8_t t, ev_uint16_t mid)
     return 0;
 }
 
-/* Just a wrapper around ec_net_dispatch(). */
+/* Just a wrapper around ec_net_pullup_all(). */
 void ec_client_input(evutil_socket_t sd, short u, void *arg)
 {
     ec_client_t *cli = (ec_client_t *) arg;
 
     u_unused_args(u);
 
-    ec_net_dispatch(sd, ec_client_handle_pdu, cli);
+    ec_net_pullup_all(sd, ec_client_handle_pdu, cli);
 }
 
 void *ec_client_get_args(ec_client_t *cli)

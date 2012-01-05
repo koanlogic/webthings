@@ -10,8 +10,8 @@
 struct ec_s;
 
 /* ec_server_cb_t prototype may change */
-typedef int (*ec_server_cb_t)(struct ec_s *, ec_server_t *, void *);
-typedef int (*ec_catchall_cb_t)(struct ec_s *, ec_server_t *, void *);
+typedef int (*ec_server_cb_t)(ec_server_t *, void *);
+typedef int (*ec_catchall_cb_t)(ec_server_t *, void *);
 
 /* An hosted resource. */
 typedef struct ec_resource_s

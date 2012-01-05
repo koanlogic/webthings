@@ -50,7 +50,7 @@ err:
     return -1;
 }
 
-void ec_net_dispatch(evutil_socket_t sd, ec_pdu_handler_t pdu_proc, void *arg)
+void ec_net_pullup_all(evutil_socket_t sd, ec_pdu_handler_t pdu_proc, void *arg)
 {
     int e;
     struct sockaddr_storage peer;
@@ -143,5 +143,4 @@ int ec_net_send(ev_uint8_t h[4], ev_uint8_t *o, size_t o_sz, ev_uint8_t *p,
 err:
     return -1;
 }
-
 

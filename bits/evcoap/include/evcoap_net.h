@@ -33,7 +33,7 @@ evutil_socket_t ec_net_bind_socket(struct sockaddr_storage *ss, int ss_len);
 ev_ssize_t ec_net_recvmsg(evutil_socket_t sd, ev_uint8_t *b, size_t b_sz,
         int *flags, struct sockaddr *peer, ev_socklen_t *peerlen);
 
-void ec_net_dispatch(evutil_socket_t sd, ec_pdu_handler_t pdu_proc, void *arg);
+void ec_net_pullup_all(evutil_socket_t sd, ec_pdu_handler_t pdu_proc, void *a);
 
 ev_ssize_t ec_net_pullup(evutil_socket_t sd, ev_uint8_t *b, size_t b_sz,
         int *flags, struct sockaddr *peer, ev_socklen_t *peerlen, int *e);
