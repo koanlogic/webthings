@@ -8,6 +8,7 @@
 #define EMPTY_STRING(s)  ((s) == NULL || *(s) == '\0')
 
 static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a);
+static int ec_client_check_req_token(ec_client_t *cli);
 
 int ec_client_set_method(ec_client_t *cli, ec_method_t m)
 {
@@ -166,7 +167,6 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
     ec_pdu_t *req;
     ec_flow_t *flow;
     ec_conn_t *conn;
-    ev_uint8_t tok[8];
     ec_opt_t *pu = NULL;
     const char *host;
     ev_uint16_t port;
@@ -186,12 +186,9 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
 
     /* TODO Sanitize request. */ 
 
-    /* Add token option if missing. */
-    if (!ec_opts_get(&req->opts, EC_OPT_TOKEN))
-    {
-        evutil_secure_rng_get_bytes(tok, sizeof tok);
-        dbg_err_if (ec_opts_add_token(&req->opts, tok, sizeof tok));
-    }
+    /* Add a Token option, if missing. */
+    dbg_err_if (ec_client_check_req_token(cli));
+   
 
     /* Get destination for this flow. */
     if (conn->use_proxy)
@@ -488,3 +485,32 @@ void *ec_client_get_args(ec_client_t *cli)
 
     return cli->cb_args;
 }
+
+static int ec_client_check_req_token(ec_client_t *cli)
+{
+    ec_opt_t *t;
+    ec_flow_t *flow;
+    ec_pdu_t *req;
+    ev_uint8_t tok[8];
+    const size_t tok_sz = sizeof tok;
+
+    dbg_return_if (cli == NULL, -1);
+
+    req = &cli->req;    /* shortcut */
+    flow = &cli->flow;  /* ditto */
+
+    if ((t = ec_opts_get(&req->opts, EC_OPT_TOKEN)) == NULL)
+    {
+        evutil_secure_rng_get_bytes(tok, tok_sz);
+        dbg_err_if (ec_opts_add_token(&req->opts, tok, tok_sz));
+    }
+
+    /* Cache the token value into the flow. */
+    dbg_err_if (ec_flow_save_token(flow, t ? t->v : tok, t ? t->l : tok_sz));
+ 
+    return 0;
+err:
+    return -1;
+}
+
+

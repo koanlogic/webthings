@@ -43,20 +43,21 @@ Contents
       ec_client_t *cli = ec_request_new(coap, EC_GET, uri, EC_NON);
 
   If the request needs to pass through a CoAP intermediary, then its address
-  must be explicitly supplied through the following extended creation interface:
+  must be explicitly supplied using the following specialized creation 
+  interface:
 
       const char *proxy = "kink.things.home.";
       ev_uint16_t port = 6565;
 
       cli = ec_proxy_request_new(coap, EC_PUT, uri, EC_NON, proxy, port);
 
-  At present NoSec is the only mode supported, so URIs in the 'coaps' schema
-  are rejected.  DTLS support is planned and will be implemented ASAP.
+  [[At present NoSec is the only mode supported, so URIs in the 'coaps' schema
+  are rejected.  DTLS support is planned and will be implemented ASAP.]]
 
 2.2 Customize Request
 
   Additional options (aside from Uri-* or Proxy-Uri and a default generated
-  Token, implicitly created by ec_new_request) may be added like this:
+  Token, which is implicitly created by ec_request_new) may be added like this:
 
       const ev_uint8_t etag[] = { 0xde, 0xad, 0xbe, 0xef };
 
@@ -64,8 +65,8 @@ Contents
       ec_request_add_accept(cli, EC_MT_TEXT_PLAIN);
       ec_request_add_accept(cli, EC_MT_APPLICATION_JSON);
 
-  If needed (e.g. when using PUT or POST methods) a payload may be added
-  through:
+  If needed (e.g. when using PUT or POST methods) a payload may be added as 
+  follows:
 
       const ev_uint8_t payload[] = { 0xca, 0xfe, 0xba, 0xbe };
 
@@ -78,12 +79,13 @@ Contents
   related to her request happens.  To achieve that, she will supply a callback
   (and args) to the ec_request_send() interface.  The callback will be invoked 
   whenever an interesting event related to the ongoing request happens -- namely
-  a RST condition, or the response coming back (note that ACKs are managed 
-  transparently.)
+  a RST condition, or the response coming back (note that ACK messages are 
+  managed transparently and they will never reach the user interface.)
 
   The user may also supply a custom request timeout, so that she won't 
   starve waiting for a response that never comes back, e.g. due to a crashed
   or nonexistent server, a routing problem, etc.
+
   [[TBD: this may also be used as a "gather period" when the requested resource
   is multicast.  Multicast support needs some tweaking with the PDU format, 
   i.e. to support chaining of multiple responses.]]  
@@ -121,12 +123,13 @@ Contents
 
 3.1 Configure Listening Address
 
-  First off, a CoAP server binds one or more addresses:
+  First off, a CoAP server binds one or more addresses on the target machine:
 
       ec_bind_socket(coap, "127.0.0.1", 50505)
       ec_bind_socket(coap, "[::1]", EVCOAP_DEFAULT_PORT)
 
-  The underlying sockets will be automatically monitored for incoming PDUs.
+  The underlying sockets will be automatically monitored by evcoap for incoming
+  PDUs.
 
   When a new (valid, non-duplicate) request PDU comes in through one of the 
   configured server endpoints, an user-defined callback will be possibly 

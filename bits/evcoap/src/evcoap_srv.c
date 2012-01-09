@@ -30,7 +30,7 @@ int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, void *arg)
 {
     ec_resource_t *r;
     size_t olen = 0, plen;
-    int flags, TODO_sd = -1;
+    int flags = 0, TODO_sd = -1;
     ec_pdu_t *req = NULL;
     ec_server_t *srv = NULL;
     ec_t *coap;
@@ -85,15 +85,20 @@ int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, void *arg)
     ec_server_set_state(srv, EC_SRV_STATE_REQ_OK);
 
     /* Now it's time to invoke the callback registered for the requested URI,
-     * or to fallback to generic URI handler if none matches.
-     * TODO virtual hosting. */
+     * or to fallback to generic URI handler if none matches. */
+
+    /* TODO virtual hosting. */
 
     if ((rp = u_uri_get_path(flow->uri)) == NULL
             || *rp == '\0')
         rp = "/";
 
-    /* TODO check fnmatch flags. */
-    flags = FNM_PATHNAME | FNM_PERIOD | FNM_CASEFOLD | FNM_LEADING_DIR;
+    flags |= FNM_PATHNAME;      /* Match slashes. */
+    flags |= FNM_PERIOD;        /* Match leading periods. */
+#if 0
+    flags |= FNM_CASEFOLD;      /* Ignore case distinctions. */
+    flags |= FNM_LEADING_DIR;   /* Ignore slash-star rest after match. */
+#endif
 
     TAILQ_FOREACH(r, &coap->resources, next)
     {
