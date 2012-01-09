@@ -119,12 +119,18 @@ err:
 
 int ec_dups_insert(ec_dups_t *dups, ec_recvd_pdu_t *recvd)
 {
+    char key[EC_DUP_KEY_MAX];
+
     dbg_return_if (dups == NULL, -1);
     dbg_return_if (recvd == NULL, -1);
 
-    /* TODO */
+    dbg_err_if (!ec_dup_key_new(recvd->mid, &recvd->who, key));
+
+    dbg_err_if (u_hmap_easy_put(dups->map, key, (const void *) recvd));
 
     return 0;
+err:
+    return -1;
 }
 
 static void ec_dups_chores(evutil_socket_t u0, short u1, void *c)
@@ -137,18 +143,80 @@ static void ec_dups_chores(evutil_socket_t u0, short u1, void *c)
 static const char *ec_dup_key_new(ev_uint16_t mid, 
         struct sockaddr_storage *peer, char key[EC_DUP_KEY_MAX])
 {
-    char addrport[EC_DUP_KEY_MAX];
+    char ap[EC_DUP_KEY_MAX];
+    const size_t ap_sz = sizeof ap;
 
     dbg_err_if (peer == NULL);
     dbg_err_if (key == NULL);
 
-    dbg_err_if (evutil_format_sockaddr_port((struct sockaddr *) peer, addrport,
-                sizeof addrport));
+    (void) evutil_format_sockaddr_port((struct sockaddr *) peer, ap, ap_sz);
 
-    dbg_err_if (u_snprintf(key, EC_DUP_KEY_MAX, "%u+%s", mid, addrport));
+    dbg_err_if (u_snprintf(key, EC_DUP_KEY_MAX, "%u+%s", mid, ap));
 
     return key;
 err:
+    return NULL;
+}
+
+/* 
+ * '0'  -> no dup
+ * '1'  -> dup, (handled here ?)
+ * '-1' -> internal error
+ */
+int ec_dups_handle_incoming(ec_dups_t *dups, ev_uint16_t mid, int sd,
+        struct sockaddr_storage *ss, ev_socklen_t ss_len)
+{
+    ec_recvd_pdu_t *recvd = NULL;
+
+    dbg_return_if (dups == NULL, -1);
+    dbg_return_if (ss == NULL, -1);
+
+    /* See if this PDU was seen here already. */ 
+    if ((recvd = ec_dups_search(dups, mid, ss)))
+    {
+        ec_cached_pdu_t *pdu = &recvd->cached_pdu;
+
+        if (pdu->is_set)
+        {
+            dbg_err_if (ec_net_send(pdu->hdr, pdu->opts, pdu->opts_sz,
+                        pdu->payload, pdu->payload_sz, sd, ss, ss_len));
+            return 1;
+        }
+    }
+
+    /* New entry, push it into the cache. */
+    dbg_err_if (ec_dups_insert(dups, ec_recvd_pdu_new(ss, ss_len, mid))); 
+
+    return 0;
+err:
+    return -1;
+}
+
+ec_recvd_pdu_t *ec_recvd_pdu_new(struct sockaddr_storage *ss, 
+        ev_socklen_t ss_len, ev_uint16_t mid)
+{
+    struct timeval tv;
+    ec_recvd_pdu_t *recvd = NULL;
+
+    /* Make room for the new received PDU trace. */
+    dbg_err_sif ((recvd = u_zalloc(sizeof *recvd)) == NULL);
+
+    /* Register creation time for this record. */
+    dbg_err_if (evutil_gettimeofday(&recvd->when, NULL) == -1);
+
+    /* Stick MID. */
+    recvd->mid = mid;
+
+    /* Stick peer address. */
+    memcpy(&recvd->who, ss, sizeof recvd->who);
+    recvd->who_len = ss_len;
+
+    /* Newly created cached PDUs are unset. */
+    recvd->cached_pdu.is_set = false;
+
+    return recvd;
+err:
+    u_free(recvd);
     return NULL;
 }
 
@@ -164,4 +232,24 @@ void ec_recvd_pdu_free(void *arg)
         u_free(pdu->payload);
         u_free(recvd);
     }
+}
+
+int ec_recvd_pdu_update(ec_recvd_pdu_t *recvd, ev_uint8_t *hdr,
+        ev_uint8_t *opts, size_t opts_sz, ev_uint8_t *payload, 
+        size_t payload_sz)
+{
+    dbg_return_if (recvd == NULL, -1);
+
+    ec_cached_pdu_t *pdu = &recvd->cached_pdu;
+
+    /* Update all pieces. */
+    memcpy(pdu->hdr, hdr, 4);
+    pdu->opts = opts;
+    pdu->opts_sz = opts_sz;
+    pdu->payload = payload;
+    pdu->payload_sz = payload_sz;
+
+    pdu->is_set = true;
+
+    return 0;
 }

@@ -25,8 +25,9 @@ typedef struct
 
 } ec_conn_t;
 
-/* TODO change this to accomodate client/server needs. */
-typedef int (*ec_pdu_handler_t)(ev_uint8_t *, size_t, void *);
+/* PDU handler interface (both client and server.) */
+typedef int (*ec_pdu_handler_t)(ev_uint8_t *, size_t, int,
+        struct sockaddr_storage *, ev_socklen_t, void *);
 
 evutil_socket_t ec_net_bind_socket(struct sockaddr_storage *ss, int ss_len);
 

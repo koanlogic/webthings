@@ -3,6 +3,9 @@
 #include "evcoap_base.h"
 #include "evcoap_flow.h"
 
+static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
+        struct sockaddr_storage *peer, ev_socklen_t peer_len, void *arg);
+
 ec_server_t *ec_server_new(struct ec_s *coap, evutil_socket_t sd)
 {
     ec_server_t *srv = NULL;
@@ -26,7 +29,8 @@ void ec_server_input(evutil_socket_t sd, short u, void *arg)
 /* TODO also supply the related ec_conn_t object. */
 /* TODO factor out common code with ec_client_handle_pdu, namely the PDU 
  *      decoding */
-int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, void *arg)
+static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
+        struct sockaddr_storage *peer, ev_socklen_t peer_len, void *arg)
 {
     ec_resource_t *r;
     size_t olen = 0, plen;

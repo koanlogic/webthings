@@ -30,6 +30,8 @@ ec_t *ec_init(struct event_base *base, struct evdns_base *dns)
     TAILQ_INIT(&coap->listeners);
     TAILQ_INIT(&coap->resources);
 
+    dbg_err_if (ec_dups_init(coap, &coap->dups));
+
     return coap;
 err:
     return NULL;

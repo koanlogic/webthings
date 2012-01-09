@@ -7,6 +7,9 @@
 
 #define EMPTY_STRING(s)  ((s) == NULL || *(s) == '\0')
 
+static int ec_client_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
+        struct sockaddr_storage *peer, ev_socklen_t peer_len, void *arg);
+
 static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a);
 static int ec_client_check_req_token(ec_client_t *cli);
 
@@ -400,7 +403,8 @@ ec_cli_state_t ec_client_get_state(ec_client_t *cli)
     return cli->state;
 }
 
-int ec_client_handle_pdu(ev_uint8_t *raw, size_t raw_sz, void *arg)
+static int ec_client_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
+        struct sockaddr_storage *peer, ev_socklen_t peer_len, void *arg)
 {
     ec_opt_t *t;
     ec_client_t *cli;
@@ -421,9 +425,18 @@ int ec_client_handle_pdu(ev_uint8_t *raw, size_t raw_sz, void *arg)
     dbg_err_ifm (h->code >= 1 && h->code <= 31, 
             "unexpected request code in client response context");
 
-    /*
-     * TODO pass mid and source to the dup handler machinery... 
-     */
+    /* Pass MID and peer address to the dup handler machinery. */
+    ec_dups_t *dups = &cli->base->dups;
+
+    switch (ec_dups_handle_incoming(dups, h->mid, sd, peer, peer_len))
+    {
+        case 0:     /* Not a duplicate, proceed. */
+            break;
+        case 1:     /* Duplicate, handled by ec_dups_handle_incoming(). */
+            return 0;
+        default:    /* Internal error. */
+            goto err;
+    }
     
     /* Handle empty responses (i.e. resets and separated acknowledgements)
      * specially. */

@@ -37,6 +37,7 @@ typedef struct ec_listener_s ec_listener_t;
 
 struct ec_cached_pdu_s
 {
+    bool is_set;
     ev_uint8_t hdr[4];
     ev_uint8_t *opts;
     size_t opts_sz;
@@ -82,7 +83,7 @@ struct ec_s
     ec_server_cb_t fb;
     void *fb_args;
 
-    /* Duplicate handling. */
+    /* Duplicate handling subsystem. */
     ec_dups_t dups;
 
     struct event_base *base;
@@ -99,8 +100,14 @@ int ec_dups_init(ec_t *coap, ec_dups_t *dups);
 int ec_dups_insert(ec_dups_t *dups, ec_recvd_pdu_t *recvd);
 ec_recvd_pdu_t *ec_dups_search(ec_dups_t *dups, ev_uint8_t mid,
         struct sockaddr_storage *peer);
+int ec_dups_handle_incoming(ec_dups_t *dups, ev_uint16_t mid, int sd,
+        struct sockaddr_storage *ss, ev_socklen_t ss_len);
 
+ec_recvd_pdu_t *ec_recvd_pdu_new(struct sockaddr_storage *ss,
+        ev_socklen_t ss_len, ev_uint16_t mid);
+int ec_recvd_pdu_update(ec_recvd_pdu_t *recvd, ev_uint8_t *hdr,
+        ev_uint8_t *opts, size_t opts_sz, ev_uint8_t *payload,
+        size_t payload_sz);
 void ec_recvd_pdu_free(void *recvd_pdu);
-
 
 #endif  /* !_EC_BASE_H_ */

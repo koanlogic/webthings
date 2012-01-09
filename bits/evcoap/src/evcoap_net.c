@@ -90,7 +90,7 @@ void ec_net_pullup_all(evutil_socket_t sd, ec_pdu_handler_t pdu_proc, void *arg)
 
         /* Process the received PDU invoking whatever PDU processor was 
          * supplied (i.e. client or server.) */
-        if (pdu_proc(d, (size_t) n, arg))
+        if (pdu_proc(d, (size_t) n, sd, &peer, peer_len, arg))
             continue;
     }
 }

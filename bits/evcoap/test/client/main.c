@@ -87,6 +87,7 @@ void cb(ec_client_t *cli)
 
     u_con("got response !");
 
+    /* Fall through. */
 err:
     ec_loopbreak(coap);
 }
