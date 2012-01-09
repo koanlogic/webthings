@@ -1,6 +1,7 @@
 #ifndef _EC_BASE_H_
 #define _EC_BASE_H_
 
+#include <u/libu.h>
 #include <event2/event.h>
 #include <event2/dns.h>
 
@@ -52,9 +53,18 @@ struct ec_recvd_pdu_s
     ev_socklen_t who_len;
     ev_uint16_t mid;
     ec_cached_pdu_t cached_pdu;
-
-    TAILQ_ENTRY(ec_recvd_pdu_s) next;
 };
+typedef struct ec_recvd_pdu_s ec_recvd_pdu_t;
+
+struct ec_dups_s
+{
+#define EC_DUP_KEY_MAX          256 /* mid'-'IPaddr'-'port */
+    u_hmap_t *map;  /* Lookup key is MID + peer address. */
+
+#define EC_DUP_CHORES_INTERVAL  20  /* Cleanup every 20 seconds. */
+    struct event *chores_timer;
+};
+typedef struct ec_dups_s ec_dups_t;
 
 struct ec_s
 {
@@ -73,7 +83,7 @@ struct ec_s
     void *fb_args;
 
     /* Duplicate handling. */
-    TAILQ_HEAD(, ec_recvd_pdu_s) window;
+    ec_dups_t dups;
 
     struct event_base *base;
     struct evdns_base *dns;
@@ -83,5 +93,14 @@ typedef struct ec_s ec_t;
 int ec_listeners_add(ec_t *coap, evutil_socket_t sd);
 ec_listener_t *ec_listener_new(ec_t *coap, evutil_socket_t sd);
 void ec_listener_free(ec_listener_t *l);
+
+/* Duplicate handling. */
+int ec_dups_init(ec_t *coap, ec_dups_t *dups);
+int ec_dups_insert(ec_dups_t *dups, ec_recvd_pdu_t *recvd);
+ec_recvd_pdu_t *ec_dups_search(ec_dups_t *dups, ev_uint8_t mid,
+        struct sockaddr_storage *peer);
+
+void ec_recvd_pdu_free(void *recvd_pdu);
+
 
 #endif  /* !_EC_BASE_H_ */
