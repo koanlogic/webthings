@@ -5,13 +5,16 @@
 #include "evcoap_base.h"
 #include "evcoap_debug.h"
 
-#define EMPTY_STRING(s)  ((s) == NULL || *(s) == '\0')
+#define NO_STRING(s)  ((s) == NULL || *(s) == '\0')
 
+static int ec_client_check_transition(ec_cli_state_t cur, ec_cli_state_t next);
+static bool ec_client_state_is_final(ec_cli_state_t state);
 static int ec_client_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
         struct sockaddr_storage *peer, ev_socklen_t peer_len, void *arg);
-
+static void ec_cli_app_timeout(evutil_socket_t u0, short u1, void *c);
 static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a);
 static int ec_client_check_req_token(ec_client_t *cli);
+static int ec_client_invoke_user_callback(ec_client_t *cli);
 
 int ec_client_set_method(ec_client_t *cli, ec_method_t m)
 {
@@ -28,7 +31,7 @@ int ec_client_set_proxy(ec_client_t *cli, const char *host, ev_uint16_t port)
 {
     ec_conn_t *conn = &cli->flow.conn;
 
-    dbg_return_if (EMPTY_STRING(host), -1);
+    dbg_return_if (NO_STRING(host), -1);
 
     conn->proxy_port = (port == 0) ? EC_COAP_DEFAULT_PORT : port;
 
@@ -296,7 +299,7 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
     /* Add this to the pending clients' list. */
     EC_CLI_ASSERT(ec_client_register(cli), EC_CLI_STATE_INTERNAL_ERR);
 
-    /* TODO add to the duplicate machinery */
+    /* TODO add to the duplicate machinery ? */
 
     return;
 err:
@@ -305,54 +308,156 @@ err:
 #undef EC_CLI_ASSERT
 }
 
-void ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
+static int ec_client_check_transition(ec_cli_state_t cur, ec_cli_state_t next)
 {
-    ec_cli_state_t cur = cli->state;
-
-    u_dbg("[client=%p] transition request from '%s' to '%s'",
-            cli, ec_cli_state_str(cur), ec_cli_state_str(state));
-
-    /* Check that the requested state transition is valid.  Panic in case an 
-     * invalid transition was requested. */
-    switch (state)
+    switch (next)
     {
+        /* Any state can switch to INTERNAL_ERROR. */
         case EC_CLI_STATE_INTERNAL_ERR:
             break;
 
         case EC_CLI_STATE_DNS_FAILED:
         case EC_CLI_STATE_DNS_OK:
-            die_if (cur != EC_CLI_STATE_NONE);
+            dbg_err_if (cur != EC_CLI_STATE_NONE);
             break;
 
         case EC_CLI_STATE_SEND_FAILED:
         case EC_CLI_STATE_REQ_SENT:
-            die_if (cur != EC_CLI_STATE_DNS_OK
+            dbg_err_if (cur != EC_CLI_STATE_DNS_OK
                     && cur != EC_CLI_STATE_COAP_RETRY);
             break;
 
         case EC_CLI_STATE_REQ_ACKD:
         case EC_CLI_STATE_COAP_RETRY:
         case EC_CLI_STATE_COAP_TIMEOUT:
-            die_if (cur != EC_CLI_STATE_REQ_SENT);
+            dbg_err_if (cur != EC_CLI_STATE_REQ_SENT);
             break;
 
         case EC_CLI_STATE_APP_TIMEOUT:
         case EC_CLI_STATE_REQ_DONE:
         case EC_CLI_STATE_REQ_RST:
-            die_if (cur != EC_CLI_STATE_REQ_SENT
+            dbg_err_if (cur != EC_CLI_STATE_REQ_SENT
                     && cur != EC_CLI_STATE_REQ_ACKD);
             break;
 
         case EC_CLI_STATE_NONE:
         default:
-            die(EXIT_FAILURE, "transaction cannot be set to state %u", state);
+            goto err;
     }
 
-    /* TODO handle timers and stuff... */
+    return 0;
+err:
+    u_warn("invalid transition from '%s' to '%s'", ec_cli_state_str(cur),
+            ec_cli_state_str(next));
+    return -1;
+}
 
+static bool ec_client_state_is_final(ec_cli_state_t state)
+{
+    switch (state)
+    {
+        case EC_CLI_STATE_INTERNAL_ERR:
+        case EC_CLI_STATE_DNS_FAILED:
+        case EC_CLI_STATE_SEND_FAILED:
+        case EC_CLI_STATE_COAP_TIMEOUT:
+        case EC_CLI_STATE_APP_TIMEOUT:
+        case EC_CLI_STATE_REQ_DONE:
+        case EC_CLI_STATE_REQ_RST:
+            return true;
+        case EC_CLI_STATE_NONE:
+        case EC_CLI_STATE_DNS_OK:
+        case EC_CLI_STATE_REQ_SENT:
+        case EC_CLI_STATE_REQ_ACKD:
+        case EC_CLI_STATE_COAP_RETRY:
+            return false;
+        default:
+            die(EXIT_FAILURE, "%s: no such state %u", __func__, state);
+    }
+}
+
+static void ec_cli_app_timeout(evutil_socket_t u0, short u1, void *c)
+{
+    ec_client_t *cli = (ec_client_t *) c;
+
+    /* Set state to APP_TIMEOUT. */
+    ec_client_set_state(cli, EC_CLI_STATE_APP_TIMEOUT);
+
+    /* Invoke client callback. */
+    (void) ec_client_invoke_user_callback(cli);
+
+    return;
+}
+
+int ec_cli_start_app_timer(ec_client_t *cli)
+{
+    dbg_return_if (cli == NULL, -1);
+
+    ec_t *coap = cli->base;
+    ec_cli_timers_t *t = &cli->timers;
+
+    /* It is expected that the application timeout is set only once for each
+     * client. */
+    dbg_err_if (t->app != NULL);
+
+    t->app = event_new(coap->base, -1, EV_PERSIST, ec_cli_app_timeout, cli);
+    dbg_err_if (t->app == NULL || evtimer_add(t->app, &t->app_tout));
+
+    return 0;
+err:
+    if (t->app)
+        event_free(t->app);
+    return -1;
+}
+
+int ec_cli_stop_app_timer(ec_client_t *cli)
+{
+    dbg_return_if (cli == NULL, -1);
+
+    ec_cli_timers_t *t = &cli->timers;
+
+    if (t->app)
+    {
+        event_free(t->app);
+        t->app = NULL;
+    }
+
+    return 0;
+}
+
+void ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
+{
+    ec_cli_state_t cur = cli->state;
+
+    u_dbg("[client=%p] transition request from '%s' to '%s'", cli, 
+            ec_cli_state_str(cur), ec_cli_state_str(state));
+
+    /* Check that the requested state transition is valid. */
+    dbg_err_if (ec_client_check_transition(cur, state));
+
+    if (state == EC_CLI_STATE_REQ_SENT)
+    {
+        /* After the _first_ successful send, start the application timeout. */
+        if (cur == EC_CLI_STATE_DNS_OK)
+            dbg_err_if (ec_cli_start_app_timer(cli));
+
+        /* TODO if CON also start the retransmission timer. */
+    }
+    else if (ec_client_state_is_final(state))
+    {
+        /* Any final state MUST destroy all pending timers. */
+
+        dbg_err_if (ec_cli_stop_app_timer(cli));
+
+        /* TODO if CON also stop the retransmission timer. */
+    }
+
+    /* Finally set state. */
     cli->state = state;
 
     return;
+err:
+    /* Should never happen ! */
+    die(EXIT_FAILURE, "%s failed (see logs)", __func__);
 }
 
 int ec_client_register(ec_client_t *cli)
@@ -428,13 +533,22 @@ static int ec_client_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
     /* Pass MID and peer address to the dup handler machinery. */
     ec_dups_t *dups = &cli->base->dups;
 
-    switch (ec_dups_handle_incoming(dups, h->mid, sd, peer, peer_len))
+    /* See return codes of evcoap_base.c:ec_dups_handle_incoming_res().
+     *
+     * TODO Keep an eye here, if we can factor out code in common with 
+     * TODO ec_server_handle_pdu(). */
+    switch (ec_dups_handle_incoming_srvmsg(dups, h->mid, sd, peer, peer_len))
     {
-        case 0:     /* Not a duplicate, proceed. */
+        case 0:
+            /* Not a duplicate, proceed with normal processing. */
             break;
-        case 1:     /* Duplicate, handled by ec_dups_handle_incoming(). */
+        case 1:
+            /* Duplicate, possible resending of the paired message is handled 
+             * by ec_dups_handle_incoming_srvmsg(). */
             return 0;
-        default:    /* Internal error. */
+        default:
+            /* Internal error. */
+            u_dbg("Duplicate handling machinery failed !");
             goto err;
     }
     
@@ -464,6 +578,17 @@ static int ec_client_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
     ec_client_set_state(cli, EC_CLI_STATE_REQ_DONE);
 
     /* Invoke the client callback */
+    (void) ec_client_invoke_user_callback(cli);
+
+    return 0;
+err:
+    return -1;
+}
+
+static int ec_client_invoke_user_callback(ec_client_t *cli)
+{
+    dbg_return_if (cli == NULL, -1);
+
     if (cli->cb)
         cli->cb(cli);
     else
@@ -472,8 +597,6 @@ static int ec_client_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
     }
 
     return 0;
-err:
-    return -1;
 }
 
 int ec_client_handle_empty_pdu(ec_client_t *cli, ev_uint8_t t, ev_uint16_t mid)

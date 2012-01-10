@@ -45,6 +45,8 @@ static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
     dbg_return_if ((coap = (ec_t *) arg) == NULL, -1);
     dbg_return_if (raw == NULL, -1);
     dbg_return_if (!raw_sz, -1);
+    dbg_return_if (sd == -1, -1);
+    dbg_return_if (peer == NULL, -1);
 
     /* Make room for the new PDU. */
     dbg_err_sif ((req = ec_pdu_new_empty()) == NULL);
@@ -58,7 +60,24 @@ static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
     dbg_err_ifm (h->code >= 64 && h->code <= 191, 
             "unexpected response code in server request context");
 
+    /* Pass MID and peer address to the dup handler machinery. */
+    ec_dups_t *dups = &srv->base->dups;
+
     /* TODO Check if it's a duplicate (mid and token). */
+    switch (ec_dups_handle_incoming_climsg(dups, h->mid, sd, peer, peer_len))
+    {
+        case 0:
+            /* Not a duplicate, proceed with normal processing. */
+            break;
+        case 1:
+            /* Duplicate, possible resending of the paired message is handled 
+             * by ec_dups_handle_incoming_climsg(). */
+            return 0;
+        default:
+            /* Internal error. */
+            u_dbg("Duplicate handling machinery failed !");
+            goto err;
+    }
 
     /* If PDU is a request, create a new server context. */
     if (h->code)

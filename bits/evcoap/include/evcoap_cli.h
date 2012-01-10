@@ -19,6 +19,17 @@ typedef struct ec_res_set_s
     TAILQ_HEAD(, ec_pdu_s) bundle;
 } ec_res_set_t;
 
+struct ec_cli_timers_s
+{
+    /* User defined application timeout (how much await for resposes.) */
+    struct event *app;
+    struct timeval app_tout;
+#define EC_TIMERS_APP_TOUT  10  /* Default is ten seconds. */
+
+    /* TODO CoAP internal retransmission timers. */
+};
+typedef struct ec_cli_timers_s ec_cli_timers_t;
+
 struct ec_client_s
 {
     struct ec_s *base;
@@ -26,6 +37,7 @@ struct ec_client_s
     ec_client_cb_t cb;
     void *cb_args;
     ec_cli_state_t state;
+    ec_cli_timers_t timers;
     ec_flow_t flow;
     ec_pdu_t req;
     ec_res_set_t res_set;
@@ -55,5 +67,9 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
 void ec_client_input(evutil_socket_t sd, short u, void *arg);
 int ec_client_handle_empty_pdu(ec_client_t *cli, ev_uint8_t t, ev_uint16_t mid);
 int ec_client_register(ec_client_t *cli);
+
+/* Timers handling. */
+int ec_cli_start_app_timer(ec_client_t *cli);
+int ec_cli_stop_app_timer(ec_client_t *cli);
 
 #endif  /* !_EC_CLI_H_ */

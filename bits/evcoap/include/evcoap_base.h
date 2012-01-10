@@ -9,6 +9,7 @@
 #include "evcoap_srv.h"
 
 struct ec_s;
+struct ec_dups_s;
 
 typedef ec_cbrc_t (*ec_server_cb_t)(ec_server_t *, void *, struct timeval *, 
         bool);
@@ -54,16 +55,18 @@ struct ec_recvd_pdu_s
     ev_socklen_t who_len;
     ev_uint16_t mid;
     ec_cached_pdu_t cached_pdu;
+#define EC_DUP_LIFETIME     10  /* TODO choose a sensible value. */
+    struct event *countdown;
+#define EC_DUP_KEY_MAX      256 /* Enough to hold "mid+IPaddr+port". */
+    char key[EC_DUP_KEY_MAX];
+    struct ec_dups_s *dups;
 };
 typedef struct ec_recvd_pdu_s ec_recvd_pdu_t;
 
 struct ec_dups_s
 {
-#define EC_DUP_KEY_MAX          256 /* mid'-'IPaddr'-'port */
-    u_hmap_t *map;  /* Lookup key is MID + peer address. */
-
-#define EC_DUP_CHORES_INTERVAL  20  /* Cleanup every 20 seconds. */
-    struct event *chores_timer;
+    u_hmap_t *map;          /* Lookup key is MID + peer address. */
+    struct ec_s *base;      /* Back pointer to the evcoap base. */
 };
 typedef struct ec_dups_s ec_dups_t;
 
@@ -97,14 +100,18 @@ void ec_listener_free(ec_listener_t *l);
 
 /* Duplicate handling. */
 int ec_dups_init(ec_t *coap, ec_dups_t *dups);
-int ec_dups_insert(ec_dups_t *dups, ec_recvd_pdu_t *recvd);
+int ec_dups_insert(ec_dups_t *dups, struct sockaddr_storage *ss,
+        ev_socklen_t ss_len, ev_uint16_t mid);
+int ec_dups_delete(ec_dups_t *dups, const char *key);
 ec_recvd_pdu_t *ec_dups_search(ec_dups_t *dups, ev_uint8_t mid,
         struct sockaddr_storage *peer);
-int ec_dups_handle_incoming(ec_dups_t *dups, ev_uint16_t mid, int sd,
+int ec_dups_handle_incoming_srvmsg(ec_dups_t *dups, ev_uint16_t mid, int sd,
+        struct sockaddr_storage *ss, ev_socklen_t ss_len);
+int ec_dups_handle_incoming_climsg(ec_dups_t *dups, ev_uint16_t mid, int sd,
         struct sockaddr_storage *ss, ev_socklen_t ss_len);
 
-ec_recvd_pdu_t *ec_recvd_pdu_new(struct sockaddr_storage *ss,
-        ev_socklen_t ss_len, ev_uint16_t mid);
+ec_recvd_pdu_t *ec_recvd_pdu_new(const char *key, ec_t *coap, ec_dups_t *dups,
+        struct sockaddr_storage *ss, ev_socklen_t ss_len, ev_uint16_t mid);
 int ec_recvd_pdu_update(ec_recvd_pdu_t *recvd, ev_uint8_t *hdr,
         ev_uint8_t *opts, size_t opts_sz, ev_uint8_t *payload,
         size_t payload_sz);

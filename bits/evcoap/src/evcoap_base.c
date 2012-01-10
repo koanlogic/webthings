@@ -2,7 +2,7 @@
 
 static const char *ec_dup_key_new(ev_uint16_t mid, 
         struct sockaddr_storage *peer, char key[EC_DUP_KEY_MAX]);
-static void ec_dups_chores(evutil_socket_t u0, short u1, void *c);
+static void ec_dup_zap(evutil_socket_t u0, short u1, void *c);
 
 int ec_listeners_add(ec_t *coap, evutil_socket_t sd)
 {
@@ -61,8 +61,6 @@ int ec_dups_init(ec_t *coap, ec_dups_t *dups)
 {
     u_hmap_opts_t *opts = NULL;
     u_hmap_t *hmap = NULL;
-    struct event *t = NULL;
-    struct timeval tv = { .tv_sec = EC_DUP_CHORES_INTERVAL, .tv_usec = 0 };
 
     dbg_return_if (coap == NULL, -1);
     dbg_return_if (dups == NULL, -1);
@@ -78,14 +76,9 @@ int ec_dups_init(ec_t *coap, ec_dups_t *dups)
     dbg_err_if (u_hmap_easy_new(opts, &hmap));
     u_hmap_opts_free(opts), opts = NULL;
 
-    /* Attach the newly created hmap. */
+    /* Attach the newly created hmap and supplied evcoap base. */
     dups->map = hmap;
-
-    /* Init chores' timer. */
-    t = event_new(coap->base, -1, EV_PERSIST, ec_dups_chores, coap);
-    dbg_err_if (t == NULL || evtimer_add(t, &tv));
-
-    dups->chores_timer = t, t = NULL;
+    dups->base = coap;
 
     return 0;
 err:
@@ -93,8 +86,6 @@ err:
         u_hmap_opts_free(opts);
     if (hmap)
         u_hmap_free(hmap);
-    if (t)
-        event_free(t);
     return -1;
 }
 
@@ -117,25 +108,54 @@ err:
     return NULL;
 }
 
-int ec_dups_insert(ec_dups_t *dups, ec_recvd_pdu_t *recvd)
+int ec_dups_insert(ec_dups_t *dups, struct sockaddr_storage *ss,
+                ev_socklen_t ss_len, ev_uint16_t mid)
 {
     char key[EC_DUP_KEY_MAX];
+    ec_recvd_pdu_t *recvd = NULL;
 
     dbg_return_if (dups == NULL, -1);
-    dbg_return_if (recvd == NULL, -1);
 
-    dbg_err_if (!ec_dup_key_new(recvd->mid, &recvd->who, key));
+    ec_t *coap = dups->base;
 
+    /* Build its key. */
+    dbg_err_if (!ec_dup_key_new(mid, ss, key));
+
+    /* Create new received PDU record. */
+    recvd = ec_recvd_pdu_new(key, coap, dups, ss, ss_len, mid);
+    dbg_err_if (recvd == NULL);
+
+    /* Push it into the map. */
     dbg_err_if (u_hmap_easy_put(dups->map, key, (const void *) recvd));
+    recvd = NULL;   /* Ownership is on libu. */
 
     return 0;
 err:
+    if (recvd) 
+        ec_recvd_pdu_free(recvd);
     return -1;
 }
 
-static void ec_dups_chores(evutil_socket_t u0, short u1, void *c)
+int ec_dups_delete(ec_dups_t *dups, const char *key)
 {
-    u_dbg("TODO %s", __func__);
+    dbg_return_if (dups == NULL, -1);
+    dbg_return_if (key == NULL, -1);
+
+    dbg_return_if (u_hmap_easy_del(dups->map, key), -1);
+
+    return 0;
+}
+
+static void ec_dup_zap(evutil_socket_t u0, short u1, void *c)
+{
+    ec_recvd_pdu_t *recvd = (ec_recvd_pdu_t *) c; 
+
+    u_dbg("Now removing stale received PDU with key '%s'", recvd->key);
+
+    dbg_err_if (ec_dups_delete(recvd->dups, recvd->key));
+
+    /* Fall through. */
+err:
     return;
 }
 
@@ -163,7 +183,29 @@ err:
  * '1'  -> dup, (handled here ?)
  * '-1' -> internal error
  */
-int ec_dups_handle_incoming(ec_dups_t *dups, ev_uint16_t mid, int sd,
+int ec_dups_handle_incoming_srvmsg(ec_dups_t *dups, ev_uint16_t mid, int sd,
+        struct sockaddr_storage *ss, ev_socklen_t ss_len)
+{
+    ec_recvd_pdu_t *recvd = NULL;
+
+    dbg_return_if (dups == NULL, -1);
+    dbg_return_if (ss == NULL, -1);
+
+    u_unused_args(sd);  /* Unused for NON responses (may be needed for CON.) */
+
+    /* See if this PDU was seen here already. */ 
+    if ((recvd = ec_dups_search(dups, mid, ss)))
+        return 1;
+
+    /* New entry, push it into the cache. */
+    dbg_err_if (ec_dups_insert(dups, ss, ss_len, mid));
+
+    return 0;
+err:
+    return -1;
+}
+
+int ec_dups_handle_incoming_climsg(ec_dups_t *dups, ev_uint16_t mid, int sd,
         struct sockaddr_storage *ss, ev_socklen_t ss_len)
 {
     ec_recvd_pdu_t *recvd = NULL;
@@ -174,29 +216,35 @@ int ec_dups_handle_incoming(ec_dups_t *dups, ev_uint16_t mid, int sd,
     /* See if this PDU was seen here already. */ 
     if ((recvd = ec_dups_search(dups, mid, ss)))
     {
-        ec_cached_pdu_t *pdu = &recvd->cached_pdu;
+        ec_cached_pdu_t *pdu = &recvd->cached_pdu; 
 
         if (pdu->is_set)
         {
-            dbg_err_if (ec_net_send(pdu->hdr, pdu->opts, pdu->opts_sz,
+            dbg_err_if (ec_net_send(pdu->hdr, pdu->opts, pdu->opts_sz, 
                         pdu->payload, pdu->payload_sz, sd, ss, ss_len));
-            return 1;
         }
+
+        return 1;
     }
 
     /* New entry, push it into the cache. */
-    dbg_err_if (ec_dups_insert(dups, ec_recvd_pdu_new(ss, ss_len, mid))); 
+    dbg_err_if (ec_dups_insert(dups, ss, ss_len, mid));
 
     return 0;
 err:
     return -1;
 }
 
-ec_recvd_pdu_t *ec_recvd_pdu_new(struct sockaddr_storage *ss, 
-        ev_socklen_t ss_len, ev_uint16_t mid)
+ec_recvd_pdu_t *ec_recvd_pdu_new(const char *key, ec_t *coap, ec_dups_t *dups,
+        struct sockaddr_storage *ss, ev_socklen_t ss_len, ev_uint16_t mid)
 {
-    struct timeval tv;
+    struct event *t = NULL;
+    struct timeval tout = { .tv_sec = EC_DUP_LIFETIME, .tv_usec = 0 };
     ec_recvd_pdu_t *recvd = NULL;
+
+    dbg_return_if (key == NULL, NULL);
+    dbg_return_if (coap == NULL, NULL);
+    dbg_return_if (ss == NULL, NULL);
 
     /* Make room for the new received PDU trace. */
     dbg_err_sif ((recvd = u_zalloc(sizeof *recvd)) == NULL);
@@ -207,16 +255,31 @@ ec_recvd_pdu_t *ec_recvd_pdu_new(struct sockaddr_storage *ss,
     /* Stick MID. */
     recvd->mid = mid;
 
+    /* Embed the key and hmap reference so that the object can self-destroy in 
+     * later ec_dup_zap() -- i.e. when the associated countdown has elapsed. */
+    dbg_err_if (u_strlcpy(recvd->key, key, sizeof recvd->key));
+    recvd->dups = dups;
+
     /* Stick peer address. */
     memcpy(&recvd->who, ss, sizeof recvd->who);
     recvd->who_len = ss_len;
+
+    /* Init self destruction timer. */
+    t = event_new(coap->base, -1, EV_PERSIST, ec_dup_zap, recvd);
+    dbg_err_if (t == NULL || evtimer_add(t, &tout));
+
+    recvd->countdown = t, t = NULL;
 
     /* Newly created cached PDUs are unset. */
     recvd->cached_pdu.is_set = false;
 
     return recvd;
 err:
-    u_free(recvd);
+    if (t)
+        event_free(t);
+    if (recvd)
+        ec_recvd_pdu_free(recvd);
+
     return NULL;
 }
 
@@ -231,6 +294,10 @@ void ec_recvd_pdu_free(void *arg)
         u_free(pdu->opts);
         u_free(pdu->payload);
         u_free(recvd);
+
+        /* Remove timer. */
+        if (recvd->countdown)
+            event_free(recvd->countdown);
     }
 }
 

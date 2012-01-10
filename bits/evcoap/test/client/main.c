@@ -90,6 +90,7 @@ void cb(ec_client_t *cli)
     /* Fall through. */
 err:
     ec_loopbreak(coap);
+    return;
 }
 
 void usage(void)
