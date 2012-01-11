@@ -351,10 +351,10 @@ int ec_opt_decode_uint(const ev_uint8_t *v, size_t l, ev_uint64_t *ui)
     *ui = 0;
 
 #ifdef EC_LITTLE_ENDIAN
-    for (i = l; i > 0; i--)
-        *ui |= (v[i - 1] << (8 * (l - i)));
+    for (i = 0; i < l; ++i)
+        *ui |= v[i] << (i * 8);
 #else
-    #error "TODO big endian uint decoder"
+    #error "TODO big endian uint decoder (no-op)"
 #endif  /* EC_LITTLE_ENDIAN */
  
     return 0;

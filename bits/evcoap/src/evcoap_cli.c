@@ -173,11 +173,16 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
     ec_pdu_t *req;
     ec_flow_t *flow;
     ec_conn_t *conn;
+    ec_cli_timers_t *timers;
     ec_opt_t *pu = NULL;
     const char *host;
     ev_uint16_t port;
     char sport[16];
     struct evutil_addrinfo hints;
+    struct timeval app_tout_dflt = { 
+        .tv_sec = EC_TIMERS_APP_TOUT, 
+        .tv_usec = 0
+    };
 
     dbg_return_if (cli == NULL, -1);
 
@@ -188,13 +193,13 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
 
     req = &cli->req;
     flow = &cli->flow;
+    timers = &cli->timers;
     conn = &flow->conn;
 
     /* TODO Sanitize request. */ 
 
     /* Add a Token option, if missing. */
     dbg_err_if (ec_client_check_req_token(cli));
-   
 
     /* Get destination for this flow. */
     if (conn->use_proxy)
@@ -215,8 +220,12 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
 
     dbg_err_if (u_snprintf(sport, sizeof sport, "%u", port));
 
+    /* Set user defined callback. */
     cli->cb = cb;
     cli->cb_args = cb_args;
+
+    /* Set application timeout. */
+    timers->app_tout = tout ? *tout : app_tout_dflt;
 
     /* Set up hints needed by evdns_getaddrinfo(). */
     memset(&hints, 0, sizeof hints);

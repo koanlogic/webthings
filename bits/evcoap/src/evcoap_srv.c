@@ -61,7 +61,7 @@ static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
             "unexpected response code in server request context");
 
     /* Pass MID and peer address to the dup handler machinery. */
-    ec_dups_t *dups = &srv->base->dups;
+    ec_dups_t *dups = &coap->dups;
 
     /* TODO Check if it's a duplicate (mid and token). */
     switch (ec_dups_handle_incoming_climsg(dups, h->mid, sd, peer, peer_len))

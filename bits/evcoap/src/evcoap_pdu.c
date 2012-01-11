@@ -40,7 +40,6 @@ int ec_pdu_init_options(ec_pdu_t *pdu)
 int ec_pdu_send(ec_pdu_t *pdu, struct sockaddr_storage *d, ev_socklen_t d_sz)
 {
     dbg_return_if (pdu == NULL, -1);
-    dbg_return_if (pdu->hdr == NULL, -1);
     dbg_return_if (d == NULL, -1);
     dbg_return_if (d_sz == 0, -1);
 

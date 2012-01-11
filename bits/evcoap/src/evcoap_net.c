@@ -108,6 +108,14 @@ int ec_net_send(ev_uint8_t h[4], ev_uint8_t *o, size_t o_sz, ev_uint8_t *p,
     dbg_return_if (d == NULL, -1);
     dbg_return_if (d_sz == 0, -1);
 
+    {
+        char a[128];
+
+        u_dbg("sending PDU to %s", 
+                evutil_format_sockaddr_port((const struct sockaddr *) d, a, 
+                    sizeof a));
+    }
+
     /* Header is non optional. */
     iov[iov_idx].iov_base = (void *) h;
     iov[iov_idx].iov_len = 4;

@@ -4,6 +4,8 @@
 
 int facility = LOG_LOCAL0;
 
+#define DEFAULT_URI "coap://[::1]/.well-known/core"
+
 typedef struct 
 {
     ec_t *coap;
@@ -22,14 +24,14 @@ ctx_t g_ctx = {
     .cli = NULL,
     .base = NULL,
     .dns = NULL,
-    .uri = "coap://[::1]/.well-known/core",
+    .uri = DEFAULT_URI,
     .method = EC_GET,
     .model = EC_NON,
-    .app_tout = { .tv_sec = 2, .tv_usec = 0 },
+    .app_tout = { .tv_sec = EC_TIMERS_APP_TOUT, .tv_usec = 0 },
     .etag = { 0xde, 0xad, 0xbe, 0xef }
 };
 
-void usage(void);
+void usage(const char *prog);
 int evcoap_client_init(void);
 int evcoap_client_run(void);
 void evcoap_client_term(void);
@@ -51,19 +53,19 @@ int main(int ac, char *av[])
         {
             case 'u': /* .uri */
                 if (evcoap_client_set_uri(optarg))
-                    usage();
+                    usage(av[0]);
                 break;
             case 'm': /* .method */
                 if (evcoap_client_set_method(optarg))
-                    usage();
+                    usage(av[0]);
                 break;
             case 'M': /* .model */
                 if (evcoap_client_set_model(optarg))
-                    usage();
+                    usage(av[0]);
                 break;
             case 'h':
             default:
-                usage();
+                usage(av[0]);
         }
     }
 
@@ -93,11 +95,20 @@ err:
     return;
 }
 
-void usage(void)
+void usage(const char *prog)
 {
-    const char *us = "...";
+    const char *us = 
+        "Usage: %s [opts]                                               \n"
+        "                                                               \n"
+        "   where opts is one of:                                       \n"
+        "       -h  this help                                           \n"
+        "       -m <GET|POST|PUT|DELETE>    (default is GET)            \n"
+        "       -M <CON|NON>                (default is NON)            \n"
+        "       -u <uri>                    (default is "DEFAULT_URI")  \n"
+        "                                                               \n"
+        ;
 
-    u_con("%s", us);
+    u_con(us, prog);
 
     exit(EXIT_FAILURE);
 }
