@@ -136,12 +136,12 @@ err:
 /**
  *  \brief  TODO
  */
-int ec_register_any(ec_t *coap, ec_server_cb_t cb, void *cb_args)
+int ec_register_fb(ec_t *coap, ec_server_cb_t fb, void *fb_args)
 {
     dbg_return_if (coap == NULL, -1);
 
-    coap->fb = cb;
-    coap->fb_args = cb_args;
+    coap->fb = fb;
+    coap->fb_args = fb_args;
 
     return 0;
 }
@@ -390,7 +390,7 @@ int ec_update_representation(const char *uri, const ev_uint8_t *rep,
 /**
  *  \brief  TODO
  */ 
-int ec_register_url(ec_t *coap, const char *url, ec_server_cb_t cb, void *args)
+int ec_register_cb(ec_t *coap, const char *url, ec_server_cb_t cb, void *args)
 {
     ec_resource_t *tmp, *r;
 

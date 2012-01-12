@@ -1,6 +1,8 @@
 #include <evcoap.h>
 #include <u/libu.h>
 
+#include "evcoap_filesys.h"
+
 int facility = LOG_LOCAL0;
 
 #define DEFAULT_CONF    "./coap-server.conf"
@@ -11,26 +13,25 @@ typedef struct
     struct event_base *base;
     struct evdns_base *dns;
     const char *conf;
+    ec_filesys_t *fs;
 } ctx_t;
 
-ctx_t g_ctx = {
-    .coap = NULL,
-    .base = NULL,
-    .dns = NULL,
-    .conf = DEFAULT_CONF
+ctx_t g_ctx = { 
+    .coap = NULL, .base = NULL, .dns = NULL, .conf = DEFAULT_CONF, .fs = NULL
 };
 
+int server_init(void);
+void server_term(void);
+int server_run(void);
+int server_bind(u_config_t *cfg);
+int vhost_setup(u_config_t *vhost);
 void usage(const char *prog);
-int evcoap_server_init(void);
-int evcoap_server_run(void);
-void evcoap_server_term(void);
-int evcoap_server_bind(u_config_t *cfg);
 int parse_addr(const char *ap, char *a, size_t a_sz, ev_uint16_t *p);
 
 int main(int ac, char *av[])
 {
-    int c;
-    u_config_t *cfg = NULL;
+    int c, i;
+    u_config_t *cfg = NULL, *vhost;
 
     while ((c = getopt(ac, av, "hf:")) != -1)
     {
@@ -49,38 +50,87 @@ int main(int ac, char *av[])
     con_err_ifm (u_config_load_from_file(g_ctx.conf, &cfg),
             "error loading %s", g_ctx.conf);
 
-    con_err_ifm (evcoap_server_init(), "evcoap initialization failed");
-    con_err_ifm (evcoap_server_bind(cfg), "server socket setup failed");
-    //evcoap_server_register_uri()
+    /* Initialize libevent and evcoap machinery. */
+    con_err_ifm (server_init(), "evcoap initialization failed");
 
-    //evcoap_server_register_wkc()
-    //evcoap_server_register_fallback()
+    /* Bind configured addresses. */
+    con_err_ifm (server_bind(cfg), "server socket setup failed");
 
-    con_err_ifm (evcoap_server_run(), "server run failed");
+    /* Setup configured virtual hosts. */
+    for (i = 0; (vhost = u_config_get_child_n(cfg, "vhost", i)) != NULL; ++i)
+        con_err_ifm (vhost_setup(vhost), "configuration error");
+    con_err_ifm (i == 0, "no virtual hosts configured");
+
+    con_err_ifm (server_run(), "server run failed");
 
     return EXIT_SUCCESS;
 err:
+    if (cfg)
+        u_config_free(cfg);
+    server_term();
+
     return EXIT_FAILURE;
 }
 
-int evcoap_server_init(void)
+int vhost_setup(u_config_t *vhost)
+{
+    int i;
+    u_config_t *contents, *resource;
+    const char *origin, *scheme;
+    u_uri_t *u = NULL;
+
+    dbg_return_if (vhost == NULL, -1);
+
+    /* Get and parse origin. */
+    con_err_ifm ((origin = u_config_get_subkey_value(vhost, "origin")) == NULL,
+            "missing origin in vhost record");
+    con_err_ifm (u_uri_crumble(origin, 0, &u), "%s parse error", origin);
+
+    /* Check scheme is coap or coaps. */
+    con_err_ifm ((scheme = u_uri_get_scheme(u)) == NULL || 
+        (strcasecmp(scheme, "coap") && strcasecmp(scheme, "coaps")),
+        "bad %s scheme", scheme);
+
+    /* Pick up the "contents" section. */
+    con_err_ifm (u_config_get_subkey(vhost, "contents", &contents),
+            "no contents in virtual host !");
+
+    /* Load hosted resources. */
+    for (i = 0;
+            (resource = u_config_get_child_n(contents, "resource", i)) != NULL;
+            ++i)
+    {
+
+    }
+
+    u_uri_free(u);
+
+    return 0;
+err:
+    if (u)
+        u_uri_free(u);
+    return -1;
+}
+
+int server_init(void)
 {
     dbg_err_if ((g_ctx.base = event_base_new()) == NULL);
     dbg_err_if ((g_ctx.dns = evdns_base_new(g_ctx.base, 1)) == NULL);
     dbg_err_if ((g_ctx.coap = ec_init(g_ctx.base, g_ctx.dns)) == NULL);
+    dbg_err_if ((g_ctx.fs = ec_filesys_create()) == NULL);
 
     return 0;
 err:
-    evcoap_server_term();
+    server_term();
     return -1;
 }
 
-int evcoap_server_run(void)
+int server_run(void)
 {
     return event_base_dispatch(g_ctx.base);
 }
 
-void evcoap_server_term(void)
+void server_term(void)
 {
     if (g_ctx.coap)
         ec_term(g_ctx.coap);
@@ -91,10 +141,13 @@ void evcoap_server_term(void)
     if (g_ctx.base)
         event_base_free(g_ctx.base);
 
+    if (g_ctx.fs)
+        ec_filesys_destroy(g_ctx.fs);
+
     return;
 }
 
-int evcoap_server_bind(u_config_t *cfg)
+int server_bind(u_config_t *cfg)
 {
     int i;
     u_config_t *addr;

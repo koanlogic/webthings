@@ -7,7 +7,9 @@ Contents
   2.3 Send Request
   3 Server
   3.1 Configure Listening Address
-  3.2 Register per-URI callbacks
+  3.2 URI dispatch
+  3.2.1 Register callback
+  3.2.2 Fallback
   4. Observe
   5. PDUs Lifetime
   
@@ -135,17 +137,28 @@ Contents
   configured server endpoints, an user-defined callback will be possibly 
   triggered (see next paragraph.)
 
-3.2 Register per-URI callbacks
+3.2 URI dispatch
 
   A CoAP server hosts resources identified by their URIs.
 
-  The evcoap user supplies an URI path pattern (in fnmatch(3) format) and pair 
+  There are two ways to register actions associated to resources:
+    a) bound an URI pattern in fnmatch format to a user defined callback;
+    b) associate any unbound URI to a user defined callback.
+
+  Requests with a given URI are tried in the following order:
+    2) fnmatch the requested URI to callbacks (see 3.2.1);
+    3) invoke fallback, if set (see 3.2.2).
+
+  [[TODO observable resources.]]
+
+3.2.1 Register callback
+
+  The evcoap user supplies an URI pattern (in fnmatch(3) format) and pair 
   it along with the callback function that she wants to be invoked whenever a 
   client requests an URI matching the pattern.  
   
-  [[TODO observable resources.]]
 
-      ec_register_url(coap, "/.well-known/*", cb, cb_args);
+      ec_register_cb(coap, "/.well-known/*", cb, cb_args);
 
   The callback function shall have the following signature:
 
@@ -234,10 +247,12 @@ Contents
   or if she don't mind blocking (though this is generally discouraged when using
   evcoap) the 'interval' and 'resched' arguments can be safely ignored.
 
+3.2.2 Fallback
+
   Besides URI specific callbacks, the user can define a catch-all callback
   using:
 
-      ec_register_any(coap, gen_cb, gen_cb_args)
+      ec_register_fb(coap, gen_cb, gen_cb_args)
 
   If this has been set, any request with an unmapped URI will trigger it, giving
   the user the opportunity to reply something more interesting than a generic
