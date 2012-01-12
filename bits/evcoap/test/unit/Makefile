@@ -6,6 +6,7 @@ PROG = runtest
 SRCS += main.c
 SRCS += options.c 
 SRCS += dups.c 
+SRCS += filesys.c 
 
 CFLAGS += $(LIBU_CFLAGS)
 CFLAGS += $(LIBEVENT_CFLAGS)
