@@ -18,6 +18,9 @@ ec_filesys_t *ec_filesys_create(void)
     dbg_err_if (u_hmap_opts_set_val_type(opts, U_HMAP_OPTS_DATATYPE_POINTER));
     dbg_err_if (u_hmap_opts_set_val_freefunc(opts, __free_resource));
 
+    /* Let put==update. */
+    dbg_err_if (u_hmap_opts_unset_option(opts, U_HMAP_OPTS_NO_OVERWRITE));
+
     dbg_err_if (u_hmap_easy_new(opts, &hmap));
 
     u_hmap_opts_free(opts), opts = NULL;
@@ -52,10 +55,9 @@ int ec_filesys_put_resource(ec_filesys_t *filesys, ec_filesys_res_t *res)
     dbg_return_if (res == NULL, -1);
     dbg_return_if (res->uri[0] == '\0', -1);
 
-    /* In case update. */
-    (void) u_hmap_easy_del(filesys->map, res->uri);
-    dbg_return_ifm (u_hmap_easy_put(filesys->map, res->uri, res), -1,
-            "evcoap filesys inconsistency !");
+    /* Since we unset the U_HMAP_OPTS_NO_OVERWRITE option, the following
+     * overwrites an existing filesys entry with the same URI. */
+    dbg_return_if (u_hmap_easy_put(filesys->map, res->uri, res), -1);
 
     return 0;
 }
