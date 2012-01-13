@@ -36,7 +36,10 @@ typedef enum
     EC_DELETE        = 4
 } ec_method_t;
 
-/* Available Media types. */
+/* Available Media types.
+ * "The identifiers between 201 and 255 inclusive are reserved for Private Use."
+ * Evcoap reserves 255 for "any media type", which is used as a wild-card in 
+ * resource lookup (see extra/include/evcoap_filesys.h.) */
 typedef enum
 {
     EC_MT_TEXT_PLAIN               = 0,
@@ -44,7 +47,8 @@ typedef enum
     EC_MT_APPLICATION_XML          = 41,
     EC_MT_APPLICATION_OCTET_STREAM = 42,
     EC_MT_APPLICATION_EXI          = 47,
-    EC_MT_APPLICATION_JSON         = 50
+    EC_MT_APPLICATION_JSON         = 50,
+    EC_MT_ANY                      = 255    /* RESERVED by evcoap. */
 } ec_mt_t;
 
 /* Available Response Codes. */

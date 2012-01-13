@@ -14,6 +14,8 @@ CFLAGS += -I$(SRCDIR)/src
 
 LDADD += $(LIBEVENT_LDADD)
 LDADD += $(LIBU_LDADD)
+LDADD += $(SRCDIR)/src/libevcoap.a
+LDADD += $(SRCDIR)/extra/src/libevcoap-extra.a
 
 include prog.mk
 

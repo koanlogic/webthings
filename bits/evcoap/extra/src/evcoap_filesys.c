@@ -18,8 +18,6 @@ ec_filesys_t *ec_filesys_create(void)
     dbg_err_if (u_hmap_opts_set_val_type(opts, U_HMAP_OPTS_DATATYPE_POINTER));
     dbg_err_if (u_hmap_opts_set_val_freefunc(opts, __free_resource));
 
-    /* TODO check overwrite with stewy */
- 
     dbg_err_if (u_hmap_easy_new(opts, &hmap));
 
     u_hmap_opts_free(opts), opts = NULL;
@@ -47,13 +45,17 @@ void ec_filesys_destroy(ec_filesys_t *fs)
     }
 }
 
-int ec_filesys_add_resource(ec_filesys_t *filesys, ec_filesys_res_t *res)
+/* Add or update the filesys resource 'res'. */
+int ec_filesys_put_resource(ec_filesys_t *filesys, ec_filesys_res_t *res)
 {
     dbg_return_if (filesys == NULL, -1);
     dbg_return_if (res == NULL, -1);
     dbg_return_if (res->uri[0] == '\0', -1);
 
-    dbg_return_if (u_hmap_easy_put(filesys->map, res->uri, res), -1);
+    /* In case update. */
+    (void) u_hmap_easy_del(filesys->map, res->uri);
+    dbg_return_ifm (u_hmap_easy_put(filesys->map, res->uri, res), -1,
+            "evcoap filesys inconsistency !");
 
     return 0;
 }
@@ -103,7 +105,7 @@ void ec_filesys_free_resource(ec_filesys_res_t *res)
 }
 
 int ec_filesys_add_representation(ec_filesys_res_t *res, const ev_uint8_t *data,
-        size_t data_sz, ec_mt_t media_type)
+        size_t data_sz, ec_mt_t media_type, ev_uint8_t etag[EC_ETAG_SZ])
 {
     ec_filesys_rep_t *rep = NULL;
 
@@ -113,7 +115,11 @@ int ec_filesys_add_representation(ec_filesys_res_t *res, const ev_uint8_t *data,
     dbg_err_if ((rep = ec_filesys_new_representation(data, data_sz,
                     media_type)) == NULL);
 
-    /* Stick it to its parent resource. */
+    /* Return the ETag to the caller. */
+    if (etag)
+        memcpy(etag, rep->etag, EC_ETAG_SZ);
+
+    /* Stick the created representation to its parent resource. */
     TAILQ_INSERT_TAIL(&res->reps, rep, next);
 
     return 0;
@@ -145,6 +151,41 @@ static ec_filesys_rep_t *ec_filesys_new_representation(const ev_uint8_t *data,
 err:
     if (rep)
         ec_filesys_free_representation(rep); 
+    return NULL;
+}
+
+/* 'etag' is optional (set it to NULL if you don't want it to be used as
+ * lookup parameter.)
+ * 'media_type' is optional (set it to EC_MT_ANY if you don't care about
+ *  a specific representation.) */
+ec_filesys_rep_t *ec_filesys_get_representation(ec_filesys_t *fs,
+        const char *uri, ec_mt_t media_type, const ev_uint8_t *etag)
+{
+    bool mt_match, et_match;
+    ec_filesys_rep_t *rep = NULL;
+    ec_filesys_res_t *res = NULL;
+
+    dbg_return_if (fs == NULL, NULL);
+    dbg_return_if (uri == NULL || *uri == '\0', NULL);
+
+    /* Lookup resource. */
+    dbg_err_if ((res = u_hmap_easy_get(fs->map, uri)) == NULL);
+
+    /* Try to get a matching representation. */
+    TAILQ_FOREACH(rep, &res->reps, next)
+    {
+        mt_match = (media_type == EC_MT_ANY || rep->media_type == media_type)
+            ? true : false;
+
+        et_match = (etag == NULL || !memcmp(rep->etag, etag, sizeof rep->etag))
+            ? true : false;
+
+        if (mt_match && et_match)
+            return rep;
+    }
+
+    /* Fall through. */
+err:
     return NULL;
 }
 
