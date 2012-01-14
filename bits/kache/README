@@ -49,7 +49,7 @@ Contents
     ...
   }
 
-  Kache provide a simple macro to iterate over the history:
+  Kache provides a simple macro to iterate over the history:
 
   struct kache_request req;
 
