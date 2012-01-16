@@ -120,6 +120,14 @@ const char *ec_opt_sym2str(ec_opt_sym_t sym)
     return g_opts[sym].s;
 }
 
+void ec_opts_clean(ec_opts_t *opts)
+{
+    if (opts)
+    {
+        /* TODO */ 
+    }
+}
+
 int ec_opts_push(ec_opts_t *opts, ec_opt_t *o)
 {
     ec_opt_t *tmp;

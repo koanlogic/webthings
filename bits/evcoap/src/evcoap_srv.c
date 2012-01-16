@@ -40,7 +40,6 @@ static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
     ec_t *coap;
     u_uri_t *url = NULL;
     bool nosec = true;
-    const char *rp;
 
     dbg_return_if ((coap = (ec_t *) arg) == NULL, -1);
     dbg_return_if (raw == NULL, -1);
@@ -99,9 +98,13 @@ static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
     ec_opt_t *t = ec_opts_get(&req->opts, EC_OPT_TOKEN);
     dbg_err_if (ec_flow_save_token(flow, t ? t->v : NULL, t ? t->l : 0));
 
-    /* Recompose the requested URI (assume NoSec is the sole supported mode.) */
-    flow->uri = ec_opts_compose_url(&req->opts, &conn->us, nosec);
-    dbg_err_if (flow->uri == NULL);
+    /* Save receiving address in conn data. */
+    dbg_err_if (ec_net_save_us(sd, conn));
+
+    /* Recompose the requested URI (XXX Assume NoSec is the sole supported 
+     * mode.) and save it into the server context. */
+    url = ec_opts_compose_url(&req->opts, &conn->us, nosec);
+    dbg_err_if (ec_flow_save_url(flow, url));
 
     /* Everything has gone smoothly, so set state accordingly. */
     (void) ec_server_set_req(srv, req);
@@ -110,35 +113,33 @@ static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
     /* Now it's time to invoke the callback registered for the requested URI,
      * or to fallback to generic URI handler if none matches. */
 
-    /* TODO virtual hosting. */
-
-    if ((rp = u_uri_get_path(flow->uri)) == NULL
-            || *rp == '\0')
-        rp = "/";
-
-    flags |= FNM_PATHNAME;      /* Match slashes. */
-    flags |= FNM_PERIOD;        /* Match leading periods. */
-#if 0
-    flags |= FNM_CASEFOLD;      /* Ignore case distinctions. */
-    flags |= FNM_LEADING_DIR;   /* Ignore slash-star rest after match. */
-#endif
+    u_dbg("requested URI: %s", flow->urlstr);
 
     TAILQ_FOREACH(r, &coap->resources, next)
     {
-        if (fnmatch(r->path, rp, flags) == FNM_NOMATCH)
+        if (strcasecmp(r->path, flow->urlstr))
             continue;
 
+        /* Initialize the poll/wait timeout. */
         struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
 
-        /* TODO handle return code. */
         switch (r->cb(srv, r->cb_args, &tv, false))
         {
             case EC_CBRC_READY:
+                u_dbg("TODO send response");
+                /* In case it is NON or CON piggybacked, we can set state 
+                 * to RESP_DONE. */
+                ec_server_set_state(srv, EC_SRV_STATE_RESP_DONE);
+                break;
             case EC_CBRC_WAIT:
             case EC_CBRC_POLL:
+                u_dbg("TODO handle client wait/poll");
+                break;
             case EC_CBRC_ERROR:
+                /* This gets mapped to an internal error. */
+                goto err;
             default:
-               break;
+                dbg_err("unknown return code from client callback !");
         }
 
         return 0;
@@ -161,6 +162,8 @@ static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
 
     return 0;
 err:
+    if (url)
+        u_uri_free(url);
     ec_server_set_state(srv, EC_CLI_STATE_INTERNAL_ERR);
     return -1;
 }

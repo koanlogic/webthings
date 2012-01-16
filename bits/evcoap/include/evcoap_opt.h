@@ -81,7 +81,7 @@ const char *ec_opt_sym2str(ec_opt_sym_t sym);
 ec_opt_sym_t ec_opt_num2sym(size_t num);
 
 int ec_opts_push(ec_opts_t *opts, ec_opt_t *o);
-
+void ec_opts_clean(ec_opts_t *opts);
 int ec_opts_add(ec_opts_t *opts, ec_opt_sym_t sym, const ev_uint8_t *v, 
         size_t l);
 int ec_opts_add_empty(ec_opts_t *opts, ec_opt_sym_t sym);

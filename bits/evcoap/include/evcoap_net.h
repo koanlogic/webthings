@@ -43,4 +43,6 @@ int ec_net_send(ev_uint8_t h[4], ev_uint8_t *o, size_t o_sz, ev_uint8_t *p,
         size_t p_sz, evutil_socket_t sd, struct sockaddr_storage *d,
         ev_socklen_t d_sz);
 
+int ec_net_save_us(evutil_socket_t sd, ec_conn_t *conn);
+
 #endif  /* !_EC_NET_H_ */

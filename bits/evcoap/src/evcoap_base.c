@@ -89,7 +89,7 @@ err:
     return -1;
 }
 
-ec_recvd_pdu_t *ec_dups_search(ec_dups_t *dups, ev_uint8_t mid, 
+ec_recvd_pdu_t *ec_dups_search(ec_dups_t *dups, ev_uint16_t mid, 
         struct sockaddr_storage *peer)
 {
     ec_recvd_pdu_t *recvd;
@@ -101,7 +101,7 @@ ec_recvd_pdu_t *ec_dups_search(ec_dups_t *dups, ev_uint8_t mid,
     dbg_err_if (!ec_dup_key_new(mid, peer, key));
 
     if ((recvd = (ec_recvd_pdu_t *) u_hmap_easy_get(dups->map, key)))
-        u_dbg("DUP found: %s", key);
+        u_dbg("%s is a duplicate", key);
 
     return recvd;
 err:

@@ -152,3 +152,14 @@ err:
     return -1;
 }
 
+int ec_net_save_us(evutil_socket_t sd, ec_conn_t *conn)
+{
+    dbg_return_if (sd == -1, -1);
+    dbg_return_if (conn == NULL, -1);
+
+    conn->us_len = sizeof conn->us;
+    dbg_return_sif (getsockname(sd, (struct sockaddr *) &conn->us, 
+                &conn->us_len) == -1, -1);
+
+    return 0;
+}

@@ -30,13 +30,18 @@ int server_init(void);
 void server_term(void);
 int server_run(void);
 int server_bind(u_config_t *cfg);
+
 int vhost_setup(u_config_t *vhost);
 int vhost_load_contents(u_config_t *vhost, const char *origin);
 int vhost_load_resource(u_config_t *res, const char *origin);
-void usage(const char *prog);
+
 int parse_addr(const char *ap, char *a, size_t a_sz, ev_uint16_t *p);
-int check_origin(const char *o);
+int normalize_origin(const char *o, char co[U_URI_STRMAX]);
+
 ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2);
+
+void usage(const char *prog);
+
 
 int main(int ac, char *av[])
 {
@@ -66,7 +71,7 @@ int main(int ac, char *av[])
     /* Initialize libevent and evcoap machinery. */
     con_err_ifm (server_init(), "evcoap initialization failed");
 
-    /* Bind configured addresses (and setup default origins.) */
+    /* Bind configured addresses. */
     con_err_ifm (server_bind(cfg), "server socket setup failed");
 
     /* Setup configured virtual hosts. */
@@ -90,6 +95,7 @@ int vhost_setup(u_config_t *vhost)
     int i;
     u_config_t *origin;
     const char *o;
+    char co[U_URI_STRMAX];
 
     dbg_return_if (vhost == NULL, -1);
 
@@ -102,10 +108,10 @@ int vhost_setup(u_config_t *vhost)
         con_err_ifm ((o = u_config_get_value(origin)) == NULL,
                 "missing origin value !");
 
-        con_err_ifm (check_origin(o), "origin check failed");
+        con_err_ifm (normalize_origin(o, co), "origin check failed");
 
         /* Load contents. */
-        con_err_ifm (vhost_load_contents(vhost, o), "could not load contents");
+        con_err_ifm (vhost_load_contents(vhost, co), "could not load contents");
     }
 
     return 0;
@@ -113,19 +119,26 @@ err:
     return -1;
 }
 
-int check_origin(const char *o)
+int normalize_origin(const char *o, char co[U_URI_STRMAX])
 {
     u_uri_t *u = NULL;
-    const char *scheme;
+    const char *scheme, *port;
 
     dbg_return_if (o == NULL || o[0] == '\0', -1);
+    dbg_return_if (co == NULL, -1);
 
     con_err_ifm (u_uri_crumble(o, 0, &u), "%s parse error", o);
 
     /* Check that scheme is 'coap' or 'coaps'. */
-    con_err_ifm ((scheme = u_uri_get_scheme(u)) == NULL
-            || (strcasecmp(scheme, "coap") && strcasecmp(scheme, "coaps")),
+    con_err_ifm ((scheme = u_uri_get_scheme(u)) == NULL ||
+            (strcasecmp(scheme, "coap") && strcasecmp(scheme, "coaps")),
             "bad %s scheme", scheme);
+
+    /* Set default port if empty. */
+    if ((port = u_uri_get_port(u)) == NULL || *port == '\0')
+        (void) u_uri_set_port(u, EC_COAP_DEFAULT_SPORT);
+
+    con_err_ifm (u_uri_knead(u, co), "error normalizing origin (%s)", o);
 
     u_uri_free(u), u = NULL;
 
@@ -280,8 +293,7 @@ int server_bind(u_config_t *cfg)
 
     dbg_return_if (cfg == NULL, -1);
 
-    /* Bind all the specified 'addr' records.  Also setup the implied
-     * implicit origins. */
+    /* Bind all the specified 'addr' records. */
     for (i = 0; (addr = u_config_get_child_n(cfg, "addr", i)) != NULL; ++i)
     {
         if ((v = u_config_get_value(addr)) == NULL)
@@ -360,9 +372,11 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
 {
     u_unused_args(u0, u1, u2);
 
-    con_err_ifm (srv == NULL, "...");
+    dbg_err_if (srv == NULL);
 
-    /* TODO Get the request URI. */
+    /* Get the requested URI. */
+    u_con("TODO serve %s", srv->flow.urlstr);
+    
     /* TODO Get Accept'ed media types. */
     /* TODO Lookup URI + media type in the embedded FS. */
 

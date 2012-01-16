@@ -55,7 +55,7 @@ struct ec_recvd_pdu_s
     ev_socklen_t who_len;
     ev_uint16_t mid;
     ec_cached_pdu_t cached_pdu;
-#define EC_DUP_LIFETIME     10  /* TODO choose a sensible value. */
+#define EC_DUP_LIFETIME     60  /* 1 minute seems reasonable. */
     struct event *countdown;
 #define EC_DUP_KEY_MAX      256 /* Enough to hold "mid+IPaddr+port". */
     char key[EC_DUP_KEY_MAX];
@@ -103,7 +103,7 @@ int ec_dups_init(ec_t *coap, ec_dups_t *dups);
 int ec_dups_insert(ec_dups_t *dups, struct sockaddr_storage *ss,
         ev_socklen_t ss_len, ev_uint16_t mid);
 int ec_dups_delete(ec_dups_t *dups, const char *key);
-ec_recvd_pdu_t *ec_dups_search(ec_dups_t *dups, ev_uint8_t mid,
+ec_recvd_pdu_t *ec_dups_search(ec_dups_t *dups, ev_uint16_t mid,
         struct sockaddr_storage *peer);
 int ec_dups_handle_incoming_srvmsg(ec_dups_t *dups, ev_uint16_t mid, int sd,
         struct sockaddr_storage *ss, ev_socklen_t ss_len);

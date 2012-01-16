@@ -10,7 +10,9 @@ extern "C" {
 #endif  /* __cplusplus */
 
 #define EC_COAP_VERSION_1       1
+
 #define EC_COAP_DEFAULT_PORT    5683
+#define EC_COAP_DEFAULT_SPORT   "5683"
 
 #define EC_COAP_CON    0
 #define EC_COAP_NON    1
