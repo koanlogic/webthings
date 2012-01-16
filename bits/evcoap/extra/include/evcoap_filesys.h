@@ -47,5 +47,4 @@ void ec_filesys_free_resource(ec_filesys_res_t *res);
 int ec_filesys_add_representation(ec_filesys_res_t *res, const ev_uint8_t *data,
         size_t data_sz, ec_mt_t media_type, ev_uint8_t etag[EC_ETAG_SZ]);
 
-
 #endif  /* !_EC_FS_H_ */

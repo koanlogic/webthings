@@ -14,10 +14,16 @@ typedef struct
     struct evdns_base *dns;
     const char *conf;
     ec_filesys_t *fs;
+    bool verbose;
 } ctx_t;
 
 ctx_t g_ctx = { 
-    .coap = NULL, .base = NULL, .dns = NULL, .conf = DEFAULT_CONF, .fs = NULL
+    .coap = NULL,
+    .base = NULL,
+    .dns = NULL,
+    .conf = DEFAULT_CONF, 
+    .fs = NULL,
+    .verbose = false
 };
 
 int server_init(void);
@@ -25,20 +31,27 @@ void server_term(void);
 int server_run(void);
 int server_bind(u_config_t *cfg);
 int vhost_setup(u_config_t *vhost);
+int vhost_load_contents(u_config_t *vhost, const char *origin);
+int vhost_load_resource(u_config_t *res, const char *origin);
 void usage(const char *prog);
 int parse_addr(const char *ap, char *a, size_t a_sz, ev_uint16_t *p);
+int check_origin(const char *o);
+ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2);
 
 int main(int ac, char *av[])
 {
     int c, i;
     u_config_t *cfg = NULL, *vhost;
 
-    while ((c = getopt(ac, av, "hf:")) != -1)
+    while ((c = getopt(ac, av, "hf:v")) != -1)
     {
         switch (c)
         {
             case 'f':
                 g_ctx.conf = optarg;
+                break;
+            case 'v':
+                g_ctx.verbose = true;
                 break;
             case 'h':
             default: 
@@ -53,14 +66,14 @@ int main(int ac, char *av[])
     /* Initialize libevent and evcoap machinery. */
     con_err_ifm (server_init(), "evcoap initialization failed");
 
-    /* Bind configured addresses. */
+    /* Bind configured addresses (and setup default origins.) */
     con_err_ifm (server_bind(cfg), "server socket setup failed");
 
     /* Setup configured virtual hosts. */
     for (i = 0; (vhost = u_config_get_child_n(cfg, "vhost", i)) != NULL; ++i)
         con_err_ifm (vhost_setup(vhost), "configuration error");
-    con_err_ifm (i == 0, "no virtual hosts configured");
-
+    con_err_ifm (i == 0, "no origins configured");
+    
     con_err_ifm (server_run(), "server run failed");
 
     return EXIT_SUCCESS;
@@ -75,21 +88,61 @@ err:
 int vhost_setup(u_config_t *vhost)
 {
     int i;
-    u_config_t *contents, *resource;
-    const char *origin, *scheme;
-    u_uri_t *u = NULL;
+    u_config_t *origin;
+    const char *o;
 
     dbg_return_if (vhost == NULL, -1);
 
-    /* Get and parse origin. */
-    con_err_ifm ((origin = u_config_get_subkey_value(vhost, "origin")) == NULL,
-            "missing origin in vhost record");
-    con_err_ifm (u_uri_crumble(origin, 0, &u), "%s parse error", origin);
+    /* For each origin specified for this vhost... */
+    for (i = 0;
+            (origin = u_config_get_child_n(vhost, "origin", i)) != NULL;
+            ++i)
+    {
+        /* Get and check origin. */
+        con_err_ifm ((o = u_config_get_value(origin)) == NULL,
+                "missing origin value !");
 
-    /* Check scheme is coap or coaps. */
-    con_err_ifm ((scheme = u_uri_get_scheme(u)) == NULL || 
-        (strcasecmp(scheme, "coap") && strcasecmp(scheme, "coaps")),
-        "bad %s scheme", scheme);
+        con_err_ifm (check_origin(o), "origin check failed");
+
+        /* Load contents. */
+        con_err_ifm (vhost_load_contents(vhost, o), "could not load contents");
+    }
+
+    return 0;
+err:
+    return -1;
+}
+
+int check_origin(const char *o)
+{
+    u_uri_t *u = NULL;
+    const char *scheme;
+
+    dbg_return_if (o == NULL || o[0] == '\0', -1);
+
+    con_err_ifm (u_uri_crumble(o, 0, &u), "%s parse error", o);
+
+    /* Check that scheme is 'coap' or 'coaps'. */
+    con_err_ifm ((scheme = u_uri_get_scheme(u)) == NULL
+            || (strcasecmp(scheme, "coap") && strcasecmp(scheme, "coaps")),
+            "bad %s scheme", scheme);
+
+    u_uri_free(u), u = NULL;
+
+    return 0;
+err:
+    if (u)
+        u_uri_free(u);
+    return -1;
+}
+
+int vhost_load_contents(u_config_t *vhost, const char *origin)
+{
+    size_t i;
+    u_config_t *res, *contents;
+
+    dbg_return_if (vhost == NULL, -1);
+    dbg_return_if (origin == NULL, -1);
 
     /* Pick up the "contents" section. */
     con_err_ifm (u_config_get_subkey(vhost, "contents", &contents),
@@ -97,18 +150,88 @@ int vhost_setup(u_config_t *vhost)
 
     /* Load hosted resources. */
     for (i = 0;
-            (resource = u_config_get_child_n(contents, "resource", i)) != NULL;
+            (res = u_config_get_child_n(contents, "resource", i)) != NULL;
             ++i)
     {
-
+        con_err_ifm (vhost_load_resource(res, origin),
+                "error loading resource");
     }
 
-    u_uri_free(u);
+    con_err_ifm (i == 0, "no resources in virtual host");
 
     return 0;
 err:
-    if (u)
-        u_uri_free(u);
+    return -1;
+}
+
+int vhost_load_resource(u_config_t *resource, const char *origin)
+{
+    int tmp;
+    size_t i, val_sz;
+    ev_uint32_t ma;
+    const char *path, *max_age, *val;
+    ec_filesys_res_t *res = NULL;
+    char uri[512];
+    ec_mt_t mt;
+    u_config_t *repr;
+
+    dbg_return_if (resource == NULL, -1);
+
+    /* Get resource path. */
+    con_err_ifm ((path = u_config_get_subkey_value(resource, "path")) == NULL,
+            "missing mandatory \'path\' in resource");
+
+    /* Get resource max age (default to 60 secs if not specified.) */
+    if ((max_age = u_config_get_subkey_value(resource, "max-age")) == NULL)
+        ma = 60;
+    else
+    {
+        con_err_ifm (u_atoi(max_age, &tmp), "conversion error for %s", max_age);
+        ma = (ev_uint32_t) tmp;
+    }
+
+    /* Create complete resource name. */
+    con_err_ifm (u_snprintf(uri, sizeof uri, "%s%s", origin, path),
+            "could not create uri for path %s and origin %s", path, origin);
+
+    if (g_ctx.verbose)
+        u_con("adding resource %s", uri);
+
+    /* Create FS resource. */
+    con_err_ifm ((res = ec_filesys_new_resource(uri, ma)) == NULL,
+            "resource creation failed");
+
+    /* Load each resource representation. */
+    for (i = 0; (repr = u_config_get_child_n(resource, 
+                    "representation", i)) != NULL; ++i)
+    {
+        /* Retrieve representation type and value. */
+        con_err_ifm (ec_mt_from_string(u_config_get_subkey_value(repr, "t:"),
+                    &mt), "media type map error");
+
+        con_err_ifm ((val = u_config_get_subkey_value(repr, "v:")) == NULL, 
+                "no value for resource %s", uri);
+        val_sz = strlen(val);
+
+        con_err_ifm (ec_filesys_add_representation(res,
+                    (const ev_uint8_t *) val, val_sz, mt, NULL),
+                "error adding representation for %s", uri);
+    }
+    con_err_ifm (i == 0, "no resources in virtual host");
+
+    /* Put resource into the file system. */
+    con_err_ifm (ec_filesys_put_resource(g_ctx.fs, res), 
+            "adding resource failed");
+    res = NULL; /* ownership lost */
+
+    /* Register the callback that will serve this URI. */
+    con_err_ifm (ec_register_cb(g_ctx.coap, uri, serve, NULL),
+            "registering callback for %s failed", uri);
+
+    return 0;
+err:
+    if (res)
+        ec_filesys_free_resource(res);
     return -1;
 }
 
@@ -157,6 +280,8 @@ int server_bind(u_config_t *cfg)
 
     dbg_return_if (cfg == NULL, -1);
 
+    /* Bind all the specified 'addr' records.  Also setup the implied
+     * implicit origins. */
     for (i = 0; (addr = u_config_get_child_n(cfg, "addr", i)) != NULL; ++i)
     {
         if ((v = u_config_get_value(addr)) == NULL)
@@ -229,4 +354,22 @@ void usage(const char *prog)
 
     exit(EXIT_FAILURE);
     return;
+}
+
+ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
+{
+    u_unused_args(u0, u1, u2);
+
+    con_err_ifm (srv == NULL, "...");
+
+    /* TODO Get the request URI. */
+    /* TODO Get Accept'ed media types. */
+    /* TODO Lookup URI + media type in the embedded FS. */
+
+    /* TODO If representation found, set resource Content-type */
+    /* TODO If representation found, set payload. */
+
+    return EC_CBRC_READY;
+err:
+    return EC_CBRC_ERROR;
 }

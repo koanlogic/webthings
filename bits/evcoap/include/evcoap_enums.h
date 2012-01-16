@@ -51,6 +51,8 @@ typedef enum
     EC_MT_ANY                      = 255    /* RESERVED by evcoap. */
 } ec_mt_t;
 
+int ec_mt_from_string(const char *s, ec_mt_t *pmt);
+
 /* Available Response Codes. */
 typedef enum
 {

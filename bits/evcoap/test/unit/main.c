@@ -13,8 +13,8 @@ int main(int argc, char **argv)
 
     con_err_if (u_test_new("evcoap unit tests", &t));
 
-//    con_err_if (test_suite_options_register(t));
-//    con_err_if (test_suite_dups_register(t));
+    con_err_if (test_suite_options_register(t));
+    con_err_if (test_suite_dups_register(t));
     con_err_if (test_suite_filesys_register(t));
 
     rc = u_test_run(argc, argv, t);
