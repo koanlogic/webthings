@@ -1,0 +1,10 @@
+# --enable_warns
+
+# helper
+makl_args_def "enable_warns" "" "" "set CFLAGS for extra warnings"
+
+# hook
+function __makl_enable_warns ()
+{
+    makl_append_var_mk "CFLAGS" "-W -Wall -Wextra -pedantic -std=c99" 
+}

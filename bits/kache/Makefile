@@ -1,5 +1,5 @@
 
-SUBDIR = src include #test
+SUBDIR = src include test
 
 
 include subdir.mk
