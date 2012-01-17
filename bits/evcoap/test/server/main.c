@@ -375,13 +375,15 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
     dbg_err_if (srv == NULL);
 
     /* Get the requested URI. */
-    u_con("TODO serve %s", srv->flow.urlstr);
+    u_con("requested resource is '%s'", ec_server_get_url(srv));
     
     /* TODO Get Accept'ed media types. */
     /* TODO Lookup URI + media type in the embedded FS. */
-
     /* TODO If representation found, set resource Content-type */
     /* TODO If representation found, set payload. */
+
+    /* Return a "not found" to test the whole chain. */
+    (void) ec_response_set_code(srv, EC_NOT_FOUND);
 
     return EC_CBRC_READY;
 err:

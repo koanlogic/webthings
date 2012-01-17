@@ -125,6 +125,7 @@ void ec_opts_clean(ec_opts_t *opts)
     if (opts)
     {
         /* TODO */ 
+        u_dbg("TODO free options");
     }
 }
 

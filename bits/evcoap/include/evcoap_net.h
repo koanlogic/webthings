@@ -14,9 +14,8 @@ typedef struct
     evutil_socket_t socket;
     struct event *ev_input;
     struct sockaddr_storage us;
-    ev_socklen_t us_len;
     bool is_multicast;
-    bool is_confirmable;
+    char is_confirmable;    /* 0: unset, 1: CON, 2: NON */
     bool use_proxy;
     char proxy_addr[512];
     ev_uint16_t proxy_port;
@@ -27,7 +26,7 @@ typedef struct
 
 /* PDU handler interface (both client and server.) */
 typedef int (*ec_pdu_handler_t)(ev_uint8_t *, size_t, int,
-        struct sockaddr_storage *, ev_socklen_t, void *);
+        struct sockaddr_storage *, void *);
 
 evutil_socket_t ec_net_bind_socket(struct sockaddr_storage *ss, int ss_len);
 
@@ -40,9 +39,10 @@ ev_ssize_t ec_net_pullup(evutil_socket_t sd, ev_uint8_t *b, size_t b_sz,
         int *flags, struct sockaddr *peer, ev_socklen_t *peerlen, int *e);
 
 int ec_net_send(ev_uint8_t h[4], ev_uint8_t *o, size_t o_sz, ev_uint8_t *p,
-        size_t p_sz, evutil_socket_t sd, struct sockaddr_storage *d,
-        ev_socklen_t d_sz);
+        size_t p_sz, evutil_socket_t sd, struct sockaddr_storage *d);
 
-int ec_net_save_us(evutil_socket_t sd, ec_conn_t *conn);
+int ec_net_save_us(ec_conn_t *conn, evutil_socket_t sd);
+int ec_net_set_confirmable(ec_conn_t *conn, bool is_con);
+int ec_net_get_confirmable(ec_conn_t *conn, bool *is_con);
 
 #endif  /* !_EC_NET_H_ */

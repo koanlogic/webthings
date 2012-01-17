@@ -15,16 +15,22 @@ err:
 }
 
 ev_ssize_t ec_net_pullup(evutil_socket_t sd, ev_uint8_t *b, size_t b_sz,
-        int *flags, struct sockaddr *peer, ev_socklen_t *peerlen, int *e)
+        int *flags, struct sockaddr *peer, ev_socklen_t *peer_len, int *e)
 {
     ev_ssize_t n;
     struct msghdr msg;
     struct iovec iov[1];
 
+    dbg_return_if (sd == -1, -1);
+    dbg_return_if (b == NULL, -1);
+    dbg_return_if (e == NULL, -1);
+    dbg_return_if (flags == NULL, -1);
+    /* b_sz==0 allowed here ? */
+
     memset(&msg, sizeof msg, 0);
 
     msg.msg_name = peer;
-    msg.msg_namelen = *peerlen;
+    msg.msg_namelen = *peer_len;
     iov[0].iov_base = b;
     iov[0].iov_len = b_sz;
     msg.msg_iov = iov;
@@ -90,14 +96,13 @@ void ec_net_pullup_all(evutil_socket_t sd, ec_pdu_handler_t pdu_proc, void *arg)
 
         /* Process the received PDU invoking whatever PDU processor was 
          * supplied (i.e. client or server.) */
-        if (pdu_proc(d, (size_t) n, sd, &peer, peer_len, arg))
+        if (pdu_proc(d, (size_t) n, sd, &peer, arg))
             continue;
     }
 }
 
 int ec_net_send(ev_uint8_t h[4], ev_uint8_t *o, size_t o_sz, ev_uint8_t *p,
-        size_t p_sz, evutil_socket_t sd, struct sockaddr_storage *d, 
-        ev_socklen_t d_sz)
+        size_t p_sz, evutil_socket_t sd, struct sockaddr_storage *d)
 {
     struct msghdr msg;
     size_t iov_idx = 0;
@@ -106,15 +111,6 @@ int ec_net_send(ev_uint8_t h[4], ev_uint8_t *o, size_t o_sz, ev_uint8_t *p,
     dbg_return_if (h == NULL, -1);
     dbg_return_if (sd == -1, -1);
     dbg_return_if (d == NULL, -1);
-    dbg_return_if (d_sz == 0, -1);
-
-    {
-        char a[128];
-
-        u_dbg("sending PDU to %s", 
-                evutil_format_sockaddr_port((const struct sockaddr *) d, a, 
-                    sizeof a));
-    }
 
     /* Header is non optional. */
     iov[iov_idx].iov_base = (void *) h;
@@ -138,7 +134,7 @@ int ec_net_send(ev_uint8_t h[4], ev_uint8_t *o, size_t o_sz, ev_uint8_t *p,
     }
 
     msg.msg_name = (void *) d;
-    msg.msg_namelen = d_sz;
+    msg.msg_namelen = d->ss_len;
     msg.msg_iov = iov;
     msg.msg_iovlen = iov_idx;
     msg.msg_control = NULL;
@@ -152,14 +148,51 @@ err:
     return -1;
 }
 
-int ec_net_save_us(evutil_socket_t sd, ec_conn_t *conn)
+int ec_net_save_us(ec_conn_t *conn, evutil_socket_t sd)
 {
     dbg_return_if (sd == -1, -1);
     dbg_return_if (conn == NULL, -1);
 
-    conn->us_len = sizeof conn->us;
-    dbg_return_sif (getsockname(sd, (struct sockaddr *) &conn->us, 
-                &conn->us_len) == -1, -1);
+    ev_socklen_t slen = sizeof conn->us;
+
+    dbg_err_sif (getsockname(sd, (struct sockaddr *) &conn->us, &slen) == -1);
+
+    conn->socket = sd;
+
+    return 0;
+err:
+    return -1;
+}
+
+int ec_net_set_confirmable(ec_conn_t *conn, bool is_con)
+{
+    dbg_return_if (conn == NULL, -1);
+
+    conn->is_confirmable = is_con ? 1 : 2;
 
     return 0;
 }
+
+int ec_net_get_confirmable(ec_conn_t *conn, bool *is_con)
+{
+    dbg_return_if (conn == NULL, -1);
+    dbg_return_if (is_con == NULL, -1);
+
+    switch (conn->is_confirmable)
+    {
+        case 1:
+            *is_con = true;
+            break;
+        case 2:
+            *is_con = false;
+            break;
+        case 0:
+            u_dbg("confirmable flag not set !");
+            /* Fall through. */
+        default:
+            return -1;
+    }
+
+    return 0;
+}
+

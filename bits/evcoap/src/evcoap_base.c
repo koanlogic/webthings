@@ -109,7 +109,7 @@ err:
 }
 
 int ec_dups_insert(ec_dups_t *dups, struct sockaddr_storage *ss,
-                ev_socklen_t ss_len, ev_uint16_t mid)
+        ev_uint16_t mid)
 {
     char key[EC_DUP_KEY_MAX];
     ec_recvd_pdu_t *recvd = NULL;
@@ -122,7 +122,7 @@ int ec_dups_insert(ec_dups_t *dups, struct sockaddr_storage *ss,
     dbg_err_if (!ec_dup_key_new(mid, ss, key));
 
     /* Create new received PDU record. */
-    recvd = ec_recvd_pdu_new(key, coap, dups, ss, ss_len, mid);
+    recvd = ec_recvd_pdu_new(key, coap, dups, ss, mid);
     dbg_err_if (recvd == NULL);
 
     /* Push it into the map. */
@@ -184,7 +184,7 @@ err:
  * '-1' -> internal error
  */
 int ec_dups_handle_incoming_srvmsg(ec_dups_t *dups, ev_uint16_t mid, int sd,
-        struct sockaddr_storage *ss, ev_socklen_t ss_len)
+        struct sockaddr_storage *ss)
 {
     ec_recvd_pdu_t *recvd = NULL;
 
@@ -198,7 +198,7 @@ int ec_dups_handle_incoming_srvmsg(ec_dups_t *dups, ev_uint16_t mid, int sd,
         return 1;
 
     /* New entry, push it into the cache. */
-    dbg_err_if (ec_dups_insert(dups, ss, ss_len, mid));
+    dbg_err_if (ec_dups_insert(dups, ss, mid));
 
     return 0;
 err:
@@ -206,7 +206,7 @@ err:
 }
 
 int ec_dups_handle_incoming_climsg(ec_dups_t *dups, ev_uint16_t mid, int sd,
-        struct sockaddr_storage *ss, ev_socklen_t ss_len)
+        struct sockaddr_storage *ss)
 {
     ec_recvd_pdu_t *recvd = NULL;
 
@@ -221,14 +221,14 @@ int ec_dups_handle_incoming_climsg(ec_dups_t *dups, ev_uint16_t mid, int sd,
         if (pdu->is_set)
         {
             dbg_err_if (ec_net_send(pdu->hdr, pdu->opts, pdu->opts_sz, 
-                        pdu->payload, pdu->payload_sz, sd, ss, ss_len));
+                        pdu->payload, pdu->payload_sz, sd, ss));
         }
 
         return 1;
     }
 
     /* New entry, push it into the cache. */
-    dbg_err_if (ec_dups_insert(dups, ss, ss_len, mid));
+    dbg_err_if (ec_dups_insert(dups, ss, mid));
 
     return 0;
 err:
@@ -236,7 +236,7 @@ err:
 }
 
 ec_recvd_pdu_t *ec_recvd_pdu_new(const char *key, ec_t *coap, ec_dups_t *dups,
-        struct sockaddr_storage *ss, ev_socklen_t ss_len, ev_uint16_t mid)
+        struct sockaddr_storage *ss, ev_uint16_t mid)
 {
     struct event *t = NULL;
     struct timeval tout = { .tv_sec = EC_DUP_LIFETIME, .tv_usec = 0 };
@@ -262,7 +262,6 @@ ec_recvd_pdu_t *ec_recvd_pdu_new(const char *key, ec_t *coap, ec_dups_t *dups,
 
     /* Stick peer address. */
     memcpy(&recvd->who, ss, sizeof recvd->who);
-    recvd->who_len = ss_len;
 
     /* Init self destruction timer. */
     t = event_new(coap->base, -1, EV_PERSIST, ec_dup_zap, recvd);
