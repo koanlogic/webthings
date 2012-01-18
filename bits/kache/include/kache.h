@@ -2,22 +2,39 @@
 #define _KACHE_H_
 #include <sys/queue.h>
 
-#define KACHE_HISTORY_FOREACH(req,kache)         \
-          TAILQ_FOREACH(req,&kache->history,next)
+#define KACHE_HISTORY_FOREACH(record,kache_entry)         \
+          TAILQ_FOREACH(record,&kache_entry->history,next)
 
 typedef struct kache {
     u_hmap_t *hmap;
     u_hmap_opts_t *hmap_opts;
-    TAILQ_HEAD(,kache_request) history;
-   //void (*k_free)(void *obj);
+    int history_length;
+    //TAILQ_HEAD(,kache_request) history;
+    void (*k_free)(void *obj);
 } kache_t;
 
-typedef struct kache_request {
+typedef struct kache_entry {
+    void *resource;
+    int access_counter;
+    struct timeval *insert_time;
+    kache_t *kache;
+    int history_size;
+    TAILQ_HEAD(kache_history_record_h,kache_history_record) history;
+
+} kache_entry_t;
+
+typedef struct kache_history_record {
+    struct timeval *insert_time; //request timestamp
+    int access_counter;
+    TAILQ_ENTRY(kache_history_record) next;
+} kache_history_record_t;
+
+/*typedef struct kache_request {
     struct timeval *tv; //request timestamp
     char *resource_key;
     const void *resource;
     TAILQ_ENTRY(kache_request) next;
-} kache_request_t;
+} kache_request_t;*/
 
 kache_t *kache_init();
 
@@ -26,8 +43,12 @@ int kache_set_max_size(kache_t *kache, int max_size);
 void kache_free(kache_t *kache);
 
 int kache_set(kache_t *kache, const char *key, const void *content);
+int kache_set_expire(kache_t *kache, const char *key, const void *content, int expire_sec);
 int kache_unset(kache_t *kache, const char *key);
 void *kache_get(kache_t *kache, const char *key);
 
+int kache_foreach_arg(kache_t *kache, int f(const void *kache_entry, const void *arg), const void *arg);
+
+int kache_set_history_length(kache_t *kache, int history_length);
 #endif
 

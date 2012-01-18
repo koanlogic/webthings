@@ -10,8 +10,8 @@ int main(int argc, char **argv)
     int rc;
     u_test_t *t = NULL;
 
-    con_err_if (u_test_new("kache unit tests", &t));
-    con_err_if (test_suite_common_tasks_register(t));
+    dbg_err_if (u_test_new("kache unit tests", &t));
+    dbg_err_if (test_suite_common_tasks_register(t));
 
     rc = u_test_run(argc, argv, t);
     u_test_free(t);

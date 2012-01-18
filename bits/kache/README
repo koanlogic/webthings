@@ -40,22 +40,39 @@ Contents
 
 5 Kache Stats
 
-  Kache stores a history of the last cache requests performed. This data structure is
-  useful to gather information about which cache entries are more popular.
+  Kache stores the number of cache requests performed on every entry. 
+  Every time an entry is updated, the number of gets performed on the key is 
+  kept in a history.
+  This data structure is useful to gather information about which cache 
+  entries are more popular.
+  Each history is associated to its kache entry.
+  Kache entries can be accessed by iterating over them using this function:
+
+  int kache_foreach_arg(kache_t *kache, 
+                        int f(const void *kache_entry, const void *arg), 
+                        const void *arg);
+
+  The supplied function should return 0 in case of success and -1 in case 
+  of failure.
+
   Kache history data are stored in this form:
 
-  struct kache_request{
-    struct timeval *tv; //request timestamp
-    char *resource_key;
-    void *resource;
+  struct kache_history_record{
+    struct timeval *insert_time; //request timestamp
+    int access_counter;
     ...
   }
 
-  Kache provides a simple macro to iterate over the history:
 
-  kache_request_t req;
+  Kache provides a simple macro to iterate over the history of an entry:
 
-  KACHE_HISTORY_FOREACH(&req,kache)
+  kache_history_records_t req;
+
+  KACHE_HISTORY_FOREACH(&req,kache_entry)
   {
       ...
   }
+  The maximum size of an entry history defaults to 5. This can be changed with:
+
+  int kache_set_history_length(kache_t *kache, int history_length)
+
