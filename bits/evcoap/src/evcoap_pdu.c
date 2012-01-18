@@ -28,12 +28,18 @@ int ec_pdu_set_flow(ec_pdu_t *pdu, ec_flow_t *flow)
     return 0;
 }
 
-int ec_pdu_set_peer(ec_pdu_t *pdu, const struct sockaddr_storage *peer)
+int ec_pdu_set_peer(ec_pdu_t *pdu, const struct sockaddr_storage *peer,
+        size_t peer_len)
 {
     dbg_return_if (pdu == NULL, -1);
     dbg_return_if (peer == NULL, -1);
+    dbg_return_if (peer_len == 0, -1);
 
-    memcpy(&pdu->peer, peer, peer->ss_len);
+    memcpy(&pdu->peer, peer, peer_len);
+
+    /* Force this for cases where we get the struct sockaddr address,
+     * e.g. on client via getaddrinfo(). */
+    pdu->peer.ss_len = peer_len;
 
     return 0;
 }
@@ -117,8 +123,11 @@ int ec_pdu_encode_response_separate(ec_pdu_t *pdu)
 
     dbg_return_if (pdu == NULL, -1);
 
+    ec_hdr_t *h = &pdu->hdr_bits;
+
     /* Create new MID */
-    evutil_secure_rng_get_bytes(&mid, sizeof mid);
+    if (!h->mid)
+        evutil_secure_rng_get_bytes(&mid, sizeof mid);
 
     /* Get requested messaging semantics. */
     ec_flow_t *flow = pdu->flow;
@@ -156,32 +165,29 @@ err:
 
 int ec_pdu_encode_request(ec_pdu_t *pdu)
 {
+    bool is_con;
+    ev_uint16_t mid;
+
     dbg_return_if (pdu == NULL, -1);
 
-    u_dbg("TODO %s", __func__);
-
-#if 0
-    ec_flow_t *flow = pdu->flow;
     ec_hdr_t *h = &pdu->hdr_bits;
 
-    if (!h->mid)
-        evutil_secure_rng_get_bytes(&h->mid, sizeof h->mid);
+    /* Create new MID. */
+    evutil_secure_rng_get_bytes(&mid, sizeof mid);
 
-    /* Encode options.  This is needed before header encoding because it sets
-     * the 'oc' field. */
+    /* Encode options.
+     * Assume that the token has been already set by ec_client_go(). */
     dbg_err_if (ec_opts_encode(&pdu->opts));
 
-    /* Encode header. */
-    if (flow->method != EC_METHOD_UNSET)
-        dbg_err_if (encode_req_header(pdu));
-    else if (flow->resp_code != EC_RC_UNSET)
-        dbg_err_if (encode_res_header(pdu));
-    else
-        dbg_err("WTF ?");
+    /* Get requested messaging semantics. */
+    ec_flow_t *flow = pdu->flow;
+    dbg_return_if (ec_net_get_confirmable(&flow->conn, &is_con), -1);
 
-    return 0;
+    /* E.g. T=CON|NON, Code=1, MID=0x7d38. */
+    encode_header(pdu, flow->method, is_con ? EC_COAP_CON : EC_COAP_NON, mid);
+
+    return 0; 
 err:
-#endif
     return -1;
 }
 

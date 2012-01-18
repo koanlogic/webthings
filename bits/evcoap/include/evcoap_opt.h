@@ -112,6 +112,7 @@ ec_opt_t *ec_opts_get(ec_opts_t *opts, ec_opt_sym_t sym);
 const char *ec_opts_get_string(ec_opts_t *opts, ec_opt_sym_t sym);
 const char *ec_opts_get_uri_host(ec_opts_t *opts);
 int ec_opts_get_uri_port(ec_opts_t *opts, ev_uint16_t *port);
+int ec_opts_get_accept_all(ec_opts_t *opts, ec_mt_t *mta, size_t *mta_sz);
 
 int ec_opt_decode_uint(const ev_uint8_t *v, size_t l, ev_uint64_t *ui);
 int ec_opt_encode_uint(ev_uint64_t ui, ev_uint8_t *e, size_t *elen);

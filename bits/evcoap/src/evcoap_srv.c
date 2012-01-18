@@ -5,6 +5,8 @@
 
 static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
         struct sockaddr_storage *peer, void *arg);
+static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args, 
+        struct timeval *interval, bool resched);
 
 ec_server_t *ec_server_new(struct ec_s *coap, evutil_socket_t sd)
 {
@@ -53,7 +55,6 @@ void ec_server_input(evutil_socket_t sd, short u, void *arg)
     ec_net_pullup_all(sd, ec_server_handle_pdu, coap);
 }
 
-/* TODO also supply the related ec_conn_t object. */
 /* TODO factor out common code with ec_client_handle_pdu, namely the PDU 
  *      decoding */
 static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
@@ -65,7 +66,6 @@ static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
     ec_pdu_t *req = NULL;
     ec_server_t *srv = NULL;
     ec_t *coap;
-    u_uri_t *url = NULL;
     bool nosec = true;
 
     dbg_return_if ((coap = (ec_t *) arg) == NULL, -1);
@@ -89,7 +89,7 @@ static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
     /* Pass MID and peer address to the dup handler machinery. */
     ec_dups_t *dups = &coap->dups;
 
-    /* TODO Check if it's a duplicate (mid and token). */
+    /* Check if it's a duplicate (mid and token). */
     switch (ec_dups_handle_incoming_climsg(dups, h->mid, sd, peer))
     {
         case 0:
@@ -128,77 +128,79 @@ static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
     ec_opt_t *t = ec_opts_get(&req->opts, EC_OPT_TOKEN);
     dbg_err_if (ec_flow_save_token(flow, t ? t->v : NULL, t ? t->l : 0));
 
-    /* Response payload has been allocated by ec_server_new(). */
+    /* Response payload has been allocated by ec_server_new(), so we can
+     * take its reference and pair it to the corresponding request PDU. */
     ec_pdu_t *res = srv->res;   /* shortcut */
     dbg_err_if (ec_pdu_set_sibling(res, req));
 
     /* Save dst and src addresses in srv context. */
     dbg_err_if (ec_net_save_us(conn, sd));
-    dbg_err_if (ec_pdu_set_peer(res, peer));
+    dbg_err_if (ec_pdu_set_peer(res, peer, peer->ss_len));
 
     /* Recompose the requested URI and save it into the server context.
      * XXX Assume NoSec is the sole supported mode. */
-    url = ec_opts_compose_url(&req->opts, &conn->us, nosec);
-    dbg_err_if (ec_flow_save_url(flow, url));
+    dbg_err_if (ec_flow_save_url(flow, 
+                ec_opts_compose_url(&req->opts, &conn->us, nosec)));
 
     /* Everything has gone smoothly, so set state accordingly. */
     (void) ec_server_set_req(srv, req);
     ec_server_set_state(srv, EC_SRV_STATE_REQ_OK);
 
-    /* Now it's time to invoke the callback registered for the requested URI,
-     * or to fallback to generic URI handler if none matches. */
 /* u_dbg("requested URI: %s", flow->urlstr); */
 
+    /* Initialize the poll/wait timeout. */
+    struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
+
+    /* Now it's time to invoke the callback registered for the requested URI,
+     * or to fallback to generic URI handler if none matches. */
     TAILQ_FOREACH(r, &coap->resources, next)
     {
-        if (strcasecmp(r->path, flow->urlstr))
-            continue;
-
-        /* Initialize the poll/wait timeout. */
-        struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
-
-        switch (r->cb(srv, r->cb_args, &tv, false))
+        if (!strcasecmp(r->path, flow->urlstr))
         {
-            case EC_CBRC_READY:
-                dbg_err_if (ec_server_send_resp(srv));
-                /* In case it is NON or CON piggybacked, we can set state 
-                 * to RESP_DONE. */
-                ec_server_set_state(srv, EC_SRV_STATE_RESP_DONE);
-                break;
-            case EC_CBRC_WAIT:
-            case EC_CBRC_POLL:
-                u_dbg("TODO handle client wait/poll");
-                break;
-            case EC_CBRC_ERROR:
-                /* This gets mapped to an internal error. */
-                goto err;
-            default:
-                dbg_err("unknown return code from client callback !");
+            /* Invoke user callback. */
+            dbg_err_if (ec_server_userfn(srv, r->cb, r->cb_args, &tv, false));
+            goto end;
         }
-
-        return 0;
     }
 
-    /* Fall back to catch-all function, if set. */
+    /* Fall back to catch-all function, if set, and fall through. */
     if (coap->fb)
     {
-        /* TODO handle return code. */
-        switch (coap->fb(srv, coap->fb_args, NULL, false))
-        {
-            case EC_CBRC_READY:
-            case EC_CBRC_WAIT:
-            case EC_CBRC_POLL:
-            case EC_CBRC_ERROR:
-            default:
-                break;
-        }
+        dbg_err_if (ec_server_userfn(srv, coap->fb, coap->fb_args, &tv, false));
+        goto end;
+    }
+
+end:
+    return 0;
+err:
+    ec_server_set_state(srv, EC_CLI_STATE_INTERNAL_ERR);
+    return -1;
+}
+
+static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args, 
+        struct timeval *interval, bool resched)
+{
+    switch (f(srv, args, interval, resched))
+    {
+        case EC_CBRC_READY:
+            dbg_err_if (ec_server_send_resp(srv));
+            /* In case it is NON or CON piggybacked, we can set state 
+             * to RESP_DONE. */
+            ec_server_set_state(srv, EC_SRV_STATE_RESP_DONE);
+            break;
+        case EC_CBRC_WAIT:
+        case EC_CBRC_POLL:
+            u_dbg("TODO handle client wait/poll");
+            break;
+        case EC_CBRC_ERROR:
+            /* This gets mapped to an internal error. */
+            goto err;
+        default:
+            dbg_err("unknown return code from client callback !");
     }
 
     return 0;
 err:
-    if (url)
-        u_uri_free(url);
-    ec_server_set_state(srv, EC_CLI_STATE_INTERNAL_ERR);
     return -1;
 }
 

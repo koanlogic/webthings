@@ -2,6 +2,8 @@
 #include <evcoap.h>
 #include <u/libu.h>
 
+#define CHAT(...)   do { if (g_ctx.verbose) u_con(__VA_ARGS__); } while (0)
+
 int facility = LOG_LOCAL0;
 
 #define DEFAULT_URI "coap://[::1]/.well-known/core"
@@ -17,6 +19,7 @@ typedef struct
     ec_msg_model_t model;
     struct timeval app_tout;
     ev_uint8_t etag[4];
+    bool verbose;
 } ctx_t;
 
 ctx_t g_ctx = {
@@ -28,7 +31,8 @@ ctx_t g_ctx = {
     .method = EC_GET,
     .model = EC_NON,
     .app_tout = { .tv_sec = EC_TIMERS_APP_TOUT, .tv_usec = 0 },
-    .etag = { 0xde, 0xad, 0xbe, 0xef }
+    .etag = { 0xde, 0xad, 0xbe, 0xef },
+    .verbose = false
 };
 
 void usage(const char *prog);
@@ -47,7 +51,7 @@ int main(int ac, char *av[])
 {
     int c;
 
-    while ((c = getopt(ac, av, "hu:m:M")) != -1)
+    while ((c = getopt(ac, av, "hu:m:M:v")) != -1)
     {
         switch (c)
         {
@@ -62,6 +66,9 @@ int main(int ac, char *av[])
             case 'M': /* .model */
                 if (evcoap_client_set_model(optarg))
                     usage(av[0]);
+                break;
+            case 'v':
+                g_ctx.verbose = true;
                 break;
             case 'h':
             default:
@@ -137,6 +144,8 @@ int evcoap_client_run(void)
 {
     dbg_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, g_ctx.method, 
                     g_ctx.uri, g_ctx.model)) == NULL);
+
+    CHAT("sending request to %s", g_ctx.uri);
 
     /* 
     dbg_err_if (ec_request_add_if_match(cli, etag, sizeof etag));

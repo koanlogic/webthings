@@ -46,7 +46,7 @@ static int put_res(ec_filesys_t *fs, u_test_case_t *tc, const char *uri,
             "resource creation failed");
 
     /* Add representation to resource. */
-    u_test_err_ifm (ec_filesys_add_representation(res, data, data_sz, 
+    u_test_err_ifm (ec_filesys_add_rep(res, data, data_sz, 
                 media_type, etag), "adding representation failed");
 
     /* Insert resource into the file system. */
@@ -90,7 +90,7 @@ static int lookup_all(ec_filesys_t *fs, u_test_case_t *tc)
 
     for (i = 0; i < RES_SET_CARDINALITY; ++i)
     {
-        rep = ec_filesys_get_representation(fs, res_set[i].uri, 
+        rep = ec_filesys_get_rep(fs, res_set[i].uri, 
                 res_set[i].media_type, res_set[i].etag);
 
         u_test_err_ifm (rep == NULL, "%s not found", res_set[i].uri);
@@ -126,7 +126,7 @@ static int iur(ec_filesys_t *fs, u_test_case_t *tc)
             TEST_MEDIA_TYPE, etag);
 
     /* Get updated value. */
-    rep = ec_filesys_get_representation(fs, TEST_URI, TEST_MEDIA_TYPE, etag);
+    rep = ec_filesys_get_rep(fs, TEST_URI, TEST_MEDIA_TYPE, etag);
     u_test_err_ifm (rep == NULL, "%s not found", TEST_URI);
 
     u_con("%s vs %s", rep->data, TEST_DATA_1);

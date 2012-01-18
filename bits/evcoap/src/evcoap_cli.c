@@ -288,7 +288,7 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
            continue;
 
         dbg_err_if (ec_pdu_set_peer(req,
-                    (struct sockaddr_storage *) ai->ai_addr));
+                    (struct sockaddr_storage *) ai->ai_addr, ai->ai_addrlen));
 
         /* Send the request PDU. */
         if (ec_pdu_send(req))

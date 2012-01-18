@@ -159,6 +159,25 @@ int ec_request_set_payload(ec_client_t *cli, ev_uint8_t *payload, size_t sz)
 }
 
 /**
+ *  \brief  Retrieve all media types that the client is willing to Accept.
+ *  
+ *  \param  mta     pointer to the media-types array
+ *  \param  mta_sz  value-result argument
+ */ 
+int ec_request_get_acceptable_media_types(ec_server_t *srv, ec_mt_t *mta,
+        size_t *mta_sz)
+{
+    ec_pdu_t *req;
+
+    dbg_return_if (srv == NULL, -1);
+    dbg_return_if ((req = srv->req) == NULL, -1);
+
+    ec_opts_t *opts = &req->opts;
+
+    return ec_opts_get_accept_all(opts, mta, mta_sz);
+}
+
+/**
  *  \brief  TODO (user may set a custom response code.)
  */
 int ec_response_set_code(ec_server_t *srv, ec_rc_t rc)
@@ -376,6 +395,36 @@ int ec_response_set_payload(ec_server_t *srv, ev_uint8_t *payload, size_t sz)
     ec_pdu_t *res = srv->res;
 
     return ec_pdu_set_payload(res, payload, sz);
+}
+
+/**
+ *  \brief  TODO
+ */
+int ec_response_add_etag(ec_server_t *srv, const ev_uint8_t *et, size_t et_len)
+{
+    ec_pdu_t *res;
+
+    dbg_return_if (srv == NULL, -1);
+    dbg_return_if ((res = srv->res) == NULL, -1);
+
+    ec_opts_t *opts = &res->opts;
+
+    return ec_opts_add_etag(opts, et, et_len);
+}
+
+/**
+ *  \brief  TODO
+ */
+int ec_response_add_content_type(ec_server_t *srv, ev_uint16_t ct)
+{
+    ec_pdu_t *res;
+
+    dbg_return_if (srv == NULL, -1);
+    dbg_return_if ((res = srv->res) == NULL, -1);
+
+    ec_opts_t *opts = &res->opts;
+
+    return ec_opts_add_content_type(opts, ct);
 }
 
 /**

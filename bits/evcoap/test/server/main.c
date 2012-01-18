@@ -5,6 +5,7 @@
 
 int facility = LOG_LOCAL0;
 
+#define CHAT(...)   do { if (g_ctx.verbose) u_con(__VA_ARGS__); } while (0)
 #define DEFAULT_CONF    "./coap-server.conf"
 
 typedef struct
@@ -184,8 +185,8 @@ int vhost_load_resource(u_config_t *resource, const char *origin)
     ev_uint32_t ma;
     const char *path, *max_age, *val;
     ec_filesys_res_t *res = NULL;
-    char uri[512];
     ec_mt_t mt;
+    char uri[512];
     u_config_t *repr;
 
     dbg_return_if (resource == NULL, -1);
@@ -207,8 +208,7 @@ int vhost_load_resource(u_config_t *resource, const char *origin)
     con_err_ifm (u_snprintf(uri, sizeof uri, "%s%s", origin, path),
             "could not create uri for path %s and origin %s", path, origin);
 
-    if (g_ctx.verbose)
-        u_con("adding resource %s", uri);
+    CHAT("adding resource %s", uri);
 
     /* Create FS resource. */
     con_err_ifm ((res = ec_filesys_new_resource(uri, ma)) == NULL,
@@ -226,8 +226,8 @@ int vhost_load_resource(u_config_t *resource, const char *origin)
                 "no value for resource %s", uri);
         val_sz = strlen(val);
 
-        con_err_ifm (ec_filesys_add_representation(res,
-                    (const ev_uint8_t *) val, val_sz, mt, NULL),
+        con_err_ifm (ec_filesys_add_rep(res, (const ev_uint8_t *) val, 
+                    val_sz, mt, NULL),
                 "error adding representation for %s", uri);
     }
     con_err_ifm (i == 0, "no resources in virtual host");
@@ -370,22 +370,37 @@ void usage(const char *prog)
 
 ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
 {
+    ec_mt_t mta[16];
+    size_t mta_sz = sizeof mta / sizeof(ec_mt_t);
+    ec_filesys_rep_t *rep;
+    const char *url;
+
     u_unused_args(u0, u1, u2);
 
-    dbg_err_if (srv == NULL);
-
     /* Get the requested URI. */
-    u_con("requested resource is '%s'", ec_server_get_url(srv));
-    
-    /* TODO Get Accept'ed media types. */
-    /* TODO Lookup URI + media type in the embedded FS. */
-    /* TODO If representation found, set resource Content-type */
-    /* TODO If representation found, set payload. */
+    url = ec_server_get_url(srv);
 
-    /* Return a "not found" to test the whole chain. */
-    (void) ec_response_set_code(srv, EC_NOT_FOUND);
+    CHAT("requested resource is '%s'", url);
+    
+    /* Get Accept'able media types. */
+    dbg_err_if (ec_request_get_acceptable_media_types(srv, mta, &mta_sz));
+
+    /* Try to retrieve a representation that fits client request. */
+    rep = ec_filesys_get_suitable_rep(g_ctx.fs, url, mta, mta_sz, NULL);
+
+    if (rep)
+    {
+        /* Set response code, payload, etag and content-type. */
+        (void) ec_response_set_code(srv, EC_CONTENT);
+        (void) ec_response_set_payload(srv, rep->data, rep->data_sz);
+        (void) ec_response_add_etag(srv, rep->etag, sizeof rep->etag);
+        (void) ec_response_add_content_type(srv, rep->media_type);
+    }
+    else
+        (void) ec_response_set_code(srv, EC_NOT_FOUND);
 
     return EC_CBRC_READY;
 err:
     return EC_CBRC_ERROR;
 }
+
