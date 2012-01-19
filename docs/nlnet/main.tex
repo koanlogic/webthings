@@ -33,6 +33,9 @@ Current KINK partners are the Computer Science Department at University of Bolog
 
 We are seeking for financial aid to help us reaching the first KINK deadline: the implementation of a proxy module to enable transparent communication between the unconstrained and constrained sides of future Internet.
 
+\section{Related Works}
+\input{related.tex}
+
 \section{Current Work Items}
 The bulk of current activity is centered around mapping HTTP and CoAP protocols, i.e. the two main application protocols available on each communication segment.
 
@@ -53,14 +56,14 @@ The I-D \href{http://tools.ietf.org/html/draft-castellani-core-http-mapping}{dra
 As such it represents a fundamental deliverable of the whole KINK project, and at the same time it receives vital feedback from the implementation experience gained while developing the KINK software modules.
 
 \subsection{Agnostic Caching}
-The \href{https://github.com/koanlogic/webthings/bits/kache}{\swmod{kache}} module implements a specialized cache aimed at storing informational resources, be it sensor generated data stream or a typical HTTP resource representation, in an agnostic way. (TODO Mirko).
+\input{kache.tex}
 
 \subsection{Test Bed}
-The \href{https://github.com/koanlogic/webthings/bits}{\swmod{sys}} Contiki and TinyOS HowTo's to setup a constrained network based on Zolertia Z1 motes (TODO Steven).
+\input{testbed.tex}
 
 \subsection{CoAP Proxy Extensions for Sleepy Sensors I-D}
-The \href{https://github.com/koanlogic/webthings/docs/}{draft-fossati-core-monitor-option}
-(TODO Pierpaolo)
+\input{options.tex}
+
 
 \section{Work that Needs to Be Done}
 \subsection{HTTP-CoAP Proxy}
