@@ -1,15 +1,23 @@
-\subsection{libcoap}
+\subsection{LibCoAP}
+The \href{http://sourceforge.net/projects/libcoap}{libcoap} project is a C implementation of the CoAP done by Olaf Bergmann of TZI.
+It was initially considered as the building block for the CoAP protocol handler, but it proved difficult to integrate into the libevent model.  Another motivation to drop it in favour of evcoap is that we have a strong requirement on controlling the CoAP bits as the specification is still evolving, and further, extensions to CoAP are likely to be implemented in order to experiment with corner cases in the HTTP-CoAP mapping function.
 
-(TODO THOMAS, visto che le stai provando)
+\subsection{Apache Web Server}
+The Apache project is mature and robust and is well maintained and supported. Apache 2.0 provides a valid and tested HTTP implementation, fitting one of the project needs.  Being a web server, Apache is already optimized to handle a huge number of HTTP requests.  Furthermore, Apache is easily extensible through a simple module system.  However, it has a couple of fundamental drawbacks:
+\begin{enumerate}
+\item being a mature project, thought for the web, Apache has an enormous list of features that are not needed for the KINK case that are likely to cause an excessive memory footprint for the intended KINK target platform (i.e. a typical OpenWRT equipped CPE box);
+\item being an HTTP Origin Server, its architectural model doesn't fit the Intermediary use case, where the ``one thread per request'' policy may lead to devastating performance drops, especially with long-standing requests like the CoAP Observe mapping.
+\end{enumerate}
 
-\subsection{apache}
+\subsection{Varnish}
+Varnish is an HTTP accelerator with 5+ years on the trenches of such web sites as Facebook and Globo.  Varnish can be extended with new modules. Although this feature lacks extensive documentation, example modules can be found on the project website, and can be used as a starting base for modules developers.Varnish could be a good starting point for the HTTP/CoAP proxy, as it provides a tested HTTP protocol implementation and an optimized caching system, however, like Apache, it assumes a modern, performant hardware, which could be one or more orders of magnitude bigger that the KINK typical target platform.
 
-(TODO TBD, se avete qualcosa di pronto, come giustificazione di klone come risposta embedded al bloat di apache si puo' usare anche qui... se no posso occuparmene io)
 
-\subsection{squid}
+\subsection{Squid 3}
 
 (TODO PIERPAOLO, visto che immagino non abbiate niente di pronto)
 
 \subsection{Others}
 
-se avete altri progetti open source E soprattutto non open source da aggiungere e' ottimo, pare che siano molto carogne sui related works quelli di nlnet, essendo che l'argomento principe su cui basano i loro rifiuti e' "e' uguale a quell'altro progetto, aiutate loro, etc...". 
+There are no opensource projects with the same scope as KINK that we know of, and this was the primary motivation to start working on it.
+Currently, the market offers few proprietary solutions, e.g. Sensinode's \href{http://www.sensinode.com/EN/products/nanoservice.html}{NanoService}.  Huge players like Huawei, Ericsson and InterDigital are working on their commercial platforms but their state-of-art is not publicly available.

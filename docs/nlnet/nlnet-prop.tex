@@ -20,7 +20,7 @@
 \newcommand{\swmod}[1]{\mbox{\texttt{#1}}}
 
 \title{KINK @ NLNET}
-\author{Pierpaolo Giacomin\footnote{Independent consultant.}, Mirko Rossini\footnote{CS Dept. University of Bologna.}, Thomas Fossati and Steven Dorigotti\footnote{KoanLogic SRL.}}
+\author{Pierpaolo Giacomin\footnote{Independent consultant.}, Mirko Rossini\footnote{CS Dept. University of Bologna.},\\Thomas Fossati and Steven Dorigotti\footnote{KoanLogic SRL.}}
 
 \begin{document}
 \maketitle
@@ -29,26 +29,26 @@
 \paragraph{Abstract}
 KINK is a a project aimed at producing open standards -- mainly within the IETF CoRE Working Group -- and their \mbox{opensource} implementation for bridging the ``big'' Internet with the Internet of Things.
 
-Current KINK partners are the Computer Science Department at University of Bologna, and KoanLogic SRL, an Italian company devoted to \mbox{opensource} and open standards implementation, with a number of public GPL and BSD licensed tools\footnote{http://koanlogic.com/products}.
+Current KINK partners are the Computer Science Department at University of Bologna, and KoanLogic SRL, an Italian company devoted to \mbox{opensource} and open standards implementation, with a number of public GPL and BSD licensed tools\footnote{See \href{http://koanlogic.com}{http://koanlogic.com} and \href{https://github.com/koanlogic}{https://github.com/koanlogic} for details.}.
 
 We are seeking for financial aid to help us reaching the first KINK deadline: the implementation of a proxy module to enable transparent communication between the unconstrained and constrained sides of future Internet.
 
-\section{Related Works}
+\section{Related Work}
 \input{related.tex}
 
-\section{Current Work Items}
+\section{Work Items}
 The bulk of current activity is centered around mapping HTTP and CoAP protocols, i.e. the two main application protocols available on each communication segment.
 
 The overall goal is providing native communication between humans and things through seamless integration of physical objects into the Web platform.
 
-The work items depicted in the following subsections are currently under active development.
+The work items depicted in the following subsections are currently under active development, or are planned to start soon.
 
 \subsection{CoAP Implementation}
-The \href{https://github.com/koanlogic/webthings/bits/evcoap}{\swmod{evcoap}} module fully implements the CoAP protocol as per \href{http://tools.ietf.org/html/draft-ietf-core-coap}{draft-ietf-core-coap-08} with server, client and proxy roles.
+The \href{https://github.com/koanlogic/webthings/tree/master/bits/evcoap}{\swmod{evcoap}} module fully implements the CoAP protocol as per \href{http://tools.ietf.org/html/draft-ietf-core-coap}{draft-ietf-core-coap-08} with server, client and proxy roles.
 
-The deadline for this module is stringent as our participation at ETSI CoAP plugtests\footnote{http://www.etsi.org/FIXME} is scheduled by the end of March 2012.
+The deadline for this module is stringent as our participation at \href{http://www.etsi.org/plugtests/coap/coap.htm}{ETSI CoAP plugtests} is scheduled by the end of March 2012.
 
-The module provides a C library based on the reactor pattern which builds on Niels Provos libevent\footnote{http://FIXME} and KoanLogic libu\footnote{http://koanlogic.com/products/libu}, and adds components (e.g. an embeddable resource file system) to ease the creation of sophisticated CoAP agents.
+The module provides a C library based on the reactor pattern which builds on Niels Provos \href{http://libevent.org}{libevent} and KoanLogic \href{http://koanlogic.com/libu}{libu}, and adds components (e.g. an embeddable resource file system) to ease the creation of sophisticated CoAP agents.
 
 \subsection{HTTP-CoAP Mapping I-D}
 The I-D \href{http://tools.ietf.org/html/draft-castellani-core-http-mapping}{draft-castellani-core-http-mapping} is a joint effort of \mbox{KoanLogic}, \mbox{Ericsson}, \mbox{InterDigital} and the Engineering Department at University of Padua (under the IETF CoRE Working Group umbrella), to provide the architectural and implementation guidance for a KINK-like component.
@@ -64,12 +64,10 @@ As such it represents a fundamental deliverable of the whole KINK project, and a
 \subsection{CoAP Proxy Extensions for Sleepy Sensors I-D}
 \input{options.tex}
 
-
-\section{Work that Needs to Be Done}
 \subsection{HTTP-CoAP Proxy}
 The only activity that still has to be started, is the implementation of the proxy module, which constitutes the final deliverable of the KINK project. 
 
-The related high level architectural design has been concluded as part of Mirko Rossini's MS thesis work.
+The related high level architectural design has been concluded as part of Mirko Rossini's MS thesis work.  The evcoap, kache, libu and libevent's evhttp modules provides fundamental building blocks that will be re-used to match KINK's application logics.
 
 \section{Expected Effort}
 The effort needed to complete the KINK tasks is summarized in the following table -- unit of measure is man/month referred to a senior resource.
@@ -85,7 +83,7 @@ The effort needed to complete the KINK tasks is summarized in the following tabl
 	\hline
 	kink & 1 & 7 & - & 4 & 12 \\
 	\hline
-	IETF & 1 & 1 & - & - & 2 \\
+	spec (IETF) & 1 & 1 & - & - & 2 \\
 	\hline
 	\multicolumn{5}{|c|}{} & 18 \\
 	\hline
