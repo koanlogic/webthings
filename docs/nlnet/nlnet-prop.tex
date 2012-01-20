@@ -34,12 +34,16 @@ Current KINK partners are the Computer Science Department at University of Bolog
 We are seeking for financial aid to help us reaching the first KINK deadline: the implementation of a proxy module to enable transparent communication between the unconstrained and constrained sides of future Internet.
 
 \section{Related Work}
+We started looking at a number of already available opensource options when initially considering the assembly of the HTTP-CoAP proxy.  In the following, each of the these components is briefly illustrated, while the main reasons for deciding against their use is discussed.
+
+After careful analysis, it was decided to build around the libevent core, as its non-blocking, event-driven architectural model was deemed ideal for the proxy architecture.  Furthermore, it provides an HTTP interface through the evhttp module, and has a non-blocking DNS resolver built in, which could be easily extended to supply DNS-SD capabilities -- these having the greatest importance in mapping the embedded resource discovery functions of CoAP to the unconstrained Internet.
+
 \input{related.tex}
 
 \section{Work Items}
 The bulk of current activity is centered around mapping HTTP and CoAP protocols, i.e. the two main application protocols available on each communication segment.
 
-The overall goal is providing native communication between humans and things through seamless integration of physical objects into the Web platform.
+The overall goal is to provide native communication between humans and things through seamless integration of physical objects into the Web platform.
 
 The work items depicted in the following subsections are currently under active development, or are planned to start soon.
 
