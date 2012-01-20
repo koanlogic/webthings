@@ -1,1 +1,5 @@
-The \href{https://github.com/koanlogic/webthings/bits/kache}{\swmod{kache}} module implements a specialized cache aimed at storing informational resources, be it sensor generated data stream or a typical HTTP resource representation, in an agnostic way. (TODO Mirko).
+The \href{https://github.com/koanlogic/webthings/tree/master/bits/kache}{\swmod{kache}} module implements a specialized cache aimed at storing informational resources, be it sensor generated data streams or a typical HTTP resource representation, in an agnostic way.  It provides the following features: 
+\begin{itemize}
+\item ability to plug different representation formats and discard strategies;
+\item custom supervisor routine to compute access statistics and install/remove Observation relationships that optimize assets consumption (locally in the node and, globally, in the whole constrained network) while maintaining the freshness of the cached resources.
+\end{itemize}
