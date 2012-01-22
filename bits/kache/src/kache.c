@@ -37,6 +37,9 @@ kache_t *kache_init()
     kache->hmap_opts = opts;
     kache->history_length = DEFAULT_HISTORY_LEN;
     kache->k_free = NULL;
+    kache->set_procedure = NULL;
+    kache->set_procedure_arg = NULL;
+
     return kache;
 
 err:
@@ -88,12 +91,20 @@ void kache_free_history_record(kache_history_record_t *record)
 }
 void kache_free_kache_entry_history(kache_entry_t *kache_entry)
 {
+
+    int i;
+    for(i=0;i<kache_entry->kache->history_length;i++)
+    {
+        kache_free_history_record(kache_entry->history[i]);
+    }
+    u_free(kache_entry->history);
+    /*
     kache_history_record_t *item;
     while ((item = TAILQ_FIRST(&kache_entry->history)) != NULL)
     {
         TAILQ_REMOVE(&kache_entry->history, item, next);
         kache_free_history_record(item);
-    }
+    }*/
 }
 
 void kache_free(kache_t *kache)
@@ -103,15 +114,20 @@ void kache_free(kache_t *kache)
     u_free(kache);
 }
 
-kache_entry_t *kache_init_kache_entry()
+kache_entry_t *kache_init_kache_entry(kache_t *kache)
 {
     kache_entry_t *kache_entry; 
     dbg_err_if((kache_entry = u_zalloc(sizeof(kache_entry_t))) == NULL);
     kache_entry->resource = NULL;
     kache_entry->access_counter = 0;
+    kache_entry->history_size = 0;
+    kache_entry->kache = kache;
     dbg_err_if( (kache_entry->insert_time = u_zalloc(sizeof(struct timeval))) == NULL);
 
-    TAILQ_INIT(&kache_entry->history);
+    //TAILQ_INIT(&kache_entry->history);
+    //u_calloc(kache->history_length, sizeof(kache_history_record_t));
+    dbg_err_if( (kache_entry->history = \
+            u_zalloc( sizeof(void*) * kache->history_length)) == NULL);
     return kache_entry;
 err:
     return NULL;
@@ -130,11 +146,30 @@ err:
 }
 int kache_history_pop_last(kache_entry_t *entry)
 {
-    kache_history_record_t *last;
+    /*kache_history_record_t *last;
     dbg_err_if (entry == NULL);
     dbg_err_if ((last = TAILQ_LAST(&entry->history, kache_history_record_h))  == NULL);
     TAILQ_REMOVE(&entry->history, last, next);
     kache_free_history_record(last);
+    */
+    kache_free_history_record(entry->history[entry->kache->history_length - 1]);
+    return 0;
+//err:
+//    return -1;
+
+}
+int kache_push_history_record(kache_entry_t *kache_entry,
+                              kache_history_record_t *record)
+{
+    //max size of history reached, remove tail element
+    if(kache_entry->history_size + 1 > kache_entry->kache->history_length)
+        dbg_err_if(kache_history_pop_last(kache_entry));
+    else
+        kache_entry->history_size = kache_entry->history_size + 1;
+    int i;
+    for(i = kache_entry->history_size; i!=0; i--)
+        kache_entry->history[i] = kache_entry->history[i-1];
+    kache_entry->history[0] = record;
     return 0;
 err:
     return -1;
@@ -153,18 +188,15 @@ int kache_set(kache_t *kache, const char *key, const void *content)
         dbg_err_if( (record = kache_init_history_record()) == NULL);
         record->insert_time = kache_entry->insert_time;
         record->access_counter = kache_entry->access_counter;
-        TAILQ_INSERT_HEAD(&kache_entry->history, record, next);
-        kache_entry->history_size = kache_entry->history_size + 1;
+        kache_push_history_record(kache_entry,record);
+        //TAILQ_INSERT_HEAD(&kache_entry->history, record, next);
 
-        //max size of history reached, remove tail element
-        if(kache_entry->history_size > kache->history_length)
-            dbg_err_if(kache_history_pop_last(kache_entry));
 
         dbg_err_if( (kache_entry->insert_time = u_zalloc(sizeof(struct timeval))) == NULL);
         kache_entry->access_counter = 0;
     }
     else
-        dbg_err_if( (kache_entry = kache_init_kache_entry()) == NULL);
+        dbg_err_if( (kache_entry = kache_init_kache_entry(kache)) == NULL);
 
     dbg_err_if( gettimeofday(kache_entry->insert_time,NULL));
     void *tmpres = kache_entry->resource;
@@ -181,7 +213,8 @@ int kache_set(kache_t *kache, const char *key, const void *content)
             free(tmpres);
         u_free(tmp);//free hmap object
     }
-
+    if(kache->set_procedure != NULL)
+        kache->set_procedure(kache_entry,kache->set_procedure_arg);
     return 0;
 err:
     return -1;
@@ -211,7 +244,7 @@ void *kache_get(kache_t *kache, const char *key)
 err:
     return NULL;
 }
-
+/*
 int kache_foreach_arg(kache_t *kache, 
         int f(const void *kache_entry, const void *arg), const void *arg)
 {
@@ -221,4 +254,14 @@ int kache_foreach_arg(kache_t *kache,
        return 0;
 err:
        return -1;
+}
+*/
+
+int kache_attach_set_procedure(kache_t *kache, 
+                void (*procedure)(kache_entry_t *entry,void *arg), 
+                void *arg)
+{
+    kache->set_procedure = procedure;
+    kache->set_procedure_arg = arg;
+    return 0;
 }

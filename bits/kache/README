@@ -3,8 +3,7 @@ Contents
   1 Requirements
   2 Kache Initialization
   3 Kache API
-  4 Kache Supervisor API
-  5 Kache Stats
+  4 Kache Stats
 
 
 1 Requirements
@@ -34,11 +33,8 @@ Contents
   void *kache_get(kache_t *kache, const char *key);
 
 
-4 Kache Supervisor API
 
-  TBD
-
-5 Kache Stats
+4 Kache Stats
 
   Kache stores the number of cache requests performed on every entry. 
   Every time an entry is updated, the number of gets performed on the key is 
@@ -46,32 +42,22 @@ Contents
   This data structure is useful to gather information about which cache 
   entries are more popular.
   Each history is associated to its kache entry.
-  Kache entries can be accessed by iterating over them using this function:
+  Kache entries can be accessed by attaching a procedure to the "set" function.
+  
+  int kache_attach_set_procedure(kache_t *kache, 
+                int (*procedure)(kache_entry_t *entry,void *arg), 
+                void *arg);
 
-  int kache_foreach_arg(kache_t *kache, 
-                        int f(const void *kache_entry, const void *arg), 
-                        const void *arg);
+  The procedure will be called immediatly after the entry and its
+  history are up to date.
 
-  The supplied function should return 0 in case of success and -1 in case 
-  of failure.
+  A user can gather iterating over the history like this:
 
-  Kache history data are stored in this form:
-
-  struct kache_history_record{
-    struct timeval *insert_time; //request timestamp
-    int access_counter;
-    ...
-  }
-
-
-  Kache provides a simple macro to iterate over the history of an entry:
-
-  kache_history_records_t req;
-
-  KACHE_HISTORY_FOREACH(&req,kache_entry)
+  for(i = 0; i< kache_entry->history_size; i++)
   {
       ...
   }
+  
   The maximum size of an entry history defaults to 5. This can be changed with:
 
   int kache_set_history_length(kache_t *kache, int history_length)

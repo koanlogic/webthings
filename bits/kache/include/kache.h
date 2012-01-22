@@ -2,8 +2,9 @@
 #define _KACHE_H_
 #include <sys/queue.h>
 
-#define KACHE_HISTORY_FOREACH(record,kache_entry)         \
-          TAILQ_FOREACH(record,&kache_entry->history,next)
+typedef struct kache_entry kache_entry_t;
+typedef struct kache_history_record kache_history_record_t;
+
 
 typedef struct kache {
     u_hmap_t *hmap;
@@ -11,23 +12,27 @@ typedef struct kache {
     int history_length;
     //TAILQ_HEAD(,kache_request) history;
     void (*k_free)(void *obj);
+    void (*set_procedure)(kache_entry_t *entry,void *arg);
+    void *set_procedure_arg;
+
 } kache_t;
 
-typedef struct kache_entry {
+struct kache_entry {
     void *resource;
     int access_counter;
     struct timeval *insert_time;
     kache_t *kache;
     int history_size;
-    TAILQ_HEAD(kache_history_record_h,kache_history_record) history;
+    kache_history_record_t **history;
+    //TAILQ_HEAD(kache_history_record_h,kache_history_record) history;
 
-} kache_entry_t;
+};
 
-typedef struct kache_history_record {
+struct kache_history_record {
     struct timeval *insert_time; //request timestamp
     int access_counter;
     TAILQ_ENTRY(kache_history_record) next;
-} kache_history_record_t;
+};
 
 /*typedef struct kache_request {
     struct timeval *tv; //request timestamp
@@ -47,7 +52,11 @@ int kache_set_expire(kache_t *kache, const char *key, const void *content, int e
 int kache_unset(kache_t *kache, const char *key);
 void *kache_get(kache_t *kache, const char *key);
 
-int kache_foreach_arg(kache_t *kache, int f(const void *kache_entry, const void *arg), const void *arg);
+int kache_attach_set_procedure(kache_t *kache, 
+                void (*procedure)(kache_entry_t *entry,void *arg), 
+                void *arg);
+
+//int kache_foreach_arg(kache_t *kache, int f(const void *kache_entry, const void *arg), const void *arg);
 
 int kache_set_history_length(kache_t *kache, int history_length);
 #endif
