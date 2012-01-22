@@ -52,10 +52,9 @@ struct ec_recvd_pdu_s
 {
     struct timeval when;
     struct sockaddr_storage who;
-    ev_socklen_t who_len;
     ev_uint16_t mid;
     ec_cached_pdu_t cached_pdu;
-#define EC_DUP_LIFETIME     10  /* TODO choose a sensible value. */
+#define EC_DUP_LIFETIME     60  /* 1 minute seems reasonable. */
     struct event *countdown;
 #define EC_DUP_KEY_MAX      256 /* Enough to hold "mid+IPaddr+port". */
     char key[EC_DUP_KEY_MAX];
@@ -101,17 +100,17 @@ void ec_listener_free(ec_listener_t *l);
 /* Duplicate handling. */
 int ec_dups_init(ec_t *coap, ec_dups_t *dups);
 int ec_dups_insert(ec_dups_t *dups, struct sockaddr_storage *ss,
-        ev_socklen_t ss_len, ev_uint16_t mid);
+        ev_uint16_t mid);
 int ec_dups_delete(ec_dups_t *dups, const char *key);
-ec_recvd_pdu_t *ec_dups_search(ec_dups_t *dups, ev_uint8_t mid,
+ec_recvd_pdu_t *ec_dups_search(ec_dups_t *dups, ev_uint16_t mid,
         struct sockaddr_storage *peer);
 int ec_dups_handle_incoming_srvmsg(ec_dups_t *dups, ev_uint16_t mid, int sd,
-        struct sockaddr_storage *ss, ev_socklen_t ss_len);
+        struct sockaddr_storage *ss);
 int ec_dups_handle_incoming_climsg(ec_dups_t *dups, ev_uint16_t mid, int sd,
-        struct sockaddr_storage *ss, ev_socklen_t ss_len);
+        struct sockaddr_storage *ss);
 
 ec_recvd_pdu_t *ec_recvd_pdu_new(const char *key, ec_t *coap, ec_dups_t *dups,
-        struct sockaddr_storage *ss, ev_socklen_t ss_len, ev_uint16_t mid);
+        struct sockaddr_storage *ss, ev_uint16_t mid);
 int ec_recvd_pdu_update(ec_recvd_pdu_t *recvd, ev_uint8_t *hdr,
         ev_uint8_t *opts, size_t opts_sz, ev_uint8_t *payload,
         size_t payload_sz);

@@ -1,9 +1,10 @@
 #include "evcoap_filesys.h"
 
 static void __free_resource(void *arg);
-static void ec_filesys_free_representation(ec_filesys_rep_t *rep);
-static ec_filesys_rep_t *ec_filesys_new_representation(const ev_uint8_t *data,
+static void ec_filesys_free_rep(ec_filesys_rep_t *rep);
+static ec_filesys_rep_t *ec_filesys_new_rep(const ev_uint8_t *data,
         size_t data_sz, ec_mt_t media_type);
+static bool ec_filesys_mt_matches(ec_mt_t mt, ec_mt_t *mta, size_t mta_sz);
 
 ec_filesys_t *ec_filesys_create(void)
 {
@@ -97,7 +98,7 @@ void ec_filesys_free_resource(ec_filesys_res_t *res)
         while ((rep = TAILQ_FIRST(&res->reps)) != NULL)
         {
             TAILQ_REMOVE(&res->reps, rep, next);
-            ec_filesys_free_representation(rep);
+            ec_filesys_free_rep(rep);
         }
 
         u_free(res);
@@ -106,7 +107,7 @@ void ec_filesys_free_resource(ec_filesys_res_t *res)
     return;
 }
 
-int ec_filesys_add_representation(ec_filesys_res_t *res, const ev_uint8_t *data,
+int ec_filesys_add_rep(ec_filesys_res_t *res, const ev_uint8_t *data,
         size_t data_sz, ec_mt_t media_type, ev_uint8_t etag[EC_ETAG_SZ])
 {
     ec_filesys_rep_t *rep = NULL;
@@ -114,7 +115,7 @@ int ec_filesys_add_representation(ec_filesys_res_t *res, const ev_uint8_t *data,
     dbg_return_if (res == NULL, -1);
 
     /* Create new representation. */
-    dbg_err_if ((rep = ec_filesys_new_representation(data, data_sz,
+    dbg_err_if ((rep = ec_filesys_new_rep(data, data_sz,
                     media_type)) == NULL);
 
     /* Return the ETag to the caller. */
@@ -127,11 +128,11 @@ int ec_filesys_add_representation(ec_filesys_res_t *res, const ev_uint8_t *data,
     return 0;
 err:
     if (rep)
-        ec_filesys_free_representation(rep);
+        ec_filesys_free_rep(rep);
     return -1;
 }
 
-static ec_filesys_rep_t *ec_filesys_new_representation(const ev_uint8_t *data,
+static ec_filesys_rep_t *ec_filesys_new_rep(const ev_uint8_t *data,
         size_t data_sz, ec_mt_t media_type)
 {
     ec_filesys_rep_t *rep = NULL;
@@ -152,7 +153,7 @@ static ec_filesys_rep_t *ec_filesys_new_representation(const ev_uint8_t *data,
     return rep;
 err:
     if (rep)
-        ec_filesys_free_representation(rep); 
+        ec_filesys_free_rep(rep); 
     return NULL;
 }
 
@@ -160,8 +161,20 @@ err:
  * lookup parameter.)
  * 'media_type' is optional (set it to EC_MT_ANY if you don't care about
  *  a specific representation.) */
-ec_filesys_rep_t *ec_filesys_get_representation(ec_filesys_t *fs,
+ec_filesys_rep_t *ec_filesys_get_rep(ec_filesys_t *fs,
         const char *uri, ec_mt_t media_type, const ev_uint8_t *etag)
+{
+    ec_mt_t mta[1] = { [0] = media_type };
+    size_t mta_sz = 1;
+
+    if (media_type == EC_MT_ANY)
+       mta_sz = 0;  /* See ec_filesys_mt_matches(). */
+
+    return ec_filesys_get_suitable_rep(fs, uri, mta, mta_sz, etag);
+}
+
+ec_filesys_rep_t *ec_filesys_get_suitable_rep(ec_filesys_t *fs,
+        const char *uri, ec_mt_t *mta, size_t mta_sz, const ev_uint8_t *etag)
 {
     bool mt_match, et_match;
     ec_filesys_rep_t *rep = NULL;
@@ -176,7 +189,7 @@ ec_filesys_rep_t *ec_filesys_get_representation(ec_filesys_t *fs,
     /* Try to get a matching representation. */
     TAILQ_FOREACH(rep, &res->reps, next)
     {
-        mt_match = (media_type == EC_MT_ANY || rep->media_type == media_type)
+        mt_match = (ec_filesys_mt_matches(rep->media_type, mta, mta_sz))
             ? true : false;
 
         et_match = (etag == NULL || !memcmp(rep->etag, etag, sizeof rep->etag))
@@ -191,7 +204,25 @@ err:
     return NULL;
 }
 
-static void ec_filesys_free_representation(ec_filesys_rep_t *rep)
+
+static bool ec_filesys_mt_matches(ec_mt_t mt, ec_mt_t *mta, size_t mta_sz)
+{
+    size_t i;
+
+    /* An empty array is acceptable, and means EC_MT_ANY. */
+    if (mta_sz == 0)
+        return true;
+
+    for (i = 0; i < mta_sz; ++i)
+    {
+        if (mta[i] == mt)
+            return true;
+    }
+
+    return false;
+}
+
+static void ec_filesys_free_rep(ec_filesys_rep_t *rep)
 {
     if (rep)
     {

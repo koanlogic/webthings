@@ -10,7 +10,9 @@ extern "C" {
 #endif  /* __cplusplus */
 
 #define EC_COAP_VERSION_1       1
+
 #define EC_COAP_DEFAULT_PORT    5683
+#define EC_COAP_DEFAULT_SPORT   "5683"
 
 #define EC_COAP_CON    0
 #define EC_COAP_NON    1
@@ -50,6 +52,8 @@ typedef enum
     EC_MT_APPLICATION_JSON         = 50,
     EC_MT_ANY                      = 255    /* RESERVED by evcoap. */
 } ec_mt_t;
+
+int ec_mt_from_string(const char *s, ec_mt_t *pmt);
 
 /* Available Response Codes. */
 typedef enum

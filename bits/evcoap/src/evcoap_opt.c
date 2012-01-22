@@ -120,6 +120,15 @@ const char *ec_opt_sym2str(ec_opt_sym_t sym)
     return g_opts[sym].s;
 }
 
+void ec_opts_clean(ec_opts_t *opts)
+{
+    if (opts)
+    {
+        /* TODO */ 
+        u_dbg("TODO free options");
+    }
+}
+
 int ec_opts_push(ec_opts_t *opts, ec_opt_t *o)
 {
     ec_opt_t *tmp;
@@ -717,6 +726,34 @@ u_uri_t *ec_opts_compose_url(ec_opts_t *opts, struct sockaddr_storage *us,
     return url ? url : compose_uri(opts, us, nosec);
 }
 
+int ec_opts_get_accept_all(ec_opts_t *opts, ec_mt_t *mta, size_t *mta_sz)
+{
+    ec_opt_t *o;
+    ev_uint64_t mt;
+    size_t nfound = 0;
+
+    dbg_return_if (opts == NULL, -1);
+    dbg_return_if (mta == NULL, -1);
+    dbg_return_if (mta_sz == NULL || *mta_sz == 0, -1);
+
+    TAILQ_FOREACH(o, &opts->bundle, next)
+    {
+        if (o->sym == EC_OPT_ACCEPT)
+        {
+            dbg_return_if (ec_opt_decode_uint(o->v, o->l, &mt), -1);
+
+            mta[nfound] = (ec_mt_t) mt;
+
+            if (++nfound == *mta_sz)
+                break;
+        }
+    }
+
+    *mta_sz = nfound;
+
+    return 0;
+}
+
 static u_uri_t *compose_uri(ec_opts_t *opts, struct sockaddr_storage *us,
         bool nosec)
 {
@@ -862,3 +899,5 @@ static u_uri_t *compose_proxy_uri(ec_opts_t *opts)
 err:
     return NULL;
 }
+
+

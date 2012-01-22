@@ -142,23 +142,21 @@ Contents
   A CoAP server hosts resources identified by their URIs.
 
   There are two ways to register actions associated to resources:
-    a) bound an URI pattern in fnmatch format to a user defined callback;
+    a) bound an URI to a user defined callback;
     b) associate any unbound URI to a user defined callback.
 
   Requests with a given URI are tried in the following order:
-    2) fnmatch the requested URI to callbacks (see 3.2.1);
+    2) strcasecmp the requested URI to callbacks (see 3.2.1);
     3) invoke fallback, if set (see 3.2.2).
 
   [[TODO observable resources.]]
 
 3.2.1 Register callback
 
-  The evcoap user supplies an URI pattern (in fnmatch(3) format) and pair 
-  it along with the callback function that she wants to be invoked whenever a 
-  client requests an URI matching the pattern.  
-  
+  The evcoap user supplies an URI and pair it along with the callback function
+  that she wants to be invoked whenever a client requests a matching URI.
 
-      ec_register_cb(coap, "/.well-known/*", cb, cb_args);
+      ec_register_cb(coap, "/.well-known/core", cb, cb_args);
 
   The callback function shall have the following signature:
 

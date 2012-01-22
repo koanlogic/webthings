@@ -2,9 +2,10 @@
 #include <event2/util.h>
 #include "evcoap_pdu.h"
 
-static void encode_header(ec_pdu_t *pdu, ev_uint8_t code, ev_uint8_t t);
-static void encode_req_header(ec_pdu_t *pdu);
-static void encode_res_header(ec_pdu_t *pdu);
+static int encode_response(ec_pdu_t *pdu, ev_uint8_t t, ec_rc_t rc,
+        ev_uint16_t mid);
+static void encode_header(ec_pdu_t *pdu, ev_uint8_t code, ev_uint8_t t,
+        ev_uint16_t mid);
 
 int ec_pdu_set_payload(ec_pdu_t *pdu, ev_uint8_t *payload, size_t sz)
 {
@@ -27,6 +28,33 @@ int ec_pdu_set_flow(ec_pdu_t *pdu, ec_flow_t *flow)
     return 0;
 }
 
+int ec_pdu_set_peer(ec_pdu_t *pdu, const struct sockaddr_storage *peer,
+        size_t peer_len)
+{
+    dbg_return_if (pdu == NULL, -1);
+    dbg_return_if (peer == NULL, -1);
+    dbg_return_if (peer_len == 0, -1);
+
+    memcpy(&pdu->peer, peer, peer_len);
+
+    /* Force this for cases where we get the struct sockaddr address,
+     * e.g. on client via getaddrinfo(). */
+    pdu->peer.ss_len = peer_len;
+
+    return 0;
+}
+
+int ec_pdu_set_sibling(ec_pdu_t *pdu, ec_pdu_t *sibling)
+{
+    dbg_return_if (pdu == NULL, -1);
+    dbg_return_if (sibling == NULL, -1);
+    dbg_return_if (pdu->sibling != NULL, -1);
+
+    pdu->sibling = sibling;
+
+    return 0;
+}
+
 int ec_pdu_init_options(ec_pdu_t *pdu)
 {
     dbg_return_if (pdu == NULL, -1);
@@ -37,42 +65,128 @@ int ec_pdu_init_options(ec_pdu_t *pdu)
     return 0;
 }
 
-int ec_pdu_send(ec_pdu_t *pdu, struct sockaddr_storage *d, ev_socklen_t d_sz)
+int ec_pdu_send(ec_pdu_t *pdu)
 {
     dbg_return_if (pdu == NULL, -1);
-    dbg_return_if (d == NULL, -1);
-    dbg_return_if (d_sz == 0, -1);
 
     ec_opts_t *opts = &pdu->opts;           /* shortcut */
     ec_conn_t *conn = &pdu->flow->conn;     /* ditto */
 
     return ec_net_send(pdu->hdr, opts->enc, opts->enc_sz, pdu->payload,
-            pdu->payload_sz, conn->socket, d, d_sz);
+            pdu->payload_sz, conn->socket, &pdu->peer);
 }
 
-int ec_pdu_encode(ec_pdu_t *pdu)
+int ec_pdu_encode_response_piggyback(ec_pdu_t *pdu)
 {
     dbg_return_if (pdu == NULL, -1);
 
+    /* Expect user has set a response code. */
     ec_flow_t *flow = pdu->flow;
+    dbg_return_if (!EC_IS_RESP_CODE(flow->resp_code), -1);
+
+    /* Mirror the same MID as in request PDU. */
+    ec_pdu_t *sibling = pdu->sibling;
+    dbg_return_if (sibling == NULL, -1);
+
+    /* E.g. T=ACK, Code=69, MID=0x7d37. */
+    return encode_response(pdu, EC_COAP_ACK, flow->resp_code, sibling->mid);
+}
+
+int ec_pdu_encode_response_ack(ec_pdu_t *pdu)
+{
+    dbg_return_if (pdu == NULL, -1);
+
+    /* Mirror the same MID as in request PDU. */
+    ec_pdu_t *sibling = pdu->sibling;
+    dbg_return_if (sibling == NULL, -1);
+
+    /* E.g. T=ACK, Code=0, MID=0x7d38. */
+    return encode_response(pdu, EC_COAP_ACK, EC_RC_UNSET, sibling->mid);
+}
+
+int ec_pdu_encode_response_rst(ec_pdu_t *pdu)
+{
+    dbg_return_if (pdu == NULL, -1);
+
+    /* Mirror the same MID as in request PDU. */
+    ec_pdu_t *sibling = pdu->sibling;
+    dbg_return_if (sibling == NULL, -1);
+
+    /* E.g. T=ACK, Code=0, MID=0x7d38. */
+    return encode_response(pdu, EC_COAP_RST, EC_RC_UNSET, sibling->mid);
+}
+
+int ec_pdu_encode_response_separate(ec_pdu_t *pdu)
+{
+    bool is_con;
+    ev_uint16_t mid;
+
+    dbg_return_if (pdu == NULL, -1);
+
     ec_hdr_t *h = &pdu->hdr_bits;
 
+    /* Create new MID */
     if (!h->mid)
-        evutil_secure_rng_get_bytes(&h->mid, sizeof h->mid);
+        evutil_secure_rng_get_bytes(&mid, sizeof mid);
+
+    /* Get requested messaging semantics. */
+    ec_flow_t *flow = pdu->flow;
+    dbg_return_if (ec_net_get_confirmable(&flow->conn, &is_con), -1);
+
+    /* E.g. T=CON|NON, Code=69, MID=0x7d38. */
+    return encode_response(pdu, is_con ? EC_COAP_CON : EC_COAP_NON, 
+            flow->resp_code, mid);
+}
+
+static int encode_response(ec_pdu_t *pdu, ev_uint8_t t, ec_rc_t rc,
+        ev_uint16_t mid)
+{
+    /* Dare the incredible: trust the caller :-) */
+
+    /* Add token. */
+    ec_flow_t *flow = pdu->flow;
+    ec_opts_t *opts = &pdu->opts;
+
+    /* TODO Check that no token has been set in options. */
+    if (flow->token_sz)
+        dbg_err_if (ec_opts_add_token(opts, flow->token, flow->token_sz));
 
     /* Encode options.  This is needed before header encoding because it sets
      * the 'oc' field. */
     dbg_err_if (ec_opts_encode(&pdu->opts));
 
     /* Encode header. */
-    if (flow->method != EC_METHOD_UNSET)
-        encode_req_header(pdu);
-    else if (flow->resp_code != EC_RC_UNSET)
-        encode_res_header(pdu);
-    else
-        dbg_err("WTF ?");
+    encode_header(pdu, rc, t, mid);
 
     return 0;
+err:
+    return -1;
+}
+
+int ec_pdu_encode_request(ec_pdu_t *pdu)
+{
+    bool is_con;
+    ev_uint16_t mid;
+
+    dbg_return_if (pdu == NULL, -1);
+
+    ec_hdr_t *h = &pdu->hdr_bits;
+
+    /* Create new MID. */
+    evutil_secure_rng_get_bytes(&mid, sizeof mid);
+
+    /* Encode options.
+     * Assume that the token has been already set by ec_client_go(). */
+    dbg_err_if (ec_opts_encode(&pdu->opts));
+
+    /* Get requested messaging semantics. */
+    ec_flow_t *flow = pdu->flow;
+    dbg_return_if (ec_net_get_confirmable(&flow->conn, &is_con), -1);
+
+    /* E.g. T=CON|NON, Code=1, MID=0x7d38. */
+    encode_header(pdu, flow->method, is_con ? EC_COAP_CON : EC_COAP_NON, mid);
+
+    return 0; 
 err:
     return -1;
 }
@@ -100,30 +214,14 @@ int ec_pdu_decode_header(ec_pdu_t *pdu, const ev_uint8_t *raw, size_t raw_sz)
     /* Make a copy of the raw bytes. */
     memcpy(&pdu->hdr, raw, EC_COAP_HDR_SIZE);
 
-    /* TODO some generic consistency check ? */
-
     return 0;
 err:
     return -1;
 }
 
-static void encode_req_header(ec_pdu_t *pdu)
+static void encode_header(ec_pdu_t *pdu, ev_uint8_t code, ev_uint8_t t,
+        ev_uint16_t mid)
 {
-    ev_uint8_t t = pdu->flow->conn.is_confirmable ? EC_COAP_CON : EC_COAP_NON;
-
-    encode_header(pdu, pdu->flow->method, t);
-}
-
-static void encode_res_header(ec_pdu_t *pdu)
-{
-    ev_uint8_t t = pdu->flow->conn.is_confirmable ? EC_COAP_CON : EC_COAP_NON;
-
-    encode_header(pdu, pdu->flow->resp_code, t);
-}
-
-static void encode_header(ec_pdu_t *pdu, ev_uint8_t code, ev_uint8_t t)
-{
-    ev_uint16_t mid = pdu->hdr_bits.mid;
     ev_uint8_t ver = EC_COAP_VERSION_1, oc = pdu->opts.noptions;
 
     pdu->hdr[0] = ((ver & 0x03) << 6) | ((t & 0x03) << 4) | (oc & 0x0f);
@@ -146,3 +244,39 @@ ec_pdu_t *ec_pdu_new_empty(void)
 err:
     return NULL;
 }
+
+void ec_pdu_free(ec_pdu_t *pdu)
+{
+    if (pdu)
+    {
+        ec_opts_clean(&pdu->opts);
+        u_free(pdu->payload);
+        u_free(pdu);
+    }
+}
+
+int ec_pdu_get_type(ec_pdu_t *pdu, ev_uint8_t *t)
+{
+    dbg_return_if (pdu == NULL, -1);
+    dbg_return_if (t == NULL, -1);
+
+    /* XXX Check that header has been decoded. */
+
+    *t = pdu->hdr_bits.t;
+
+    return 0;
+}
+
+int ec_pdu_get_mid(ec_pdu_t *pdu, ev_uint16_t *mid)
+{
+    dbg_return_if (pdu == NULL, -1);
+    dbg_return_if (mid == NULL, -1);
+
+    /* XXX Check that header has been decoded. */
+
+    *mid = pdu->hdr_bits.mid;
+
+    return 0;
+}
+
+

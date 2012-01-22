@@ -1,0 +1,105 @@
+%!TEX TS-program = xelatex
+%!TEX encoding = UTF-8 Unicode
+
+\documentclass[12pt]{article}
+\usepackage{geometry}
+\geometry{a4paper}
+\usepackage[parfill]{parskip}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage[english]{babel}
+\usepackage[colorlinks=true,linkcolor=blue]{hyperref}
+\usepackage[official]{eurosym}
+
+%\usepackage{fontspec,xltxtra,xunicode}
+%\defaultfontfeatures{Mapping=tex-text}
+%\setromanfont[Mapping=tex-text]{Hoefler Text}
+%\setsansfont[Scale=MatchLowercase,Mapping=tex-text]{Gill Sans}
+%\setmonofont[Scale=MatchLowercase]{Andale Mono}
+
+\newcommand{\swmod}[1]{\mbox{\texttt{#1}}}
+
+\title{KINK @ NLNET}
+\author{Pierpaolo Giacomin\footnote{Independent consultant.}, Mirko Rossini\footnote{CS Dept. University of Bologna.},\\Thomas Fossati and Steven Dorigotti\footnote{KoanLogic SRL.}}
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+\paragraph{Abstract}
+KINK is a a project aimed at producing open standards -- mainly within the IETF CoRE Working Group -- and their \mbox{opensource} implementation for bridging the ``big'' Internet with the Internet of Things.
+
+Current KINK partners are the Computer Science Department at University of Bologna, and KoanLogic SRL, an Italian company devoted to \mbox{opensource} and open standards implementation, with a number of public GPL and BSD licensed tools\footnote{See \href{http://koanlogic.com}{http://koanlogic.com} and \href{https://github.com/koanlogic}{https://github.com/koanlogic} for details.}.
+
+We are seeking for financial aid to help us reaching the first KINK deadline: the implementation of a proxy module to enable transparent communication between the unconstrained and constrained sides of future Internet.
+
+\section{Related Work}
+We started looking at a number of already available opensource options when initially considering the assembly of the HTTP-CoAP proxy.  In the following, each of the these components is briefly illustrated, while the main reasons for deciding against their use is discussed.
+
+After careful analysis, it was decided to build around the libevent core, as its non-blocking, event-driven architectural model was deemed ideal for the proxy architecture.  Furthermore, it provides an HTTP interface through the evhttp module, and has a non-blocking DNS resolver built in, which could be easily extended to supply DNS-SD capabilities -- these having the greatest importance in mapping the embedded resource discovery functions of CoAP to the unconstrained Internet.
+
+\input{related.tex}
+
+\section{Work Items}
+The bulk of current activity is centered around mapping HTTP and CoAP protocols, i.e. the two main application protocols available on each communication segment.
+
+The overall goal is to provide native communication between humans and things through seamless integration of physical objects into the Web platform.
+
+The work items depicted in the following subsections are currently under active development, or are planned to start soon.
+
+\subsection{CoAP Implementation}
+The \href{https://github.com/koanlogic/webthings/tree/master/bits/evcoap}{\swmod{evcoap}} module fully implements the CoAP protocol as per \href{http://tools.ietf.org/html/draft-ietf-core-coap}{draft-ietf-core-coap-08} with server, client and proxy roles.
+
+The deadline for this module is stringent as our participation at \href{http://www.etsi.org/plugtests/coap/coap.htm}{ETSI CoAP plugtests} is scheduled by the end of March 2012.
+
+The module provides a C library based on the reactor pattern which builds on Niels Provos \href{http://libevent.org}{libevent} and KoanLogic \href{http://koanlogic.com/libu}{libu}, and adds components (e.g. an embeddable resource file system) to ease the creation of sophisticated CoAP agents.
+
+\subsection{HTTP-CoAP Mapping I-D}
+The I-D \href{http://tools.ietf.org/html/draft-castellani-core-http-mapping}{draft-castellani-core-http-mapping} is a joint effort of \mbox{KoanLogic}, \mbox{Ericsson}, \mbox{InterDigital} and the Engineering Department at University of Padua (under the IETF CoRE Working Group umbrella), to provide the architectural and implementation guidance for a KINK-like component.
+
+As such it represents a fundamental deliverable of the whole KINK project, and at the same time it receives vital feedback from the implementation experience gained while developing the KINK software modules.
+
+\subsection{Agnostic Caching}
+\input{kache.tex}
+
+\subsection{Test Bed}
+\input{testbed.tex}
+
+\subsection{CoAP Proxy Extensions for Sleepy Sensors I-D}
+\input{options.tex}
+
+\subsection{HTTP-CoAP Proxy}
+The only activity that still has to be started, is the implementation of the proxy module, which constitutes the final deliverable of the KINK project. 
+
+The related high level architectural design has been concluded as part of Mirko Rossini's MS thesis work.  The evcoap, kache, libu and libevent's evhttp modules provides fundamental building blocks that will be re-used to match KINK's application logics.
+
+\section{Expected Effort}
+The effort needed to complete the KINK tasks is summarized in the following table -- unit of measure is man/month referred to a senior resource.
+
+\begin{center}
+\begin{tabular}{|l|c|c|c|c|c|}
+	\hline 
+	  & Design & Development & Module Test & Integration Test & Total \\
+	\hline 
+	evcoap & - & 1.5 & 0.5 & - & 2 \\
+	\hline
+	kache & - & 1 & 0.5 & - & 1.5 \\
+	\hline
+	kink & 1 & 7.5 & - & 4 & 12.5 \\
+	\hline
+	spec (IETF) & 1 & 1 & - & - & 2 \\
+	\hline
+	\multicolumn{5}{|c|}{} & 18 \\
+	\hline
+\end{tabular}
+\end{center}
+
+The expected cost is $18 \times 5000$\euro $= 90000$\euro. 
+
+The KINK project is currently financed in toto by KoanLogic, which plans to further fund half of the expected remaining effort (i.e 45000\euro).
+
+As to the rest 45000\euro, 15000\euro~are expected to come through the EU financed BOOSTER project (if accepted).
+
+We are asking NLNET a 30000\euro~funding to complete the budget.
+
+\end{document}

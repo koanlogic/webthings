@@ -10,7 +10,7 @@
 static int ec_client_check_transition(ec_cli_state_t cur, ec_cli_state_t next);
 static bool ec_client_state_is_final(ec_cli_state_t state);
 static int ec_client_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
-        struct sockaddr_storage *peer, ev_socklen_t peer_len, void *arg);
+        struct sockaddr_storage *peer, void *arg);
 static void ec_cli_app_timeout(evutil_socket_t u0, short u1, void *c);
 static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a);
 static int ec_client_check_req_token(ec_client_t *cli);
@@ -130,8 +130,9 @@ void ec_client_free(ec_client_t *cli)
 
 int ec_client_set_msg_model(ec_client_t *cli, bool is_con)
 {
-    cli->flow.conn.is_confirmable = is_con;
-    return 0;
+    dbg_return_if (cli == NULL, -1);
+
+    return ec_net_set_confirmable(&cli->flow.conn, is_con);
 }
 
 ec_client_t *ec_client_new(struct ec_s *coap, ec_method_t m, const char *uri, 
@@ -277,7 +278,7 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
     ec_client_set_state(cli, EC_CLI_STATE_DNS_OK);
 
     /* Encode options and header. */
-    EC_CLI_ASSERT(ec_pdu_encode(req), EC_CLI_STATE_INTERNAL_ERR);
+    EC_CLI_ASSERT(ec_pdu_encode_request(req), EC_CLI_STATE_INTERNAL_ERR);
 
     for (conn->socket = -1, ai = res; ai != NULL; ai = ai->ai_next)
     {
@@ -286,9 +287,11 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
         if (conn->socket == -1)
            continue;
 
+        dbg_err_if (ec_pdu_set_peer(req,
+                    (struct sockaddr_storage *) ai->ai_addr, ai->ai_addrlen));
+
         /* Send the request PDU. */
-        if (ec_pdu_send(req, (struct sockaddr_storage *) ai->ai_addr,
-                    ai->ai_addrlen))
+        if (ec_pdu_send(req))
         {
             /* Mark this socket as failed and try again. */
             evutil_closesocket(conn->socket), conn->socket = -1;
@@ -518,7 +521,7 @@ ec_cli_state_t ec_client_get_state(ec_client_t *cli)
 }
 
 static int ec_client_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
-        struct sockaddr_storage *peer, ev_socklen_t peer_len, void *arg)
+        struct sockaddr_storage *peer, void *arg)
 {
     ec_opt_t *t;
     ec_client_t *cli;
@@ -546,7 +549,7 @@ static int ec_client_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
      *
      * TODO Keep an eye here, if we can factor out code in common with 
      * TODO ec_server_handle_pdu(). */
-    switch (ec_dups_handle_incoming_srvmsg(dups, h->mid, sd, peer, peer_len))
+    switch (ec_dups_handle_incoming_srvmsg(dups, h->mid, sd, peer))
     {
         case 0:
             /* Not a duplicate, proceed with normal processing. */

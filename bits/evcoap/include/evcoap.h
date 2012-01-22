@@ -62,8 +62,13 @@ int ec_request_add_if_none_match(ec_client_t *cli);
 int ec_request_add_observe(ec_client_t *cli, ev_uint16_t o);
 int ec_request_add_max_ofe(ec_client_t *cli, ev_uint32_t mo);
 
+int ec_request_get_acceptable_media_types(ec_server_t *srv, ec_mt_t *mta,
+        size_t *mta_sz);
+
 int ec_response_set_payload(ec_server_t *srv, ev_uint8_t *payload, size_t sz);
 int ec_response_set_code(ec_server_t *srv, ec_rc_t rc);
+int ec_response_add_etag(ec_server_t *srv, const ev_uint8_t *et, size_t et_len);
+int ec_response_add_content_type(ec_server_t *srv, ev_uint16_t ct);
 
 /* Observe API */
 int ec_update_representation(const char *uri, const ev_uint8_t *rep,
