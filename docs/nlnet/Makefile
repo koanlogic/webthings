@@ -1,6 +1,6 @@
 MAIN = nlnet-prop.tex
 DOC = $(MAIN:.tex=.pdf)
-DEPS = kache.tex nlnet-prop.tex options.tex related.tex testbed.tex
+DEPS = kache.tex nlnet-prop.tex options.tex related.tex sys.tex
 
 $(DOC): $(DEPS)
 	# run twice for TOC generation

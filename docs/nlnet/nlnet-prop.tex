@@ -30,7 +30,10 @@
 
 \paragraph{Abstract}
 \emph{KINK is a project which aims at bridging the ``big'' Internet with the Internet of Things by producing open standards -- mainly within the IETF CoRE Working Group -- and corresponding \mbox{opensource} implementations.}\\
-\par
+
+\section{Introduction}
+\label{sec:intro}
+
 Figure \ref{fig:arch} illustrates the system's high-level architecture. KINK is a logical module which may reside on a standalone device or can be integrated into Customer Premise Equipment. Its function is to allow communication between HTTP, the most common Application Layer protocol of the Internet, and CoAP, a similar RESTful transfer protocol which has been designed by the IETF to be applied to particularly constrained networks such as those connecting Wireless Sensor Networks. Such generic design can find an infinite number of applications, ranging from domotics to medical, automotive and agricultural industries, only to mention a few. The diagram shows some more specific examples, such as an Energy provider gathering information from Smart Meters in a home network via the Internet $[2]$, or intelligent nodes communicating independently in a Machine 2 Machine configuration $[4]$.
 
 \begin{center}
@@ -55,7 +58,7 @@ After careful analysis, the choice was made to build upon the \href{http://libev
 \section{Work Items}
 The bulk of current activity is centered around mapping HTTP and CoAP, the two main application protocols available on each communication segment.
 
-The overall goal is to provide native communication between humans and things through seamless integration of physical objects into the Web platform.
+As described in Section \ref{sec:intro}, the overall goal is to provide native communication between humans and things through seamless integration of physical objects into the Web platform.
 
 The work items depicted in the following subsections are currently under active development, or are planned to start soon.
 
@@ -74,9 +77,6 @@ As such it represents a fundamental deliverable of the project as a whole, and a
 \subsection{Agnostic Caching}
 \input{kache.tex}
 
-\subsection{Test Bed}
-\input{testbed.tex}
-
 \subsection{CoAP Proxy Extensions for Sleepy Sensors I-D}
 \input{options.tex}
 
@@ -85,6 +85,9 @@ The only activity that has not yet begun, is the implementation of the proxy mod
 
 The related high level architectural design has been concluded as part of Mirko Rossini's MS thesis work.  The evcoap, kache, libu and libevent's evhttp modules provide fundamental building blocks that will be reused to match KINK's application logic.
 
+\subsection{System}
+\input{sys.tex}
+
 \section{Expected Effort}
 The effort needed to complete the KINK tasks is summarized in the following table -- the unit of measure is man/month referred to a senior resource.
 
@@ -92,23 +95,26 @@ The effort needed to complete the KINK tasks is summarized in the following tabl
 \begin{tabular}{|l|c|c|c|c|c|}
 	\hline 
 	  & Design & Development & Module Test & Integration Test & Total \\
+	\hline
+	spec (IETF) & 1     & 1     & -     & -     & 2 \\
 	\hline 
-	evcoap & - & 1.5 & 0.5 & - & 2 \\
+	evcoap      & -     & 1.5   & 0.5   & -     & 2 \\
 	\hline
-	kache & - & 1 & 0.5 & - & 1.5 \\
+	kache       & -     & 1     & 0.5   & -     & 1.5 \\
 	\hline
-	kink & 1 & 7.5 & - & 4 & 12.5 \\
+	kink        & 1     & 7.5   & -     & 4     & 12.5 \\
 	\hline
-	spec (IETF) & 1 & 1 & - & - & 2 \\
+	sys         & -     & ?     & ?     & ?     & ? \footnotemark \\
 	\hline
 	\multicolumn{5}{|c|}{} & 18 \\
 	\hline
 \end{tabular}
 \end{center}
+\footnotetext{sys requires ongoing effort which is difficult to estimate due to both hardware and OS-level constraints - its cost will be absorbed by KoanLogic.}
 
-The total expected cost is $18 \times 5000$\euro $= 90000$\euro. 
+The total remaining expected cost is $18 \times 5000$\euro $= 90000$\euro (excluding the sys component).
 
-The KINK project is currently financed in toto by KoanLogic, which plans to further fund half of the expected remaining effort (i.e 45000\euro).
+To date, the KINK project has been financed in toto by KoanLogic, which plans to further fund half of the remaining effort (i.e 45000\euro).
 
 If the proposal is accepted, 15000\euro~are expected to come through the EU-financed BOOSTER project.
 
