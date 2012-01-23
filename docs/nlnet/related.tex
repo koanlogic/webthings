@@ -10,8 +10,9 @@ Varnish is an HTTP accelerator with 5+ years on the trenches of web sites such a
 Varnish could be a good starting point for the HTTP/CoAP proxy, as it provides a tested HTTP protocol implementation and an optimized caching system, however, like Apache, it assumes modern, performant hardware, which could be one or more orders of magnitude bigger than the KINK typical target platform.
 
 \subsection{Squid 3}
-
-(TODO PIERPAOLO, visto che immagino non abbiate niente di pronto)
+Squid 3 is a proxy server and web cache daemon.  It is feature rich and well tested under incredibly heavy conditions -- providing e.g. the frontend infrastructure for the whole Wikipedia public infrastructure.
+Unlike Varnish, Squid has no plugin interface, and needs some quite intrusive tweaks to handle the CoAP bits.  Namely, one has to heavily patch the \texttt{FwdState} and \texttt{HttpStateData} classes for handling the protocol flow and needed translations; and further, the cache system has to be extended to implement the CoAP caching and freshness maintenance policies.
+The same overall ``defect'' as Apache and Varnish is found in Squid: the general purpose nature of the software architecture leads to inflation in the memory footprint, making it unfit for the embedded nature of the KINK target.
 
 \subsection{LibCoAP}
 The \href{http://sourceforge.net/projects/libcoap}{libcoap} project is a CoAP implementation in C written by Olaf Bergmann at TZI.
