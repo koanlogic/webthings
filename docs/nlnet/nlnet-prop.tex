@@ -5,7 +5,7 @@
 \usepackage{geometry}
 \geometry{a4paper}
 \usepackage[parfill]{parskip}
-\usepackage{graphicx}
+\usepackage[pdftex]{graphicx}
 \usepackage{amssymb}
 \usepackage[english]{babel}
 \usepackage[colorlinks=true,linkcolor=blue]{hyperref}
@@ -16,6 +16,7 @@
 %\setromanfont[Mapping=tex-text]{Hoefler Text}
 %\setsansfont[Scale=MatchLowercase,Mapping=tex-text]{Gill Sans}
 %\setmonofont[Scale=MatchLowercase]{Andale Mono}
+\hyphenpenalty=1000
 
 \newcommand{\swmod}[1]{\mbox{\texttt{#1}}}
 
@@ -25,9 +26,20 @@
 \begin{document}
 \maketitle
 \tableofcontents
+\newpage
 
 \paragraph{Abstract}
-KINK is a project aimed at producing open standards -- mainly within the IETF CoRE Working Group -- and their \mbox{opensource} implementation for bridging the ``big'' Internet with the Internet of Things.
+\emph{KINK is a project which aims at bridging the ``big'' Internet with the Internet of Things by producing open standards -- mainly within the IETF CoRE Working Group -- and corresponding \mbox{opensource} implementations.}\\
+\par
+Figure \ref{fig:arch} illustrates the system's high-level architecture. KINK is a logical module which may reside on a standalone device or can be integrated into Customer Premise Equipment. Its function is to allow communication between HTTP, the most common Application Layer protocol of the Internet, and CoAP, a similar RESTful transfer protocol which has been designed by the IETF to be applied to particularly constrained networks such as those connecting Wireless Sensor Networks. Such generic design can find an infinite number of applications, ranging from domotics to medical, automotive and agricultural industries, only to mention a few. The diagram shows some more specific examples, such as an Energy provider gathering information from Smart Meters in a home network via the Internet $[2]$, or intelligent nodes communicating independently in a Machine 2 Machine configuration $[4]$.
+
+\begin{center}
+    \begin{figure}
+        \includegraphics[width=14cm]{../share/images/kink-homenet}
+            \caption{KINK architecture}
+            \label{fig:arch}
+    \end{figure}
+\end{center}
 
 The current KINK partners are: the Computer Science Department at the University of Bologna and KoanLogic SRL, an Italian company devoted to \mbox{opensource} and open standards implementation, and owner of a number of public GPL and BSD licensed tools\footnote{See \href{http://koanlogic.com}{http://koanlogic.com} and \href{https://github.com/koanlogic}{https://github.com/koanlogic} for details.}.
 
@@ -71,7 +83,7 @@ As such it represents a fundamental deliverable of the project as a whole, and a
 \subsection{HTTP-CoAP Proxy}
 The only activity that has not yet begun, is the implementation of the proxy module, which constitutes the final deliverable of the KINK project. 
 
-The related high level architectural design has been concluded as part of Mirko Rossini's MS thesis work.  The evcoap, kache, libu and libevent's evhttp modules provides fundamental building blocks that will be reused to match KINK's application logic.
+The related high level architectural design has been concluded as part of Mirko Rossini's MS thesis work.  The evcoap, kache, libu and libevent's evhttp modules provide fundamental building blocks that will be reused to match KINK's application logic.
 
 \section{Expected Effort}
 The effort needed to complete the KINK tasks is summarized in the following table -- the unit of measure is man/month referred to a senior resource.
