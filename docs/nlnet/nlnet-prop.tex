@@ -26,7 +26,6 @@
 \begin{document}
 \maketitle
 \tableofcontents
-\newpage
 
 \paragraph{Abstract}
 \emph{KINK is a project which aims at bridging the ``big'' Internet with the Internet of Things by producing open standards -- mainly within the IETF CoRE Working Group -- and corresponding \mbox{opensource} implementations.}\\
@@ -133,7 +132,7 @@ We are asking NLNET for a 30000\euro~funding to complete the budget.
 
 \section{Follow-ups}
 
-The completion of the previously mentioned development tasks constitutes the core logic of the KINK project, and the software framework will already be usable and customisable by third parties for their deployments. Some envisioned requirements for the next-step hardware product based on KINK are:
+The completion of the previously mentioned development tasks constitutes the core logic of the KINK project, and the software framework will already be usable and customisable by third parties for their deployments. Some envisioned requirements for the next-step hardware product (phase 2) based on KINK are:
 
 \begin{itemize}
 \item to specialise the sys OpenWRT-based distribution for hardware with dedicated 802.15.4 support;
@@ -143,5 +142,14 @@ The completion of the previously mentioned development tasks constitutes the cor
 \end{itemize}
 
 All of the above aiming at a user-friendly customisable open-black-box system.
+
+\section{Risks}
+
+The major risk in this project is the strong dependency on some $3^{rd}$ party components such as:
+\begin{itemize}
+\item TinyOS and Contiki for motes;
+\item Linux kernel modules (e.g. 6lowpan, specific drivers with 802.15.4 support) -- applies to phase 2 only.
+\end{itemize}
+However, being all of the above open source, difficulties can be overcome by investing in specialised human resources. 
 
 \end{document}
