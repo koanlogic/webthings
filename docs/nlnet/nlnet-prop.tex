@@ -28,7 +28,7 @@
 \tableofcontents
 
 \paragraph{Abstract}
-\emph{KINK is a project which aims at bridging the ``big'' Internet with the Internet of Things by producing open standards -- mainly within the IETF CoRE Working Group -- and corresponding \mbox{opensource} implementations.}\\
+\emph{KINK is a project which aims at bridging the ``big'' Internet with the Internet of Things by producing open standards -- mainly within the IETF CoRE Working Group -- and corresponding \mbox{open source} implementations.}\\
 
 \section{Introduction}
 \label{sec:intro}
@@ -43,12 +43,14 @@ Figure \ref{fig:arch} illustrates the system's high-level architecture. KINK is 
     \end{figure}
 \end{center}
 
-The current KINK partners are: the Computer Science Department at the University of Bologna and KoanLogic SRL, an Italian company devoted to \mbox{opensource} and open standards implementation, and owner of a number of public GPL and BSD licensed tools\footnote{See \href{http://koanlogic.com}{http://koanlogic.com} and \href{https://github.com/koanlogic}{https://github.com/koanlogic} for details.}.
+Compared to other available solutions which are only proprietary (as later described in Section \ref{sec:related-others}), the advantages of applying open standards and open source to such framework should be self-evident: they promote and allow for unprecedented levels of interoperability with other systems, and extensibility of pre-existing ones. These are both key factors when such wide-usage systems are expected to constantly evolve in the direction of increasingly smart and useful solutions.
+
+The current KINK partners are: the Computer Science Department at the University of Bologna and KoanLogic SRL, an Italian company devoted to \mbox{open source} and open standards implementation, and owner of a number of public GPL and BSD licensed tools\footnote{See \href{http://koanlogic.com}{http://koanlogic.com} and \href{https://github.com/koanlogic}{https://github.com/koanlogic} for details.}.
 
 We are seeking financial aid to help us reach KINK's first deadline: the implementation of a proxy module to enable transparent communication between the unconstrained and constrained sides of the future Internet.
 
 \section{Related Work}
-We started by looking into a number of readily available opensource options when initially considering the assembly of the HTTP-CoAP proxy.  In this section, each of these components is briefly illustrated, and the main reasons for deciding against their adoption is discussed.
+We started by looking into a number of readily available open source options when initially considering the assembly of the HTTP-CoAP proxy.  In this section, each of these components is briefly illustrated, and the main reasons for deciding against their adoption is discussed.
 
 After careful analysis, the choice was made to build upon the \href{http://libevent.org}{libevent} core, since its non-blocking, event-driven architectural model was deemed ideal for the proxy architecture.  Furthermore, it provides an HTTP interface via the evhttp module, and has a built-in non-blocking DNS resolver, which could be easily extended to supply DNS-SD capabilities -- these having the greatest importance in mapping the embedded resource discovery functions of CoAP to the unconstrained \mbox{Internet}.
 
