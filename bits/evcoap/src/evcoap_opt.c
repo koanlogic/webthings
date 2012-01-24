@@ -5,9 +5,9 @@
 const char *evutil_format_sockaddr_port(const struct sockaddr *sa, char *out,
         size_t outlen);
 
-static u_uri_t *compose_proxy_uri(ec_opts_t *opts);
-static u_uri_t *compose_uri(ec_opts_t *opts, struct sockaddr_storage *us, 
-        bool nosec);
+static int compose_proxy_uri(ec_opts_t *opts, char uri[U_URI_STRMAX]);
+static int compose_uri(ec_opts_t *opts, struct sockaddr_storage *us, 
+        bool nosec, char uri[U_URI_STRMAX]);
 
 static struct opt_rec {
     size_t n;               /* Option number. */
@@ -120,12 +120,19 @@ const char *ec_opt_sym2str(ec_opt_sym_t sym)
     return g_opts[sym].s;
 }
 
-void ec_opts_clean(ec_opts_t *opts)
+void ec_opts_clear(ec_opts_t *opts)
 {
     if (opts)
     {
-        /* TODO */ 
-        u_dbg("TODO free options");
+        ec_opt_t *o;
+
+        while ((o = TAILQ_FIRST(&opts->bundle)))
+        {
+            TAILQ_REMOVE(&opts->bundle, o, next);
+            ec_opt_free(o);
+        }
+
+        ec_opts_init(opts);
     }
 }
 
@@ -134,7 +141,7 @@ int ec_opts_push(ec_opts_t *opts, ec_opt_t *o)
     ec_opt_t *tmp;
     
     dbg_return_if (opts->noptions == EC_PROTO_MAX_OPTIONS, -1);
-    
+
     /* 
      * Ordered (lo[0]..hi[n]) insertion of new elements.
      */
@@ -197,12 +204,12 @@ int ec_opts_add_raw(ec_opts_t *opts, ec_opt_sym_t sym, const ev_uint8_t *v,
             "not enough slots available to encode option");
     
     /* Handle option fragmentation. */
-    for (nseg = 0; nseg < full_seg_no; nseg++)
+    for (nseg = 0; nseg < full_seg_no; )
     {
         dbg_err_if (ec_opts_add(opts, sym, v + offset, EC_COAP_OPT_LEN_MAX));
-    
+
         /* Shift offset to point next fragment. */
-        offset = nseg * EC_COAP_OPT_LEN_MAX;
+        offset = ++nseg * EC_COAP_OPT_LEN_MAX;
     }
     
     /* Take care of the "remainder" slot (or an empty option.)
@@ -290,6 +297,23 @@ err:
     return -1;
 }
 
+int ec_opts_count_sym(ec_opts_t *opts, ec_opt_sym_t sym, size_t *n)
+{
+    ec_opt_t *o;
+
+    dbg_return_if (opts == NULL, -1);
+    dbg_return_if (n == NULL, -1);
+
+    TAILQ_FOREACH(o, &opts->bundle, next)
+    {
+        if (o->sym == sym)
+            *n += 1;
+    }
+     
+    return 0;
+}
+
+/* 'n' has the same semantics as a C array index (i.e. starts from 0). */
 ec_opt_t *ec_opts_get_nth(ec_opts_t *opts, ec_opt_sym_t sym, size_t n)
 {
     ec_opt_t *o;
@@ -338,6 +362,12 @@ const char *ec_opts_get_uri_host(ec_opts_t *opts)
     return ec_opts_get_string(opts, EC_OPT_URI_HOST);
 }
 
+const char *ec_opts_get_proxy_uri(ec_opts_t *opts, char url[U_URI_STRMAX])
+{
+    dbg_return_if (compose_proxy_uri(opts, url), NULL);
+    return url;
+}
+
 int ec_opts_get_uri_port(ec_opts_t *opts, ev_uint16_t *port)
 {
     ev_uint64_t tmp;
@@ -345,10 +375,13 @@ int ec_opts_get_uri_port(ec_opts_t *opts, ev_uint16_t *port)
     if (ec_opts_get_uint(opts, EC_OPT_URI_PORT, &tmp))
         return -1;
 
-    /* TODO Check overflow */
+    dbg_err_ifm (tmp > EV_UINT16_MAX, "Uri-Port encoding overflow");
+
     *port = (ev_uint16_t) tmp;
 
     return 0;
+err:
+    return -1;
 }
 
 int ec_opt_decode_uint(const ev_uint8_t *v, size_t l, ev_uint64_t *ui)
@@ -402,7 +435,12 @@ int ec_opts_add_proxy_uri(ec_opts_t *opts, const char *pu)
 {
     dbg_return_if (opts == NULL, -1);
     dbg_return_if (pu == NULL, -1);
-    dbg_return_if (!strlen(pu) || strlen(pu) > 270, -1); /* 1-270 B */
+
+    /* "In case the absolute-URI doesn't fit within a single option,
+     *  the Proxy-Uri Option MAY be included multiple times in a request 
+     *  such that the concatenation of the values results in the single 
+     *  absolute-URI".  Remove the 270 limitation on supplied 'pu'. */
+    dbg_return_if (!strlen(pu), -1);
 
     return ec_opts_add_string(opts, EC_OPT_PROXY_URI, pu);
 }
@@ -422,7 +460,7 @@ int ec_opts_add_etag(ec_opts_t *opts, const ev_uint8_t *et, size_t et_len)
 /**
  *  \brief  TODO
  */
-int ec_opts_add_uri_host(ec_opts_t *opts, const char  *uh)
+int ec_opts_add_uri_host(ec_opts_t *opts, const char *uh)
 {
     dbg_return_if (opts == NULL, -1);
     dbg_return_if (uh == NULL, -1);
@@ -560,7 +598,7 @@ int ec_opts_add_max_ofe(ec_opts_t *opts, ev_uint32_t mo)
 
 int ec_opts_encode(ec_opts_t *opts)
 {
-    ec_opt_t *opt;
+    ec_opt_t *o;
     size_t cur, last = 0, delta, left, elen;
     ev_uint8_t *p;
 
@@ -570,40 +608,40 @@ int ec_opts_encode(ec_opts_t *opts)
     left = opts->enc_sz = sizeof opts->enc;
 
     /* Assume options are already ordered from lowest to highest. */
-    TAILQ_FOREACH(opt, &opts->bundle, next)
+    TAILQ_FOREACH(o, &opts->bundle, next)
     {
         /* Pop next option and process it. */
-        dbg_err_if ((cur = ec_opt_sym2num(opt->sym)) == EC_OPT_NONE);
+        dbg_err_if ((cur = ec_opt_sym2num(o->sym)) == EC_OPT_NONE);
 
         /* Compute how much space we're going to consume, so that we don't
          * have to check at each encode step. */
-        elen = ((opt->l > 14) ? 2 : 1) + opt->l;
+        elen = ((o->l > 14) ? 2 : 1) + o->l;
 
         dbg_err_ifm (elen > left,
                 "Not enough space (%zu vs %zu) to encode %s",
-                elen, left, ec_opt_sym2str(opt->sym));
+                elen, left, ec_opt_sym2str(o->sym));
 
         /* Delta encode the option number. */
-        dbg_err_if ((delta = cur - last) > 14);
+        dbg_err_ifm ((delta = cur - last) > 14, "TODO fence-post");
 #ifdef TODO
         /* Insert the needed fenceposts. */
         ++opts->noptions;
         dbg_err_if (!(p = add_fencepost(p, &left, cur, delta)));
 #endif
         /* Encode length. */
-        if (opt->l > 14)
+        if (o->l > 14)
         {
             *p++ = (delta << 4) | 0x0f;
-            *p++ = opt->l - 15;
+            *p++ = o->l - 15;
         }
         else
-            *p++ = (delta << 4) | (opt->l & 0x0f);
+            *p++ = (delta << 4) | (o->l & 0x0f);
 
         /* Put value. */
-        if (opt->v)
+        if (o->v)
         {
-            memcpy(p, opt->v, opt->l);
-            p += opt->l;
+            memcpy(p, o->v, o->l);
+            p += o->l;
         }
 
         /* Decrement available bytes. */
@@ -623,10 +661,9 @@ err:
 int ec_opts_decode(ec_opts_t *opts, const ev_uint8_t *pdu, size_t pdu_sz, 
         ev_uint8_t oc, size_t *olen)
 {
-    ev_uint8_t opt_len, skip_this;
-    size_t opt_num = 0;
+    unsigned char skip_this;
+    size_t opt_len, opt_num = 0;
     unsigned int opt_count;
-    ec_opt_t *opt = NULL;
     const ev_uint8_t *opt_p;
 
     dbg_return_if (pdu == NULL, -1);
@@ -688,6 +725,7 @@ int ec_opts_decode(ec_opts_t *opts, const ev_uint8_t *pdu, size_t pdu_sz,
                 }
         }
 
+
         /* Read length (base or extended.) */
         if ((opt_len = (*opt_p & 0x0f)) == 0x0f)
             opt_len = *(opt_p + 1) + 15;
@@ -719,11 +757,57 @@ err:
 u_uri_t *ec_opts_compose_url(ec_opts_t *opts, struct sockaddr_storage *us,
         bool nosec)
 {
+    u_uri_t *u = NULL;
+    char url[U_URI_STRMAX];
+
     dbg_return_if (opts == NULL, NULL);
 
-    u_uri_t *url = compose_proxy_uri(opts);
+    dbg_err_if (compose_proxy_uri(opts, url) 
+            && compose_uri(opts, us, nosec, url));
 
-    return url ? url : compose_uri(opts, us, nosec);
+    dbg_err_if (u_uri_crumble(url, 0, &u));
+
+    return u;
+err:
+    return NULL;
+}
+
+/* It MUST NOT occur more than once. */
+int ec_opts_get_content_type(ec_opts_t *opts, ev_uint16_t *ct)
+{
+    ev_uint64_t tmp;
+
+    dbg_return_if (opts == NULL, -1);
+    dbg_return_if (ct == NULL, -1);
+
+    if (ec_opts_get_uint(opts, EC_OPT_CONTENT_TYPE, &tmp))
+        return -1;
+
+    dbg_err_ifm (tmp > EV_UINT16_MAX, "Content-Type encoding overflow");
+
+    *ct = (ev_uint16_t) tmp;
+
+    return 0;
+err:
+    return -1;
+}
+
+/* It MUST NOT occur more than once in a response, and MAY occur one or more 
+ * times in a request. 
+ * TODO rephrase this routine to resemble ec_opts_get_accept_all(). */
+ev_uint8_t *ec_opts_get_etag_nth(ec_opts_t *opts, size_t *etag_sz, size_t n)
+{
+    ec_opt_t *o;
+
+    dbg_return_if (opts == NULL, NULL);
+    dbg_return_if (etag_sz == NULL, NULL);
+
+    if ((o = ec_opts_get_nth(opts, EC_OPT_ETAG, n)) == NULL)
+        return NULL;
+
+    *etag_sz = o->l;
+
+    return o->v;
 }
 
 int ec_opts_get_accept_all(ec_opts_t *opts, ec_mt_t *mta, size_t *mta_sz)
@@ -754,13 +838,27 @@ int ec_opts_get_accept_all(ec_opts_t *opts, ec_mt_t *mta, size_t *mta_sz)
     return 0;
 }
 
-static u_uri_t *compose_uri(ec_opts_t *opts, struct sockaddr_storage *us,
-        bool nosec)
+int ec_opts_init(ec_opts_t *opts)
 {
-    ec_opt_t *o;
+    dbg_return_if (opts == NULL, -1);
+
+    memset(opts, 0, sizeof *opts);
+    TAILQ_INIT(&opts->bundle);
+
+    return 0;
+}
+
+static int compose_uri(ec_opts_t *opts, struct sockaddr_storage *us, 
+        bool nosec, char uri[U_URI_STRMAX])
+{
     u_uri_t *u = NULL;
+    ec_opt_t *o;
     char host[U_URI_STRMAX], port[U_URI_STRMAX], path[U_URI_STRMAX],
          query[U_URI_STRMAX], authority[U_URI_STRMAX];
+
+    dbg_return_if (opts == NULL, -1);
+    dbg_return_if (uri == NULL, -1);
+    dbg_return_if (us == NULL, -1);
    
     /* Initialize tokens to empty. */
     host[0] = port[0] = path[0] = query[0] = authority[0] = '\0';
@@ -868,20 +966,23 @@ static u_uri_t *compose_uri(ec_opts_t *opts, struct sockaddr_storage *us,
     if (query[0] != '\0')
         (void) u_uri_set_query(u, query);
 
-    return u;
+    u_uri_free(u);
+
+    return 0;
 err:
     if (u)
         u_uri_free(u);
-    return NULL;
+    return -1;
 }
 
-static u_uri_t *compose_proxy_uri(ec_opts_t *opts)
+static int compose_proxy_uri(ec_opts_t *opts, char uri[U_URI_STRMAX])
 {
-    u_uri_t *uri = NULL;
-    char pxu[U_URI_STRMAX] = { '\0' };
     ec_opt_t *o;
 
-    dbg_return_if (opts == NULL, NULL);
+    dbg_return_if (opts == NULL, -1);
+    dbg_return_if (uri == NULL, -1);
+
+    uri[0] = '\0';
 
     /* "Proxy-URI MAY occur one or more times and MUST take precedence over
      * any of the Uri-Host, Uri-Port, Uri-Path or Uri-Query options." */
@@ -889,15 +990,12 @@ static u_uri_t *compose_proxy_uri(ec_opts_t *opts)
     {
         /* Reassemble all Proxy-URI fragments. */
         if (o->sym == EC_OPT_PROXY_URI)
-            dbg_err_if (u_strlcat(pxu, (const char *) o->v, sizeof pxu));
+            dbg_err_if (u_strlcat(uri, (const char *) o->v, U_URI_STRMAX));
     }
 
-    if (pxu[0] != '\0')
-        dbg_err_if (u_uri_crumble(pxu, 0, &uri));
-
-    return uri;
+    return 0;
 err:
-    return NULL;
+    return -1;
 }
 
 

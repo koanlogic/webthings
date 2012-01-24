@@ -81,7 +81,8 @@ const char *ec_opt_sym2str(ec_opt_sym_t sym);
 ec_opt_sym_t ec_opt_num2sym(size_t num);
 
 int ec_opts_push(ec_opts_t *opts, ec_opt_t *o);
-void ec_opts_clean(ec_opts_t *opts);
+void ec_opts_clear(ec_opts_t *opts);
+int ec_opts_init(ec_opts_t *opts);
 int ec_opts_add(ec_opts_t *opts, ec_opt_sym_t sym, const ev_uint8_t *v, 
         size_t l);
 int ec_opts_add_empty(ec_opts_t *opts, ec_opt_sym_t sym);
@@ -113,6 +114,9 @@ const char *ec_opts_get_string(ec_opts_t *opts, ec_opt_sym_t sym);
 const char *ec_opts_get_uri_host(ec_opts_t *opts);
 int ec_opts_get_uri_port(ec_opts_t *opts, ev_uint16_t *port);
 int ec_opts_get_accept_all(ec_opts_t *opts, ec_mt_t *mta, size_t *mta_sz);
+int ec_opts_get_content_type(ec_opts_t *opts, ev_uint16_t *ct);
+ev_uint8_t *ec_opts_get_etag_nth(ec_opts_t *opts, size_t *etag_sz, size_t n);
+const char *ec_opts_get_proxy_uri(ec_opts_t *opts, char url[U_URI_STRMAX]);
 
 int ec_opt_decode_uint(const ev_uint8_t *v, size_t l, ev_uint64_t *ui);
 int ec_opt_encode_uint(ev_uint64_t ui, ev_uint8_t *e, size_t *elen);
@@ -123,5 +127,8 @@ int ec_opts_decode(ec_opts_t *opts, const ev_uint8_t *pdu, size_t pdu_sz,
 
 u_uri_t *ec_opts_compose_url(ec_opts_t *opts, struct sockaddr_storage *us,
         bool nosec);
+
+int ec_opts_count_sym(ec_opts_t *opts, ec_opt_sym_t sym, size_t *n);
+
 
 #endif  /* !_EC_PRV_H_ */

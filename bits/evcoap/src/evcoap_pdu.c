@@ -59,10 +59,7 @@ int ec_pdu_init_options(ec_pdu_t *pdu)
 {
     dbg_return_if (pdu == NULL, -1);
 
-    TAILQ_INIT(&pdu->opts.bundle);
-    pdu->opts.noptions = 0;
-
-    return 0;
+    return ec_opts_init(&pdu->opts);
 }
 
 int ec_pdu_send(ec_pdu_t *pdu)
@@ -249,7 +246,7 @@ void ec_pdu_free(ec_pdu_t *pdu)
 {
     if (pdu)
     {
-        ec_opts_clean(&pdu->opts);
+        ec_opts_clear(&pdu->opts);
         u_free(pdu->payload);
         u_free(pdu);
     }

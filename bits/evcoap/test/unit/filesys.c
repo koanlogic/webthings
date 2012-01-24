@@ -129,8 +129,6 @@ static int iur(ec_filesys_t *fs, u_test_case_t *tc)
     rep = ec_filesys_get_rep(fs, TEST_URI, TEST_MEDIA_TYPE, etag);
     u_test_err_ifm (rep == NULL, "%s not found", TEST_URI);
 
-    u_con("%s vs %s", rep->data, TEST_DATA_1);
-
     u_test_err_ifm (strcmp((const char *) rep->data, TEST_DATA_1), 
             "data mismatch at %s: '%s' vs '%s'", TEST_URI, rep->data, 
             TEST_DATA_1);
