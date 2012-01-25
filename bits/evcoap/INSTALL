@@ -1,13 +1,15 @@
-- install makl:
+- install makl (1.9.0):
     ...
 
 - install libevent (ver >= 2)
     ...
 
-- install libu (ver >= 2)
-    ...
+- install libu (ver >= 2.3.0)
+    supplied '--extra-cflags=-DU_TOKEN_SZ=256' to makl-conf to double the
+    lexer token default buffer.
+    
 
 - install evcoap
-    $ makl-conf --libs=...
+    $ makl-conf --libs=/path/to/libu+libevent/base
     $ makl
     # makl install
