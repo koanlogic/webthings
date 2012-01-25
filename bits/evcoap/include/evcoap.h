@@ -60,7 +60,6 @@ int ec_request_add_if_match(ec_client_t *cli, const ev_uint8_t *im,
 int ec_request_add_uri_query(ec_client_t *cli, const char *uq);
 int ec_request_add_if_none_match(ec_client_t *cli);
 int ec_request_add_observe(ec_client_t *cli, ev_uint16_t o);
-int ec_request_add_max_ofe(ec_client_t *cli, ev_uint32_t mo);
 
 int ec_request_get_acceptable_media_types(ec_server_t *srv, ec_mt_t *mta,
         size_t *mta_sz);

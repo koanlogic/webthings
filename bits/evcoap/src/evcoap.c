@@ -376,18 +376,6 @@ int ec_request_add_observe(ec_client_t *cli, ev_uint16_t o)
 /**
  *  \brief  TODO
  */
-int ec_request_add_max_ofe(ec_client_t *cli, ev_uint32_t mo)
-{
-    dbg_return_if (cli == NULL, -1);
-    
-    ec_opts_t *opts = &cli->req.opts;
-
-    return ec_opts_add_max_ofe(opts, mo);
-}
-
-/**
- *  \brief  TODO
- */
 int ec_response_set_payload(ec_server_t *srv, ev_uint8_t *payload, size_t sz)
 {
     dbg_return_if (srv == NULL, -1);

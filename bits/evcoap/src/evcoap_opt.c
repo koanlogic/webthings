@@ -9,6 +9,14 @@ static int compose_proxy_uri(ec_opts_t *opts, char uri[U_URI_STRMAX]);
 static int compose_uri(ec_opts_t *opts, struct sockaddr_storage *us, 
         bool nosec, char uri[U_URI_STRMAX]);
 
+static size_t fenceposts_encsz(size_t cur, size_t last);
+static ev_uint8_t *add_fenceposts(ec_opts_t *opts, ev_uint8_t *p, size_t cur, 
+        size_t *delta);
+
+/*******************************************************************************
+ NOTE: the g_opts array entries *MUST* be kept in sync with the ec_opt_sym_t
+       enum in evcoap_opt.h. 
+ ******************************************************************************/
 static struct opt_rec {
     size_t n;               /* Option number. */
     const char *s;          /* Option human readable name. */
@@ -28,11 +36,12 @@ static struct opt_rec {
     { 11, "Token",          EC_OPT_TYPE_OPAQUE },
     { 12, "Accept",         EC_OPT_TYPE_UINT },
     { 13, "If-Match",       EC_OPT_TYPE_OPAQUE },
-    { 14, "Max-OFE",        EC_OPT_TYPE_UINT },
     { 15, "URI-Query",      EC_OPT_TYPE_STRING },
     { 21, "If-None-Match",  EC_OPT_TYPE_EMPTY }
 };
 #define EC_OPTS_MAX (sizeof g_opts / sizeof(struct opt_rec))
+
+#define EC_OPT_NUM_IS_FENCEPOST(n)  ((n) && ((n) % 14 == 0))
 
 ec_opt_t *ec_opt_new(ec_opt_sym_t sym, size_t l, const ev_uint8_t *v)
 {
@@ -48,7 +57,7 @@ ec_opt_t *ec_opt_new(ec_opt_sym_t sym, size_t l, const ev_uint8_t *v)
         case EC_OPT_TYPE_INVALID:
             dbg_err("invalid option type");
         case EC_OPT_TYPE_EMPTY:
-            return 0;
+            return o;
         case EC_OPT_TYPE_UINT:
         case EC_OPT_TYPE_STRING:
         case EC_OPT_TYPE_OPAQUE:
@@ -132,7 +141,7 @@ void ec_opts_clear(ec_opts_t *opts)
             ec_opt_free(o);
         }
 
-        ec_opts_init(opts);
+        (void) ec_opts_init(opts);
     }
 }
 
@@ -442,6 +451,9 @@ int ec_opts_add_proxy_uri(ec_opts_t *opts, const char *pu)
      *  absolute-URI".  Remove the 270 limitation on supplied 'pu'. */
     dbg_return_if (!strlen(pu), -1);
 
+    /* Check that "The option value is an absolute-URI" */
+    dbg_return_ifm (!u_uri_is_absolute(pu), -1, "'%s' not an absolute-URI", pu);
+
     return ec_opts_add_string(opts, EC_OPT_PROXY_URI, pu);
 }
 
@@ -585,17 +597,6 @@ int ec_opts_add_observe(ec_opts_t *opts, ev_uint16_t o)
     return ec_opts_add_uint(opts, EC_OPT_OBSERVE, o);
 }
 
-/**
- *  \brief  TODO
- */
-int ec_opts_add_max_ofe(ec_opts_t *opts, ev_uint32_t mo)
-{
-    dbg_return_if (opts == NULL, -1);
-    /* 0-2 B length is enforced by 32-bit 'mo'. */
-
-    return ec_opts_add_uint(opts, EC_OPT_MAX_OFE, mo);
-}
-
 int ec_opts_encode(ec_opts_t *opts)
 {
     ec_opt_t *o;
@@ -614,20 +615,18 @@ int ec_opts_encode(ec_opts_t *opts)
         dbg_err_if ((cur = ec_opt_sym2num(o->sym)) == EC_OPT_NONE);
 
         /* Compute how much space we're going to consume, so that we don't
-         * have to check at each encode step. */
-        elen = ((o->l > 14) ? 2 : 1) + o->l;
+         * have to check at each encode step.
+         * XXX Take care of possible fenceposts. */
+        elen = ((o->l > 14) ? 2 : 1) + o->l + fenceposts_encsz(cur, last);
 
         dbg_err_ifm (elen > left,
                 "Not enough space (%zu vs %zu) to encode %s",
                 elen, left, ec_opt_sym2str(o->sym));
 
         /* Delta encode the option number. */
-        dbg_err_ifm ((delta = cur - last) > 14, "TODO fence-post");
-#ifdef TODO
-        /* Insert the needed fenceposts. */
-        ++opts->noptions;
-        dbg_err_if (!(p = add_fencepost(p, &left, cur, delta)));
-#endif
+        if ((delta = cur - last) > 14)
+            dbg_err_if (!(p = add_fenceposts(opts, p, cur, &delta)));
+
         /* Encode length. */
         if (o->l > 14)
         {
@@ -661,6 +660,7 @@ err:
 int ec_opts_decode(ec_opts_t *opts, const ev_uint8_t *pdu, size_t pdu_sz, 
         ev_uint8_t oc, size_t *olen)
 {
+    ec_opt_sym_t sym;
     unsigned char skip_this;
     size_t opt_len, opt_num = 0;
     unsigned int opt_count;
@@ -688,7 +688,7 @@ int ec_opts_decode(ec_opts_t *opts, const ev_uint8_t *pdu, size_t pdu_sz,
         /* Read delta and deduce option number. */ 
         opt_num += (*opt_p >> 4);
 
-        switch (opt_num)
+        switch ((sym = ec_opt_num2sym(opt_num)))
         {
             case EC_OPT_PROXY_URI:
             case EC_OPT_CONTENT_TYPE:
@@ -703,21 +703,18 @@ int ec_opts_decode(ec_opts_t *opts, const ev_uint8_t *pdu, size_t pdu_sz,
             case EC_OPT_TOKEN:
             case EC_OPT_ACCEPT:
             case EC_OPT_IF_MATCH:
-            case EC_OPT_MAX_OFE:
             case EC_OPT_URI_QUERY:
             case EC_OPT_IF_NONE_MATCH:
                 break;
+            case EC_OPT_NONE:
             default:
                 /* Unrecognized options of class "critical" that occur in 
                  * a confirmable request MUST cause the return of a 4.02 
                  * (Bad Option) response.  This response SHOULD include a 
                  * human-readable error message describing the unrecognized
-                 * option(s). */
-                if (opt_num % 2) /* Even option number == critical. */
-                {
-                    /* TODO */
-                    dbg_err_ifm(1, "unknown CoAP Option %zu", opt_num);
-                }
+                 * option(s). (Even option number == critical.) */
+                if (opt_num % 2)
+                    dbg_err_ifm(1, "unknown Critical Option %zu", opt_num);
                 else
                 {
                     skip_this = 1;
@@ -725,28 +722,29 @@ int ec_opts_decode(ec_opts_t *opts, const ev_uint8_t *pdu, size_t pdu_sz,
                 }
         }
 
-
         /* Read length (base or extended.) */
         if ((opt_len = (*opt_p & 0x0f)) == 0x0f)
             opt_len = *(opt_p + 1) + 15;
+
+        /* The Option Numbers 14, 28, 42, ... are reserved for no-op options 
+         * when they are sent with an empty value (they are ignored) and can 
+         * be used as "fenceposts" if deltas larger than 15 would otherwise 
+         * be required. */
+        if (opt_len == 0 && EC_OPT_NUM_IS_FENCEPOST(opt_num))
+            skip_this = 1;
 
         /* Jump over the lenght indicators to get to the option value. */
         opt_p += ((opt_len > 15) ? 2 : 1);
 
         /* Extract option and add it to the pool. */
         if (!skip_this)
-        {
-            ec_opt_sym_t sym = ec_opt_num2sym(opt_num);
-
             dbg_err_if (ec_opts_add(opts, sym, opt_p, opt_len));
-        }
 
         /* Jump over this option's value and come again. */
         opt_p += opt_len;
     }
 
     /* Set payload offset. */
-
     *olen = opt_p - (pdu + EC_COAP_HDR_SIZE); 
 
     return 0;
@@ -790,6 +788,15 @@ int ec_opts_get_content_type(ec_opts_t *opts, ev_uint16_t *ct)
     return 0;
 err:
     return -1;
+}
+
+/* "It MAY NOT occur more than once" seems suggesting that we should be as
+ * tolerant as possible with duplicates. */
+int ec_opts_get_if_none_match(ec_opts_t *opts)
+{
+    dbg_return_if (opts == NULL, -1);
+
+    return ec_opts_get(opts, EC_OPT_IF_NONE_MATCH) ? 0 : -1;
 }
 
 /* It MUST NOT occur more than once in a response, and MAY occur one or more 
@@ -998,4 +1005,41 @@ err:
     return -1;
 }
 
+static ev_uint8_t *add_fenceposts(ec_opts_t *opts, ev_uint8_t *p, size_t cur, 
+        size_t *delta)
+{
+    size_t opt_num, last = cur - *delta;
 
+    for (opt_num = last; opt_num < cur; ++opt_num)
+    {
+        if (EC_OPT_NUM_IS_FENCEPOST(opt_num))
+        {
+            *p++ = (opt_num - last) << 4;
+
+            /* Update last to the last FP. */
+            last = opt_num;
+
+            /* Increment the number of options coherently. */
+            ++opts->noptions;
+        }
+    }
+
+    /* Update delta. */
+    *delta = cur - last;
+
+    return p;
+}
+
+/* Compute how much buffer space is used by fenceposts. */
+static size_t fenceposts_encsz(size_t cur, size_t last)
+{
+    size_t i, fpsz = 0;
+
+    for (i = last; i < cur; ++i)
+    {
+        if (EC_OPT_NUM_IS_FENCEPOST(i))
+            fpsz += 1;  /* Each FP consumes 1 byte. */
+    }
+
+    return fpsz;
+}
