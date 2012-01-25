@@ -62,7 +62,7 @@ int ec_request_add_if_none_match(ec_client_t *cli);
 int ec_request_add_observe(ec_client_t *cli, ev_uint16_t o);
 
 ec_rc_t ec_response_get_code(ec_client_t *cli);
-ec_mt_t ec_response_get_content_type(ec_client_t *cli);
+int ec_response_get_content_type(ec_client_t *cli, ec_mt_t *ct);
 ev_uint8_t *ec_response_get_payload(ec_client_t *cli, size_t *sz);
 
 int ec_request_get_acceptable_media_types(ec_server_t *srv, ec_mt_t *mta,

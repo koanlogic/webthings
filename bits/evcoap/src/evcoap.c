@@ -197,33 +197,28 @@ ec_rc_t ec_response_get_code(ec_client_t *cli)
     return ec_flow_get_resp_code(&cli->flow);
 }
 
-ec_mt_t ec_response_get_content_type(ec_client_t *cli)
+int ec_response_get_content_type(ec_client_t *cli, ec_mt_t *ct)
 {
+    ec_opts_t *opts;
+
     dbg_return_if (cli == NULL, -1);
 
-    /* TODO */
+    dbg_err_if ((opts = ec_client_get_response_options(cli)) == NULL);
 
-    return EC_MT_TEXT_PLAIN;
+    return ec_opts_get_content_type(opts, (ev_uint16_t *) ct);
+err:
+    return -1;
 }
 
 /* Works for unicast exchanges only. */
 ev_uint8_t *ec_response_get_payload(ec_client_t *cli, size_t *sz)
 {
     ec_pdu_t *res;
-    ec_conn_t *conn;
-    ec_res_set_t *rset;
 
     dbg_return_if (cli == NULL, NULL);
     dbg_return_if (sz == NULL, NULL);
 
-    /* Accept unicast only. */
-    conn = &cli->flow.conn;
-    dbg_err_if (conn->is_multicast);
-
-    /* Get the reponse set. */
-    rset = &cli->res_set;
-    dbg_err_if (!rset->nres);
-    dbg_err_if ((res = TAILQ_FIRST(&rset->bundle)) == NULL);
+    dbg_err_if ((res = ec_client_get_response_pdu(cli)) == NULL);
 
     /* Return payload and size. */
     *sz = res->payload_sz;

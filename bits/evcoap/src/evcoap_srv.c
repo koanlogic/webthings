@@ -7,6 +7,8 @@ static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
         struct sockaddr_storage *peer, void *arg);
 static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args, 
         struct timeval *interval, bool resched);
+static int ec_server_reply(ec_server_t *srv, ec_rc_t rc, ev_uint8_t *pl, 
+        size_t pl_sz);
 
 ec_server_t *ec_server_new(struct ec_s *coap, evutil_socket_t sd)
 {
@@ -174,10 +176,45 @@ static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
         goto end;
     }
 
+    /* Send 4.04 Not Found and fall through. */
+    dbg_if (ec_server_reply(srv, EC_NOT_FOUND, NULL, 0));
+    ec_server_set_state(srv, EC_SRV_STATE_RESP_DONE);
+
+    /* TODO resource de-allocation */
+
 end:
     return 0;
+
 err:
-    ec_server_set_state(srv, EC_CLI_STATE_INTERNAL_ERR);
+    /* Send 5.00 Internal Server Error (add human readable message ?) */
+    dbg_if (ec_server_reply(srv, EC_INTERNAL_SERVER_ERROR, NULL, 0));
+    ec_server_set_state(srv, EC_SRV_STATE_INTERNAL_ERR);
+
+    return -1;
+}
+
+static int ec_server_reply(ec_server_t *srv, ec_rc_t rc, ev_uint8_t *pl, 
+        size_t pl_sz)
+{
+    ec_flow_t *flow;
+        
+    dbg_return_if (srv == NULL, -1);
+    dbg_return_if (!EC_IS_RESP_CODE(rc), -1);
+
+    flow = &srv->flow;
+
+    /* Set response code. */
+    dbg_err_if (ec_flow_set_resp_code(flow, rc));
+
+    /* Stick payload, if supplied. */
+    if (pl && pl_sz)
+        dbg_err_if (ec_pdu_set_payload(srv->res, pl, pl_sz));
+
+    /* Send response PDU. */
+    dbg_err_if (ec_server_send_resp(srv));
+
+    return 0;
+err:
     return -1;
 }
 

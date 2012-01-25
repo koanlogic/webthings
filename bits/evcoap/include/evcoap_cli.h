@@ -61,6 +61,8 @@ void ec_client_set_state(ec_client_t *cli, ec_cli_state_t state);
 struct ec_s *ec_client_get_base(ec_client_t *cli);
 ec_cli_state_t ec_client_get_state(ec_client_t *cli);
 void *ec_client_get_args(ec_client_t *cli);
+ec_pdu_t *ec_client_get_response_pdu(ec_client_t *cli);         /* unicast */
+ec_opts_t *ec_client_get_response_options(ec_client_t *cli);    /* unicast */
 
 int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
         struct timeval *tout);

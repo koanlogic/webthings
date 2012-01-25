@@ -711,3 +711,39 @@ int ec_res_set_clear(ec_res_set_t *rset)
 
     return 0;
 }
+
+/* Unicast only. */
+ec_pdu_t *ec_client_get_response_pdu(ec_client_t *cli)
+{
+    ec_conn_t *conn;
+    ec_res_set_t *rset;
+
+    dbg_return_if (cli == NULL, NULL);
+
+    /* Accept unicast only. */
+    conn = &cli->flow.conn;
+    dbg_err_ifm (conn->is_multicast, "use TODO interface for multicast res");
+
+    /* Get the reponse set. */
+    rset = &cli->res_set;
+    dbg_err_if (!rset->nres);
+
+    return TAILQ_FIRST(&rset->bundle);
+err:
+    return NULL;
+}
+
+ec_opts_t *ec_client_get_response_options(ec_client_t *cli)
+{
+    ec_pdu_t *res;
+    ec_opts_t *opts;
+
+    dbg_return_if (cli == NULL, NULL);
+
+    dbg_err_if ((res = ec_client_get_response_pdu(cli)) == NULL);
+
+    return &res->opts;
+err:
+    return NULL;
+}
+
