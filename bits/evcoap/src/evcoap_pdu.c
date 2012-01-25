@@ -130,6 +130,8 @@ int ec_pdu_encode_response_separate(ec_pdu_t *pdu)
     ec_flow_t *flow = pdu->flow;
     dbg_return_if (ec_net_get_confirmable(&flow->conn, &is_con), -1);
 
+    /* Set reponse code. */
+
     /* E.g. T=CON|NON, Code=69, MID=0x7d38. */
     return encode_response(pdu, is_con ? EC_COAP_CON : EC_COAP_NON, 
             flow->resp_code, mid);

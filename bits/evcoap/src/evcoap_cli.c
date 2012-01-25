@@ -20,7 +20,7 @@ int ec_client_set_method(ec_client_t *cli, ec_method_t m)
 {
     ec_flow_t *flow = &cli->flow;
 
-    dbg_return_if (m < EC_GET || m > EC_DELETE, -1);
+    dbg_return_if (!EC_IS_METHOD(m), -1);
 
     flow->method = m;
 
@@ -145,6 +145,8 @@ ec_client_t *ec_client_new(struct ec_s *coap, ec_method_t m, const char *uri,
 
     dbg_err_sif ((cli = u_zalloc(sizeof *cli)) == NULL);
 
+    dbg_err_if (ec_res_set_init(&cli->res_set));
+
     /* Must be done first because the following URI validation (namely the
      * scheme compliance test) depends on the fact that this request is 
      * expected to go through a proxy or not. */
@@ -153,7 +155,7 @@ ec_client_t *ec_client_new(struct ec_s *coap, ec_method_t m, const char *uri,
 
     dbg_err_if (ec_pdu_init_options(&cli->req));
     dbg_err_if (ec_client_set_method(cli, m));
-    dbg_err_if (ec_client_set_uri(cli, uri));
+    dbg_err_ifm (ec_client_set_uri(cli, uri), "bad URI: %s", uri);
     dbg_err_if (ec_client_set_msg_model(cli, mm == EC_CON ? true : false));
     dbg_err_if (ec_pdu_set_flow(&cli->req, &cli->flow));
 
@@ -580,17 +582,26 @@ static int ec_client_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
     dbg_err_if ((t = ec_opts_get(&res->opts, EC_OPT_TOKEN)) == NULL);
     dbg_err_if (t->l != flow->token_sz || memcmp(t->v, flow->token, t->l));
 
+    /* Attach response code. */
+    dbg_err_if (ec_flow_set_resp_code(flow, (ec_rc_t) h->code));
+
     /* Attach payload, if any. */
     if ((plen = raw_sz - (olen + EC_COAP_HDR_SIZE)))
         (void) ec_pdu_set_payload(res, raw + EC_COAP_HDR_SIZE + olen, plen);
 
     /* TODO fill in the residual info (e.g. socket...). */
 
+    /* Add response PDU to the client response set. */
+    dbg_err_if (ec_res_set_add(&cli->res_set, res));
+
     /* Just before invoking the client callback, set state to DONE. */
     ec_client_set_state(cli, EC_CLI_STATE_REQ_DONE);
 
     /* Invoke the client callback */
     (void) ec_client_invoke_user_callback(cli);
+
+    if (!flow->conn.is_multicast)
+        dbg_if (ec_res_set_clear(&cli->res_set));
 
     return 0;
 err:
@@ -661,4 +672,42 @@ err:
     return -1;
 }
 
+int ec_res_set_add(ec_res_set_t *rset, ec_pdu_t *pdu)
+{
+    dbg_return_if (rset == NULL, -1);
+    dbg_return_if (pdu == NULL, -1);
 
+    TAILQ_INSERT_TAIL(&rset->bundle, pdu, next);
+    rset->nres += 1;
+
+    return 0;
+}
+
+int ec_res_set_init(ec_res_set_t *rset)
+{
+    dbg_return_if (rset == NULL, -1);
+
+    TAILQ_INIT(&rset->bundle);
+    rset->nres = 0;
+
+    return 0;
+}
+
+int ec_res_set_clear(ec_res_set_t *rset)
+{
+    if (rset)
+    {
+        ec_pdu_t *pdu;
+
+        while ((pdu = TAILQ_FIRST(&rset->bundle)))
+        {
+            TAILQ_REMOVE(&rset->bundle, pdu, next);
+            ec_pdu_free(pdu);
+            /* Don't mind updating rset->nres since it'll be cleared. */
+        }
+
+        (void) ec_res_set_init(rset);
+    }
+
+    return 0;
+}

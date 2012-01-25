@@ -54,3 +54,36 @@ const char *ec_flow_get_urlstr(ec_flow_t *flow)
     return flow->urlstr;
 }
 
+ec_method_t ec_flow_get_method(ec_flow_t *flow)
+{
+    dbg_return_if (flow == NULL, EC_METHOD_UNSET);
+
+    return flow->method;
+}
+
+int ec_flow_set_method(ec_flow_t *flow, ec_method_t method)
+{
+    dbg_return_if (flow == NULL, -1);
+    dbg_return_if (!EC_IS_METHOD(method), -1);
+
+    flow->method = method;
+
+    return 0;
+}
+
+int ec_flow_set_resp_code(ec_flow_t *flow, ec_rc_t rc)
+{
+    dbg_return_if (flow == NULL, -1);
+    dbg_return_if (!EC_IS_RESP_CODE(rc), -1);
+
+    flow->resp_code = rc;
+
+    return 0;
+}
+
+ec_rc_t ec_flow_get_resp_code(ec_flow_t *flow)
+{
+    dbg_return_if (flow == NULL, EC_RC_UNSET);
+
+    return flow->resp_code;
+}

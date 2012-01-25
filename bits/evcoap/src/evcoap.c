@@ -183,13 +183,54 @@ int ec_request_get_acceptable_media_types(ec_server_t *srv, ec_mt_t *mta,
 int ec_response_set_code(ec_server_t *srv, ec_rc_t rc)
 {
     dbg_return_if (srv == NULL, -1);
-    dbg_return_if (!EC_IS_RESP_CODE(rc), -1);
 
-    ec_flow_t *flow = &srv->flow;
+    return ec_flow_set_resp_code(&srv->flow, rc); 
+}
 
-    flow->resp_code = rc;
+/**
+ *  \brief  TODO
+ */
+ec_rc_t ec_response_get_code(ec_client_t *cli)
+{
+    dbg_return_if (cli == NULL, -1);
 
-    return -1;
+    return ec_flow_get_resp_code(&cli->flow);
+}
+
+ec_mt_t ec_response_get_content_type(ec_client_t *cli)
+{
+    dbg_return_if (cli == NULL, -1);
+
+    /* TODO */
+
+    return EC_MT_TEXT_PLAIN;
+}
+
+/* Works for unicast exchanges only. */
+ev_uint8_t *ec_response_get_payload(ec_client_t *cli, size_t *sz)
+{
+    ec_pdu_t *res;
+    ec_conn_t *conn;
+    ec_res_set_t *rset;
+
+    dbg_return_if (cli == NULL, NULL);
+    dbg_return_if (sz == NULL, NULL);
+
+    /* Accept unicast only. */
+    conn = &cli->flow.conn;
+    dbg_err_if (conn->is_multicast);
+
+    /* Get the reponse set. */
+    rset = &cli->res_set;
+    dbg_err_if (!rset->nres);
+    dbg_err_if ((res = TAILQ_FIRST(&rset->bundle)) == NULL);
+
+    /* Return payload and size. */
+    *sz = res->payload_sz;
+
+    return res->payload;
+err:
+    return NULL;
 }
 
 /**

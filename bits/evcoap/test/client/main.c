@@ -7,6 +7,7 @@
 int facility = LOG_LOCAL0;
 
 #define DEFAULT_URI "coap://[::1]/.well-known/core"
+#define DEFAULT_OFN "./response.payload"
 
 typedef struct 
 {
@@ -19,6 +20,7 @@ typedef struct
     ec_msg_model_t model;
     struct timeval app_tout;
     ev_uint8_t etag[4];
+    const char *ofn;
     bool verbose;
 } ctx_t;
 
@@ -32,39 +34,43 @@ ctx_t g_ctx = {
     .model = EC_NON,
     .app_tout = { .tv_sec = EC_TIMERS_APP_TOUT, .tv_usec = 0 },
     .etag = { 0xde, 0xad, 0xbe, 0xef },
+    .ofn = DEFAULT_OFN,
     .verbose = false
 };
 
 void usage(const char *prog);
-int evcoap_client_init(void);
-int evcoap_client_run(void);
-void evcoap_client_term(void);
-int evcoap_client_set_uri(const char *s);
-int evcoap_client_set_method(const char *s);
-int evcoap_client_set_model(const char *s);
+int client_init(void);
+int client_run(void);
+void client_term(void);
+int client_set_uri(const char *s);
+int client_set_method(const char *s);
+int client_set_model(const char *s);
+int client_set_output_file(const char *s);
+int client_save_to_file(const ev_uint8_t *pl, size_t pl_sz);
 void cb(ec_client_t *cli);
 
-/*
- * TODO
- */ 
 int main(int ac, char *av[])
 {
     int c;
 
-    while ((c = getopt(ac, av, "hu:m:M:v")) != -1)
+    while ((c = getopt(ac, av, "hu:m:M:o:v")) != -1)
     {
         switch (c)
         {
             case 'u': /* .uri */
-                if (evcoap_client_set_uri(optarg))
+                if (client_set_uri(optarg))
                     usage(av[0]);
                 break;
             case 'm': /* .method */
-                if (evcoap_client_set_method(optarg))
+                if (client_set_method(optarg))
                     usage(av[0]);
                 break;
             case 'M': /* .model */
-                if (evcoap_client_set_model(optarg))
+                if (client_set_model(optarg))
+                    usage(av[0]);
+                break;
+            case 'o':
+                if (client_set_output_file(optarg))
                     usage(av[0]);
                 break;
             case 'v':
@@ -76,29 +82,49 @@ int main(int ac, char *av[])
         }
     }
 
-    con_err_if (evcoap_client_init());
-    con_err_if (evcoap_client_run());
+    con_err_if (client_init());
+    con_err_if (client_run());
 
-    evcoap_client_term();
+    client_term();
     return EXIT_SUCCESS;
 err:
-    evcoap_client_term();
+    client_term();
     return EXIT_FAILURE;
 }
 
 void cb(ec_client_t *cli)
 {
-    ec_t *coap = ec_client_get_base(cli);
-    ec_cli_state_t fsm_state = ec_client_get_state(cli);
+    ec_rc_t rc;
+    ec_cli_state_t s;
+   
+    /* Get FSM final state, bail out on !REQ_DONE. */
+    con_err_ifm ((s = ec_client_get_state(cli)) != EC_CLI_STATE_REQ_DONE, 
+            "request failed: %s", ec_cli_state_str(s));
 
-    con_err_ifm (fsm_state != EC_CLI_STATE_REQ_DONE, 
-            "request failed: %s", ec_cli_state_str(fsm_state));
+    /* Get response code. */
+    con_err_ifm ((rc = ec_response_get_code(cli)) == EC_RC_UNSET,
+           "could not get response code");
 
-    u_con("got response !");
+    /* TODO replace with coap_hdr_pretty_print() or similar. */
+    u_con("%s", ec_rc_str(rc));
+
+    if (rc == EC_CONTENT)
+    {
+        ev_uint8_t *pl;
+        size_t pl_sz;
+
+        /* Get response payload. */
+        con_err_ifm ((pl = ec_response_get_payload(cli, &pl_sz)) == NULL,
+                    "empty payload");
+
+        /* Save payload to file. */
+        con_err_sifm (client_save_to_file(pl, pl_sz),
+                "payload could not be saved");
+    }
 
     /* Fall through. */
 err:
-    ec_loopbreak(coap);
+    ec_loopbreak(ec_client_get_base(cli));
     return;
 }
 
@@ -111,6 +137,7 @@ void usage(const char *prog)
         "       -h  this help                                           \n"
         "       -m <GET|POST|PUT|DELETE>    (default is GET)            \n"
         "       -M <CON|NON>                (default is NON)            \n"
+        "       -o <file>                   (default is "DEFAULT_OFN")  \n"
         "       -u <uri>                    (default is "DEFAULT_URI")  \n"
         "                                                               \n"
         ;
@@ -120,7 +147,7 @@ void usage(const char *prog)
     exit(EXIT_FAILURE);
 }
 
-int evcoap_client_init(void)
+int client_init(void)
 {
     dbg_err_if ((g_ctx.base = event_base_new()) == NULL);
     dbg_err_if ((g_ctx.dns = evdns_base_new(g_ctx.base, 1)) == NULL);
@@ -128,11 +155,11 @@ int evcoap_client_init(void)
 
     return 0;
 err:
-    evcoap_client_term();
+    client_term();
     return -1;
 }
 
-void evcoap_client_term(void)
+void client_term(void)
 {
     if (g_ctx.coap)
         ec_term(g_ctx.coap);
@@ -140,7 +167,7 @@ void evcoap_client_term(void)
     return;
 }
 
-int evcoap_client_run(void)
+int client_run(void)
 {
     dbg_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, g_ctx.method, 
                     g_ctx.uri, g_ctx.model)) == NULL);
@@ -160,14 +187,14 @@ err:
     return -1;
 }
 
-int evcoap_client_set_uri(const char *s)
+int client_set_uri(const char *s)
 {
     dbg_return_if (s == NULL, -1);
     g_ctx.uri = s;
     return 0;
 }
 
-int evcoap_client_set_method(const char *s)
+int client_set_method(const char *s)
 {
     int i;
     struct {
@@ -195,7 +222,7 @@ int evcoap_client_set_method(const char *s)
     return -1;
 }
 
-int evcoap_client_set_model(const char *s)
+int client_set_model(const char *s)
 {
     dbg_return_if (s == NULL, -1);
 
@@ -213,4 +240,29 @@ int evcoap_client_set_model(const char *s)
     return -1;
 }
 
+int client_set_output_file(const char *s)
+{
+    dbg_return_if (s == NULL, -1);
+    
+    g_ctx.ofn = s;
 
+    return 0;
+}
+
+int client_save_to_file(const ev_uint8_t *pl, size_t pl_sz)
+{
+    FILE *fp = fopen(g_ctx.ofn, "w");
+
+    con_err_sifm (fp == NULL, "could not open %s", g_ctx.ofn);
+
+    con_err_sifm (fwrite(pl, pl_sz, 1, fp) != 1, 
+            "could not write to %s", g_ctx.ofn);
+    
+    (void) fclose(fp);
+
+    return 0;
+err:
+    if (fp != NULL)
+        (void) fclose(fp);
+    return -1;
+}

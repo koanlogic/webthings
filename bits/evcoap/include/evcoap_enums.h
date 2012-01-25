@@ -35,8 +35,11 @@ typedef enum
     EC_GET           = 1,
     EC_PUT           = 2,
     EC_POST          = 3,
-    EC_DELETE        = 4
+    EC_DELETE        = 4,
+    EC_METHOD_MAX    = EC_DELETE + 1
 } ec_method_t;
+
+#define EC_IS_METHOD(m) ((m) > EC_METHOD_UNSET && (m) < EC_METHOD_MAX)
 
 /* Available Media types.
  * "The identifiers between 201 and 255 inclusive are reserved for Private Use."
@@ -99,6 +102,8 @@ typedef enum
 #define EC_IS_RESP_CODE(rc) \
     ((rc) >= EC_CREATED && (rc) <= EC_500_UNKNOWN)
 
+const char *ec_rc_str(ec_rc_t rc);
+
 /* Client transaction states. */
 typedef enum
 {
@@ -131,8 +136,12 @@ typedef enum
     EC_SRV_STATE_ACK_SENT,
     EC_SRV_STATE_WAIT_ACK,
     EC_SRV_STATE_RESP_ACK_TIMEOUT,  /* F */
-    EC_SRV_STATE_RESP_DONE          /* F */
+    EC_SRV_STATE_RESP_DONE,         /* F */
+
+    EC_SRV_STATE_MAX = EC_SRV_STATE_RESP_DONE
 } ec_srv_state_t;
+
+const char *ec_srv_state_str(ec_srv_state_t s);
 
 /* Callback to evcoap contract. */
 typedef enum

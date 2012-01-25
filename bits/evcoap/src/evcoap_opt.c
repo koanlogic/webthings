@@ -760,8 +760,10 @@ u_uri_t *ec_opts_compose_url(ec_opts_t *opts, struct sockaddr_storage *us,
 
     dbg_return_if (opts == NULL, NULL);
 
-    dbg_err_if (compose_proxy_uri(opts, url) 
-            && compose_uri(opts, us, nosec, url));
+    /* [Proxy-URI] MAY occur one or more times and MUST take precedence over 
+     * any of the Uri-Host, Uri-Port, Uri-Path or Uri-Query options. */
+    if (compose_proxy_uri(opts, url) == -1)
+        dbg_err_if (compose_uri(opts, us, nosec, url));
 
     dbg_err_if (u_uri_crumble(url, 0, &u));
 
@@ -973,6 +975,8 @@ static int compose_uri(ec_opts_t *opts, struct sockaddr_storage *us,
     if (query[0] != '\0')
         (void) u_uri_set_query(u, query);
 
+    dbg_err_if (u_uri_knead(u, uri));
+
     u_uri_free(u);
 
     return 0;
@@ -1000,7 +1004,7 @@ static int compose_proxy_uri(ec_opts_t *opts, char uri[U_URI_STRMAX])
             dbg_err_if (u_strlcat(uri, (const char *) o->v, U_URI_STRMAX));
     }
 
-    return 0;
+    return strlen(uri) ? 0 : -1;
 err:
     return -1;
 }

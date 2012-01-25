@@ -4,6 +4,7 @@
 static const char *g_client_states[] =
 {
     [EC_CLI_STATE_NONE]         = "null state",
+    [EC_CLI_STATE_INTERNAL_ERR] = "Internal error (FINAL)",
     [EC_CLI_STATE_DNS_FAILED]   = "DNS failed (FINAL)",
     [EC_CLI_STATE_DNS_OK]       = "DNS succeeded",
     [EC_CLI_STATE_SEND_FAILED]  = "request PDU send failed (FINAL)",
@@ -49,4 +50,94 @@ int ec_mt_from_string(const char *s, ec_mt_t *pmt)
     }
 
     return rc;
+}
+
+static const char *g_server_states[] =
+{
+    [EC_SRV_STATE_NONE]             = "null state",
+    [EC_SRV_STATE_INTERNAL_ERR]     = "Internal error (FINAL)",
+    [EC_SRV_STATE_DUP_REQ]          = "Duplicate request (FINAL)",
+    [EC_SRV_STATE_BAD_REQ]          = "Bad request (FINAL)",
+    [EC_SRV_STATE_REQ_OK]           = "Client request ok",
+    [EC_SRV_STATE_ACK_SENT]         = "ACK sent to client",
+    [EC_SRV_STATE_WAIT_ACK]         = "Waiting ACK from client",
+    [EC_SRV_STATE_RESP_ACK_TIMEOUT] = "ACK wait timedout",
+    [EC_SRV_STATE_RESP_DONE]        = "Response completed"
+};
+
+const char *ec_srv_state_str(ec_srv_state_t s)
+{
+    if (s > EC_SRV_STATE_MAX)
+        return "unknown state";
+
+    return g_server_states[s];
+}
+
+const char *ec_rc_str(ec_rc_t rc)
+{
+    switch (rc)
+    {
+        case EC_CREATED:
+            return "2.01 (Created)";
+        case EC_DELETED:
+            return "2.02 (Deleted)";
+        case EC_VALID:
+            return "2.03 (Valid)";
+        case EC_CHANGED:
+            return "2.04 (Changed)";
+        case EC_CONTENT:
+            return "2.05 (Content)";
+
+        case EC_BAD_REQUEST:
+            return "4.00 (Bad Request)";
+        case EC_UNAUTHORIZED:
+            return "4.01 (Unauthorized)";
+        case EC_BAD_OPTION:
+            return "4.02 (Bad Option)";
+        case EC_FORBIDDEN:
+            return "4.03 (Forbidden)";
+        case EC_NOT_FOUND:
+            return "4.04 (Not Found)";
+        case EC_METHOD_NOT_ALLOWED:
+            return "4.05 (Method Not Allowed)";
+        case EC_NOT_ACCEPTABLE:
+            return "4.06 (Not Acceptable)";
+        case EC_PRECONDITION_FAILED:
+            return "4.12 (Precondition Failed)";
+        case EC_REQUEST_ENTITY_TOO_LARGE:
+            return "4.13 (Request Entity Too Large)";
+        case EC_UNSUPPORTED_MEDIA_TYPE:
+            return "4.15 (Unsupported Media Type)";
+
+        case EC_INTERNAL_SERVER_ERROR:
+            return "5.00 (Internal Server Error)";
+        case EC_NOT_IMPLEMENTED:
+            return "5.01 (Not Implemented)";
+        case EC_BAD_GATEWAY:
+            return "5.02 (Bad Gateway)";
+        case EC_SERVICE_UNAVAILABLE:
+            return "5.03 (Service Unavailable)";
+        case EC_GATEWAY_TIMEOUT:
+            return "5.04 (Gateway Timeout)";
+        case EC_PROXYING_NOT_SUPPORTED:
+            return "5.05 (Proxying Not Supported)";
+        
+        case EC_RC_UNSET:
+        case EC_200_UNKNOWN:
+        case EC_400_UNKNOWN:
+        case EC_500_UNKNOWN:
+        default:
+            break;
+    }
+
+    if (rc == EC_RC_UNSET)
+        return "response code unset";
+    else if (rc <= EC_200_UNKNOWN)
+        return "unknown success code";
+    else if (rc <= EC_400_UNKNOWN)
+        return "unknown client failure";
+    else if (rc <= EC_500_UNKNOWN)
+        return "unknown server failure";
+
+    return "unknown response code";
 }

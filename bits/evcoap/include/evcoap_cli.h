@@ -72,4 +72,10 @@ int ec_client_register(ec_client_t *cli);
 int ec_cli_start_app_timer(ec_client_t *cli);
 int ec_cli_stop_app_timer(ec_client_t *cli);
 
+/* Response set handling. */
+int ec_res_set_add(ec_res_set_t *rset, ec_pdu_t *pdu);
+int ec_res_set_init(ec_res_set_t *rset);
+int ec_res_set_clear(ec_res_set_t *rset);
+
+
 #endif  /* !_EC_CLI_H_ */

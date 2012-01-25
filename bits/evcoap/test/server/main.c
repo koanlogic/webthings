@@ -377,13 +377,14 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
 
     u_unused_args(u0, u1, u2);
 
-    /* Get the requested URI. */
-    url = ec_server_get_url(srv);
+    /* Get the requested URI and method (GET only at present.) */
+    con_err_ifm (!(url = ec_server_get_url(srv)), "no URL (!)");
+    con_err_ifm (ec_server_get_method(srv) != EC_GET, "method not supported");
 
     CHAT("requested resource is '%s'", url);
     
     /* Get Accept'able media types. */
-    dbg_err_if (ec_request_get_acceptable_media_types(srv, mta, &mta_sz));
+    con_err_if (ec_request_get_acceptable_media_types(srv, mta, &mta_sz));
 
     /* Try to retrieve a representation that fits client request. */
     rep = ec_filesys_get_suitable_rep(g_ctx.fs, url, mta, mta_sz, NULL);

@@ -105,6 +105,7 @@ static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
             goto err;
     }
 
+
     /* If PDU is a request, create a new server context. */
     if (h->code)
     {
@@ -122,7 +123,10 @@ static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
     }
 
     ec_flow_t *flow = &srv->flow;   /* shortcut */
-    ec_conn_t *conn = &flow->conn;  /* ditto */
+    ec_conn_t *conn = &flow->conn;  /* shortcut */
+
+    /* Save requested method. */
+    dbg_err_if (ec_flow_set_method(flow, (ec_method_t) h->code));
 
     /* Save token into context. */
     ec_opt_t *t = ec_opts_get(&req->opts, EC_OPT_TOKEN);
@@ -223,7 +227,11 @@ int ec_server_set_req(ec_server_t *srv, ec_pdu_t *req)
 
 void ec_server_set_state(ec_server_t *srv, ec_srv_state_t state)
 {
-    u_dbg("%s: TODO check valid transitions, timers, etc.", __func__);
+    ec_srv_state_t cur = srv->state;
+
+    u_dbg("[server=%p] transition request from '%s' to '%s' "
+          "(TODO check valid transitions, timers, etc.)",
+            srv, ec_srv_state_str(cur), ec_srv_state_str(state));
 
     srv->state = state;
 
@@ -270,6 +278,13 @@ const char *ec_server_get_url(ec_server_t *srv)
     dbg_return_if (srv == NULL, NULL);
 
     return ec_flow_get_urlstr(&srv->flow);
+}
+
+ec_method_t ec_server_get_method(ec_server_t *srv)
+{
+    dbg_return_if (srv == NULL, EC_METHOD_UNSET);
+
+    return ec_flow_get_method(&srv->flow);
 }
 
 int ec_server_set_msg_model(ec_server_t *srv, bool is_con)
