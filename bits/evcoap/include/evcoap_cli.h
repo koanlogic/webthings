@@ -26,7 +26,11 @@ struct ec_cli_timers_s
     struct timeval app_tout;
 #define EC_TIMERS_APP_TOUT  10  /* Default is ten seconds. */
 
-    /* TODO CoAP internal retransmission timers. */
+    /* CoAP internal retransmission timers (see evcoap_enum.h for CON timeout
+     * protocol constants.) */
+    size_t nretry;
+    struct event *coap;
+    struct timeval coap_tout;
 };
 typedef struct ec_cli_timers_s ec_cli_timers_t;
 
@@ -73,6 +77,9 @@ int ec_client_register(ec_client_t *cli);
 /* Timers handling. */
 int ec_cli_start_app_timer(ec_client_t *cli);
 int ec_cli_stop_app_timer(ec_client_t *cli);
+int ec_cli_start_coap_timer(ec_client_t *cli);
+int ec_cli_restart_coap_timer(ec_client_t *cli);
+int ec_cli_stop_coap_timer(ec_client_t *cli);
 
 /* Response set handling. */
 int ec_res_set_add(ec_res_set_t *rset, ec_pdu_t *pdu);

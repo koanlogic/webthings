@@ -12,6 +12,7 @@ static bool ec_client_state_is_final(ec_cli_state_t state);
 static int ec_client_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
         struct sockaddr_storage *peer, void *arg);
 static void ec_cli_app_timeout(evutil_socket_t u0, short u1, void *c);
+static void ec_cli_coap_timeout(evutil_socket_t u0, short u1, void *c);
 static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a);
 static int ec_client_check_req_token(ec_client_t *cli);
 static int ec_client_invoke_user_callback(ec_client_t *cli);
@@ -389,6 +390,77 @@ static bool ec_client_state_is_final(ec_cli_state_t state)
     }
 }
 
+static void ec_cli_coap_timeout(evutil_socket_t u0, short u1, void *c)
+{
+    ec_client_t *cli = (ec_client_t *) c;
+    ec_cli_timers_t *t = &cli->timers;
+
+    /* First off: check if we've got here with all retransmit attempts 
+     * depleted. */
+    if (t->nretry == EC_COAP_MAX_RETRANSMIT)
+        ec_client_set_state(cli, EC_CLI_STATE_COAP_TIMEOUT);
+    else
+    {
+        /* Enter the RETRY state and try to send the PDU again. */
+        ec_client_set_state(cli, EC_CLI_STATE_COAP_RETRY);
+
+        if (ec_pdu_send(&cli->req) == 0)
+            ec_client_set_state(cli, EC_CLI_STATE_REQ_SENT);
+        else
+            ec_client_set_state(cli, EC_CLI_STATE_SEND_FAILED);
+    }
+
+    return;
+}
+
+int ec_cli_restart_coap_timer(ec_client_t *cli)
+{
+    dbg_return_if (cli == NULL, -1);
+
+    ec_t *coap = cli->base;
+    ec_cli_timers_t *t = &cli->timers;
+
+    /* Double timeout value. */
+    t->coap_tout.tv_sec *= 2;
+
+    /* Add timeout to the base. */
+    dbg_err_if (evtimer_add(t->coap, &t->coap_tout));
+
+    /* Increment number of retries. */
+    ++t->nretry;
+
+    return 0;
+err:
+    (void) ec_cli_stop_coap_timer(cli);
+    return -1;
+
+}
+
+int ec_cli_start_coap_timer(ec_client_t *cli)
+{
+    dbg_return_if (cli == NULL, -1);
+
+    ec_t *coap = cli->base;
+    ec_cli_timers_t *t = &cli->timers;
+
+    /* Create new CoAP timeout event for this client. */
+    dbg_err_if ((t->coap = event_new(coap->base, -1, EV_PERSIST, 
+                    ec_cli_coap_timeout, cli)) == NULL);
+
+    /* Set initial timeout value (TODO randomization.) */
+    t->coap_tout.tv_sec = EC_COAP_RESPONSE_TIMEOUT;
+
+    /* Add timeout to the base. */
+    dbg_err_if (evtimer_add(t->coap, &t->coap_tout));
+
+    t->nretry = 1;
+
+    return 0;
+err:
+    (void) ec_cli_stop_coap_timer(cli);
+    return -1;
+}
+
 static void ec_cli_app_timeout(evutil_socket_t u0, short u1, void *c)
 {
     ec_client_t *cli = (ec_client_t *) c;
@@ -400,6 +472,24 @@ static void ec_cli_app_timeout(evutil_socket_t u0, short u1, void *c)
     (void) ec_client_invoke_user_callback(cli);
 
     return;
+}
+
+int ec_cli_stop_coap_timer(ec_client_t *cli)
+{
+    ec_cli_timers_t *t;
+
+    dbg_return_if (cli == NULL, -1);
+
+    t = &cli->timers;
+
+    if (t->coap)
+    {
+        event_free(t->coap);
+        t->coap = NULL;
+        /* TODO clean nretry and coap_tout ? */
+    }
+
+    return 0;
 }
 
 int ec_cli_start_app_timer(ec_client_t *cli)
@@ -441,6 +531,7 @@ int ec_cli_stop_app_timer(ec_client_t *cli)
 void ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
 {
     ec_cli_state_t cur = cli->state;
+    bool is_con = false;    /* Assume lesser semantics. */
 
     u_dbg("[client=%p] transition request from '%s' to '%s'", cli, 
             ec_cli_state_str(cur), ec_cli_state_str(state));
@@ -448,21 +539,33 @@ void ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
     /* Check that the requested state transition is valid. */
     dbg_err_if (ec_client_check_transition(cur, state));
 
+    /* Try to get the type of message flow. */
+    dbg_if (ec_net_get_confirmable(&cli->flow.conn, &is_con));
+
     if (state == EC_CLI_STATE_REQ_SENT)
     {
-        /* After the _first_ successful send, start the application timeout. */
         if (cur == EC_CLI_STATE_DNS_OK)
+        {
+            /* After the *first* successful send, start the application 
+             * timeout. */
             dbg_err_if (ec_cli_start_app_timer(cli));
 
-        /* TODO if CON also start the retransmission timer. */
+            /* In case it's a CON flow, also start the retransmission timer. */
+            dbg_if (is_con && ec_cli_start_coap_timer(cli));
+        }
+        else if (cur == EC_CLI_STATE_COAP_RETRY)
+        {
+            /* Restart timer. */
+            ;
+        }
     }
     else if (ec_client_state_is_final(state))
     {
         /* Any final state MUST destroy all pending timers. */
+        dbg_if (ec_cli_stop_app_timer(cli));
 
-        dbg_err_if (ec_cli_stop_app_timer(cli));
-
-        /* TODO if CON also stop the retransmission timer. */
+        /* If CON also stop the retransmission timer. */
+        dbg_if (is_con && ec_cli_stop_coap_timer(cli));
     }
 
     /* Finally set state. */
