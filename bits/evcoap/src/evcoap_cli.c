@@ -398,7 +398,12 @@ static void ec_cli_coap_timeout(evutil_socket_t u0, short u1, void *c)
     /* First off: check if we've got here with all retransmit attempts 
      * depleted. */
     if (t->nretry == EC_COAP_MAX_RETRANSMIT)
+    {
         ec_client_set_state(cli, EC_CLI_STATE_COAP_TIMEOUT);
+
+        /* Invoke client callback. */
+        (void) ec_client_invoke_user_callback(cli);
+    }
     else
     {
         /* Enter the RETRY state and try to send the PDU again. */
@@ -423,6 +428,8 @@ int ec_cli_restart_coap_timer(ec_client_t *cli)
     /* Double timeout value. */
     t->coap_tout.tv_sec *= 2;
 
+    u_dbg("timeout = %d", t->coap_tout.tv_sec);
+
     /* Add timeout to the base. */
     dbg_err_if (evtimer_add(t->coap, &t->coap_tout));
 
@@ -443,15 +450,14 @@ int ec_cli_start_coap_timer(ec_client_t *cli)
     ec_t *coap = cli->base;
     ec_cli_timers_t *t = &cli->timers;
 
-    /* Create new CoAP timeout event for this client. */
-    dbg_err_if ((t->coap = event_new(coap->base, -1, EV_PERSIST, 
-                    ec_cli_coap_timeout, cli)) == NULL);
-
     /* Set initial timeout value (TODO randomization.) */
     t->coap_tout.tv_sec = EC_COAP_RESPONSE_TIMEOUT;
 
+    /* Create new CoAP (non persisten) timeout event for this client. */
+    t->coap = evtimer_new(coap->base, ec_cli_coap_timeout, cli);
+
     /* Add timeout to the base. */
-    dbg_err_if (evtimer_add(t->coap, &t->coap_tout));
+    dbg_err_if (t->coap == NULL || evtimer_add(t->coap, &t->coap_tout));
 
     t->nretry = 1;
 
@@ -503,7 +509,9 @@ int ec_cli_start_app_timer(ec_client_t *cli)
      * client. */
     dbg_err_if (t->app != NULL);
 
-    t->app = event_new(coap->base, -1, EV_PERSIST, ec_cli_app_timeout, cli);
+    u_dbg("application timeout is %d seconds", t->app_tout.tv_sec);
+
+    t->app = evtimer_new(coap->base, ec_cli_app_timeout, cli);
     dbg_err_if (t->app == NULL || evtimer_add(t->app, &t->app_tout));
 
     return 0;
@@ -556,7 +564,7 @@ void ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
         else if (cur == EC_CLI_STATE_COAP_RETRY)
         {
             /* Restart timer. */
-            ;
+            dbg_if (ec_cli_restart_coap_timer(cli));
         }
     }
     else if (ec_client_state_is_final(state))

@@ -32,7 +32,7 @@ ctx_t g_ctx = {
     .uri = DEFAULT_URI,
     .method = EC_GET,
     .model = EC_NON,
-    .app_tout = { .tv_sec = EC_TIMERS_APP_TOUT, .tv_usec = 0 },
+    .app_tout = { .tv_sec = 60, .tv_usec = 0 },
     .etag = { 0xde, 0xad, 0xbe, 0xef },
     .ofn = DEFAULT_OFN,
     .verbose = false

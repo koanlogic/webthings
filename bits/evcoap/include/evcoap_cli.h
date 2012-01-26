@@ -24,7 +24,7 @@ struct ec_cli_timers_s
     /* User defined application timeout (how much await for resposes.) */
     struct event *app;
     struct timeval app_tout;
-#define EC_TIMERS_APP_TOUT  10  /* Default is ten seconds. */
+#define EC_TIMERS_APP_TOUT  60  /* Default is one minute. */
 
     /* CoAP internal retransmission timers (see evcoap_enum.h for CON timeout
      * protocol constants.) */

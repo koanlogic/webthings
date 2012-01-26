@@ -3,18 +3,18 @@
 
 static const char *g_client_states[] =
 {
-    [EC_CLI_STATE_NONE]         = "null state",
-    [EC_CLI_STATE_INTERNAL_ERR] = "Internal error (FINAL)",
-    [EC_CLI_STATE_DNS_FAILED]   = "DNS failed (FINAL)",
-    [EC_CLI_STATE_DNS_OK]       = "DNS succeeded",
-    [EC_CLI_STATE_SEND_FAILED]  = "request PDU send failed (FINAL)",
-    [EC_CLI_STATE_REQ_SENT]     = "request PDU send succeeded",
-    [EC_CLI_STATE_REQ_ACKD]     = "request PDU acknowledged (separate message)",
-    [EC_CLI_STATE_APP_TIMEOUT]  = "application timeout elapsed (FINAL)",
-    [EC_CLI_STATE_COAP_RETRY]   = "request PDU in retransmission",
-    [EC_CLI_STATE_COAP_TIMEOUT] = "protocol timeout elapsed (FINAL)",
-    [EC_CLI_STATE_REQ_DONE]     = "response received (FINAL)",
-    [EC_CLI_STATE_REQ_RST]      = "request PDU reset by server (FINAL)"
+    [EC_CLI_STATE_NONE]         = "NULL STATE",
+    [EC_CLI_STATE_INTERNAL_ERR] = "INTERNAL ERR (FINAL)",
+    [EC_CLI_STATE_DNS_FAILED]   = "DNS FAILED (FINAL)",
+    [EC_CLI_STATE_DNS_OK]       = "DNS OK",
+    [EC_CLI_STATE_SEND_FAILED]  = "SEND FAILED (FINAL)",
+    [EC_CLI_STATE_REQ_SENT]     = "REQ SENT",
+    [EC_CLI_STATE_REQ_ACKD]     = "REQ ACKD (separate message)",
+    [EC_CLI_STATE_APP_TIMEOUT]  = "APP TIMEOUT (FINAL)",
+    [EC_CLI_STATE_COAP_RETRY]   = "COAP RETRY",
+    [EC_CLI_STATE_COAP_TIMEOUT] = "COAP TIMEOUT (FINAL)",
+    [EC_CLI_STATE_REQ_DONE]     = "REQ DONE (FINAL)",
+    [EC_CLI_STATE_REQ_RST]      = "REQ RST (FINAL)"
 };
 
 const char *ec_cli_state_str(ec_cli_state_t s)
