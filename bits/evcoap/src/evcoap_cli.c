@@ -400,9 +400,6 @@ static void ec_cli_coap_timeout(evutil_socket_t u0, short u1, void *c)
     if (t->nretry == EC_COAP_MAX_RETRANSMIT)
     {
         ec_client_set_state(cli, EC_CLI_STATE_COAP_TIMEOUT);
-
-        /* Invoke client callback. */
-        (void) ec_client_invoke_user_callback(cli);
     }
     else
     {
@@ -474,9 +471,6 @@ static void ec_cli_app_timeout(evutil_socket_t u0, short u1, void *c)
     /* Set state to APP_TIMEOUT. */
     ec_client_set_state(cli, EC_CLI_STATE_APP_TIMEOUT);
 
-    /* Invoke client callback. */
-    (void) ec_client_invoke_user_callback(cli);
-
     return;
 }
 
@@ -539,7 +533,7 @@ int ec_cli_stop_app_timer(ec_client_t *cli)
 void ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
 {
     ec_cli_state_t cur = cli->state;
-    bool is_con = false;    /* Assume lesser semantics. */
+    bool is_con = false, is_final_state = false;
 
     u_dbg("[client=%p] transition request from '%s' to '%s'", cli, 
             ec_cli_state_str(cur), ec_cli_state_str(state));
@@ -567,7 +561,7 @@ void ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
             dbg_if (ec_cli_restart_coap_timer(cli));
         }
     }
-    else if (ec_client_state_is_final(state))
+    else if ((is_final_state = ec_client_state_is_final(state)))
     {
         /* Any final state MUST destroy all pending timers. */
         dbg_if (ec_cli_stop_app_timer(cli));
@@ -576,8 +570,12 @@ void ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
         dbg_if (is_con && ec_cli_stop_coap_timer(cli));
     }
 
-    /* Finally set state. */
+    /* Finally set state and, in case the state we've entered is final, 
+     * invoke the user callback. */
     cli->state = state;
+
+    if (is_final_state)
+        (void) ec_client_invoke_user_callback(cli);
 
     return;
 err:
@@ -707,9 +705,6 @@ static int ec_client_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
 
     /* Just before invoking the client callback, set state to DONE. */
     ec_client_set_state(cli, EC_CLI_STATE_REQ_DONE);
-
-    /* Invoke the client callback */
-    (void) ec_client_invoke_user_callback(cli);
 
     if (!flow->conn.is_multicast)
         dbg_if (ec_res_set_clear(&cli->res_set));
