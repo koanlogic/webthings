@@ -8,6 +8,7 @@ int facility = LOG_LOCAL0;
 
 #define DEFAULT_URI "coap://[::1]/.well-known/core"
 #define DEFAULT_OFN "./response.payload"
+#define DEFAULT_TOUT 60
 
 typedef struct 
 {
@@ -32,7 +33,7 @@ ctx_t g_ctx = {
     .uri = DEFAULT_URI,
     .method = EC_GET,
     .model = EC_NON,
-    .app_tout = { .tv_sec = 60, .tv_usec = 0 },
+    .app_tout = { .tv_sec = DEFAULT_TOUT, .tv_usec = 0 },
     .etag = { 0xde, 0xad, 0xbe, 0xef },
     .ofn = DEFAULT_OFN,
     .verbose = false
@@ -46,6 +47,7 @@ int client_set_uri(const char *s);
 int client_set_method(const char *s);
 int client_set_model(const char *s);
 int client_set_output_file(const char *s);
+int client_set_app_timeout(const char *s);
 int client_save_to_file(const ev_uint8_t *pl, size_t pl_sz);
 void cb(ec_client_t *cli);
 
@@ -53,7 +55,7 @@ int main(int ac, char *av[])
 {
     int c;
 
-    while ((c = getopt(ac, av, "hu:m:M:o:v")) != -1)
+    while ((c = getopt(ac, av, "hu:m:M:o:vt:")) != -1)
     {
         switch (c)
         {
@@ -75,6 +77,10 @@ int main(int ac, char *av[])
                 break;
             case 'v':
                 g_ctx.verbose = true;
+                break;
+            case 't':
+                if (client_set_app_timeout(optarg))
+                    usage(av[0]);
                 break;
             case 'h':
             default:
@@ -131,18 +137,19 @@ err:
 void usage(const char *prog)
 {
     const char *us = 
-        "Usage: %s [opts]                                               \n"
-        "                                                               \n"
-        "   where opts is one of:                                       \n"
-        "       -h  this help                                           \n"
-        "       -m <GET|POST|PUT|DELETE>    (default is GET)            \n"
-        "       -M <CON|NON>                (default is NON)            \n"
-        "       -o <file>                   (default is "DEFAULT_OFN")  \n"
-        "       -u <uri>                    (default is "DEFAULT_URI")  \n"
-        "                                                               \n"
+        "Usage: %s [opts]                                                  \n"
+        "                                                                  \n"
+        "   where opts is one of:                                          \n"
+        "       -h  this help                                              \n"
+        "       -m <GET|POST|PUT|DELETE>    (default is GET)               \n"
+        "       -M <CON|NON>                (default is NON)               \n"
+        "       -o <file>                   (default is "DEFAULT_OFN")     \n"
+        "       -u <uri>                    (default is "DEFAULT_URI")     \n"
+        "       -t <timeout>                (default is %u sec)            \n"
+        "                                                                  \n"
         ;
 
-    u_con(us, prog);
+    u_con(us, prog, DEFAULT_TOUT);
 
     exit(EXIT_FAILURE);
 }
@@ -237,6 +244,22 @@ int client_set_model(const char *s)
         return 0;
     }
 
+    return -1;
+}
+
+int client_set_app_timeout(const char *s)
+{
+    int tmp;
+
+    dbg_return_if (s == NULL, -1);
+
+    con_err_ifm (u_atoi(s, &tmp), "bad application timeout '%s'", s);
+
+    g_ctx.app_tout.tv_sec = tmp;
+    g_ctx.app_tout.tv_usec = 0;
+
+    return 0;
+err:
     return -1;
 }
 

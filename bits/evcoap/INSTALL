@@ -1,15 +1,32 @@
-- install makl (1.9.0):
-    ...
+* Install makl (HEAD of the master branch):
 
-- install libevent (ver >= 2)
-    ...
+    $ git clone git@github.com:koanlogic/makl.git
+    $ cd makl
+    $ sh configure.sh
+    $ sudo make install
 
-- install libu (ver >= 2.3.0)
-    supplied '--extra-cflags=-DU_TOKEN_SZ=256' to makl-conf to double the
-    lexer token default buffer.
+[ the (4) should work on most platforms, makl suggest the correct command line ]
+
+* Choose a destination directory for evcoap (and its dependencies), e.g.:
+
+    $ export IDIR=~/evcoap-install
     
+* Install libu (HEAD of the master branch):
 
-- install evcoap
-    $ makl-conf --libs=/path/to/libu+libevent/base
+    $ git clone git@github.com:koanlogic/libu.git
+    $ cd libu
+    $ makl-conf --extra-cflags=-DU_TOKEN_SZ=256 \
+                --prefix="${IDIR}" \
+                --enable_{debug,warns}
+
+* Install libevent (ver >= 2):
+    $ git clone git://github.com/nmathewson/Libevent.git
+    $ cd libevent
+    $ ./configure --prefix="${IDIR}"
+
+* Install evcoap:
+    $ makl-conf --libs="${IDIR}" --prefix="${IDIR}" --enable_{debug,warns,extra}
     $ makl
     # makl install
+
+You may now play with CoAP test client and server.
