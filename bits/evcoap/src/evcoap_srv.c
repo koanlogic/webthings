@@ -141,7 +141,7 @@ static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
 
     /* Save dst and src addresses in srv context. */
     dbg_err_if (ec_net_save_us(conn, sd));
-    dbg_err_if (ec_pdu_set_peer(res, peer, peer->ss_len));
+    dbg_err_if (ec_pdu_set_peer(res, peer));
 
     /* Recompose the requested URI and save it into the server context.
      * XXX Assume NoSec is the sole supported mode. */

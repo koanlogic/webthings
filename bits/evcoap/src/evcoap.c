@@ -129,7 +129,8 @@ int ec_bind_socket(ec_t *coap, const char *addr, ev_uint16_t port)
 
     return 0;
 err:
-    /* TODO */
+    if (sd != -1)
+        evutil_closesocket(sd);
     return -1;
 }
 

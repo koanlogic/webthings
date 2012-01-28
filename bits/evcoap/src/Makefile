@@ -1,6 +1,6 @@
 include common.mk
 include ../Makefile.conf
-include ../Makefile.warns
+-include ../Makefile.warns
 
 LIB = evcoap
 

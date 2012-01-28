@@ -26,6 +26,10 @@ case ${target} in
         # workaround to avoid circular dependecy error on Mac OS X 
         makl_set_var "PRE_LDADD" "-ldl"
         ;;
+    *linux*)
+        makl_set_var "OS_LINUX"
+        makl_append_var_mk "LDADD" "-lrt"
+        ;;
 esac
 
 # local include path

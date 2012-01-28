@@ -107,10 +107,13 @@ int ec_net_send(ev_uint8_t h[4], ev_uint8_t *o, size_t o_sz, ev_uint8_t *p,
     struct msghdr msg;
     size_t iov_idx = 0;
     struct iovec iov[3];
+    ev_uint8_t dlen;
 
     dbg_return_if (h == NULL, -1);
     dbg_return_if (sd == -1, -1);
     dbg_return_if (d == NULL, -1);
+
+    dbg_err_if (ec_net_socklen(d, &dlen));
 
     /* Header is non optional. */
     iov[iov_idx].iov_base = (void *) h;
@@ -134,7 +137,7 @@ int ec_net_send(ev_uint8_t h[4], ev_uint8_t *o, size_t o_sz, ev_uint8_t *p,
     }
 
     msg.msg_name = (void *) d;
-    msg.msg_namelen = d->ss_len;
+    msg.msg_namelen = dlen;
     msg.msg_iov = iov;
     msg.msg_iovlen = iov_idx;
     msg.msg_control = NULL;
@@ -196,3 +199,25 @@ int ec_net_get_confirmable(ec_conn_t *conn, bool *is_con)
     return 0;
 }
 
+int ec_net_socklen(const struct sockaddr_storage *ss, ev_uint8_t *ss_len)
+{
+    dbg_return_if (ss == NULL, -1);
+    dbg_return_if (ss_len == NULL, -1);
+
+    switch (ss->ss_family)
+    {
+        case AF_INET:
+            *ss_len = sizeof(struct sockaddr_in);
+            break;
+        case AF_INET6:
+            *ss_len = sizeof(struct sockaddr_in6);
+            break;
+        default:
+            dbg_err("unknown address family %u", ss->ss_family);
+            break;
+    }
+
+    return 0;
+err:
+    return -1;
+}

@@ -45,4 +45,6 @@ int ec_net_save_us(ec_conn_t *conn, evutil_socket_t sd);
 int ec_net_set_confirmable(ec_conn_t *conn, bool is_con);
 int ec_net_get_confirmable(ec_conn_t *conn, bool *is_con);
 
+int ec_net_socklen(const struct sockaddr_storage *ss, ev_uint8_t *ss_len);
+
 #endif  /* !_EC_NET_H_ */

@@ -28,20 +28,17 @@ int ec_pdu_set_flow(ec_pdu_t *pdu, ec_flow_t *flow)
     return 0;
 }
 
-int ec_pdu_set_peer(ec_pdu_t *pdu, const struct sockaddr_storage *peer,
-        size_t peer_len)
+int ec_pdu_set_peer(ec_pdu_t *pdu, const struct sockaddr_storage *peer)
 {
     dbg_return_if (pdu == NULL, -1);
     dbg_return_if (peer == NULL, -1);
-    dbg_return_if (peer_len == 0, -1);
 
-    memcpy(&pdu->peer, peer, peer_len);
-
-    /* Force this for cases where we get the struct sockaddr address,
-     * e.g. on client via getaddrinfo(). */
-    pdu->peer.ss_len = peer_len;
+    dbg_err_if (ec_net_socklen(peer, &pdu->peer_len));
+    memcpy(&pdu->peer, peer, pdu->peer_len);
 
     return 0;
+err:
+    return -1;
 }
 
 int ec_pdu_set_sibling(ec_pdu_t *pdu, ec_pdu_t *sibling)
