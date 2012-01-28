@@ -1,32 +1,55 @@
+The following assumes you have already cloned the webthings git repository
+available at git://github.com/koanlogic/webthings.git .
+
+Let's start:
+
+* Choose a base directory where all the installed bits will go, e.g.:
+    $ export BDIR=~/coap
+
+
 * Install makl (HEAD of the master branch):
 
-    $ git clone git@github.com:koanlogic/makl.git
+    $ cd "${BDIR}"
+    $ git clone git://github.com/koanlogic/makl.git
     $ cd makl
     $ sh configure.sh
     $ sudo make install
 
-[ the (4) should work on most platforms, makl suggest the correct command line ]
+[ step (4) should work on most platforms, makl suggest the right command line ]
+
 
 * Choose a destination directory for evcoap (and its dependencies), e.g.:
 
     $ export IDIR=~/evcoap-install
     
+
 * Install libu (HEAD of the master branch):
 
-    $ git clone git@github.com:koanlogic/libu.git
+    $ cd "${BDIR}"
+    $ git clone git://github.com/koanlogic/libu.git
     $ cd libu
     $ makl-conf --extra-cflags=-DU_TOKEN_SZ=256 \
                 --prefix="${IDIR}" \
                 --enable_{debug,warns}
+    $ makl all install
+
 
 * Install libevent (ver >= 2):
-    $ git clone git://github.com/nmathewson/Libevent.git
-    $ cd libevent
+
+    $ cd "${BDIR}"
+    $ wget --no-check-certificate https://github.com/downloads/libevent/libevent/libevent-2.0.16-stable.tar.gz
+    $ tar zxvf libevent-2.0.16-stable.tar.gz
+    $ cd libevent-2.0.16-stable
     $ ./configure --prefix="${IDIR}"
+    $ make all install
+
 
 * Install evcoap:
+
+    $ cd "${BDIR}"/webthings/bits/evcoap
     $ makl-conf --libs="${IDIR}" --prefix="${IDIR}" --enable_{debug,warns,extra}
     $ makl
     # makl install
 
-You may now play with CoAP test client and server.
+You may now play with CoAP test client and server (see test/client and 
+test/server directories.)

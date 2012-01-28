@@ -26,7 +26,6 @@ struct ec_pdu_s
     struct ec_opts_s opts;
 
     struct sockaddr_storage peer;
-    ev_uint8_t peer_len;
 
     /* Set in reply PDU to refer to the message that initiated the exchange. */
     struct ec_pdu_s *sibling;
