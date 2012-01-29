@@ -1,4 +1,5 @@
 #include <u/libu.h>
+#include "evcoap_enums.h"
 #include "evcoap_net.h"
 
 evutil_socket_t ec_net_bind_socket(struct sockaddr_storage *ss, int ss_len)
@@ -101,8 +102,9 @@ void ec_net_pullup_all(evutil_socket_t sd, ec_pdu_handler_t pdu_proc, void *arg)
     }
 }
 
-int ec_net_send(ev_uint8_t h[4], ev_uint8_t *o, size_t o_sz, ev_uint8_t *p,
-        size_t p_sz, evutil_socket_t sd, struct sockaddr_storage *d)
+int ec_net_send(ev_uint8_t h[EC_COAP_HDR_SIZE], ev_uint8_t *o, size_t o_sz,
+        ev_uint8_t *p, size_t p_sz, evutil_socket_t sd, 
+        struct sockaddr_storage *d)
 {
     struct msghdr msg;
     size_t iov_idx = 0;
@@ -117,7 +119,7 @@ int ec_net_send(ev_uint8_t h[4], ev_uint8_t *o, size_t o_sz, ev_uint8_t *p,
 
     /* Header is non optional. */
     iov[iov_idx].iov_base = (void *) h;
-    iov[iov_idx].iov_len = 4;
+    iov[iov_idx].iov_len = EC_COAP_HDR_SIZE;
     ++iov_idx;
 
     /* Add options, if any. */

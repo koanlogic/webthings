@@ -28,6 +28,10 @@ extern "C" {
 #define EC_COAP_RESPONSE_RANDOM_FACTOR  1.5
 #define EC_COAP_MAX_RETRANSMIT          4
 
+#ifndef EC_COAP_MAX_REQ_SIZE
+  #define EC_COAP_MAX_REQ_SIZE 1500
+#endif  /* !EC_COAP_MAX_REQ_SIZE */
+
 typedef enum
 {
     EC_CON = 0,

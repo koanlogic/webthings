@@ -30,12 +30,9 @@ int ec_pdu_set_flow(ec_pdu_t *pdu, ec_flow_t *flow)
 
 int ec_pdu_set_peer(ec_pdu_t *pdu, const struct sockaddr_storage *peer)
 {
-//    ev_uint8_t peer_len;
-
     dbg_return_if (pdu == NULL, -1);
     dbg_return_if (peer == NULL, -1);
 
-//    dbg_err_if (ec_net_socklen(peer, &peer_len));
     memcpy(&pdu->peer, peer, sizeof(pdu->peer));
 
     return 0;
