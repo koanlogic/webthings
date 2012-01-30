@@ -1,6 +1,7 @@
 #include <u/libu.h>
 #include <event2/util.h>
 #include "evcoap_pdu.h"
+#include "evcoap_base.h"
 
 static int encode_response(ec_pdu_t *pdu, ev_uint8_t t, ec_rc_t rc,
         ev_uint16_t mid);
@@ -30,10 +31,14 @@ int ec_pdu_set_flow(ec_pdu_t *pdu, ec_flow_t *flow)
 
 int ec_pdu_set_peer(ec_pdu_t *pdu, const struct sockaddr_storage *peer)
 {
+    ev_uint8_t peer_len;
+
     dbg_return_if (pdu == NULL, -1);
     dbg_return_if (peer == NULL, -1);
 
-    memcpy(&pdu->peer, peer, sizeof(pdu->peer));
+    dbg_err_if (ec_net_socklen(peer, &peer_len));
+
+    memcpy(&pdu->peer, peer, peer_len);
 
     return 0;
 err:
@@ -58,15 +63,43 @@ int ec_pdu_init_options(ec_pdu_t *pdu)
     return ec_opts_init(&pdu->opts);
 }
 
-int ec_pdu_send(ec_pdu_t *pdu)
+/* If 'dups' == NULL, don't go through the cache. */
+int ec_pdu_send(ec_pdu_t *pdu, struct ec_dups_s *dups)
 {
+    int rc;
+    ec_recvd_pdu_t *rpdu;
+
     dbg_return_if (pdu == NULL, -1);
 
     ec_opts_t *opts = &pdu->opts;           /* shortcut */
     ec_conn_t *conn = &pdu->flow->conn;     /* ditto */
 
-    return ec_net_send(pdu->hdr, opts->enc, opts->enc_sz, pdu->payload,
+    /* Send PDU to destination. */
+    rc = ec_net_send(pdu->hdr, opts->enc, opts->enc_sz, pdu->payload,
             pdu->payload_sz, conn->socket, &pdu->peer);
+
+    /* Independently of success of previous operations, save the
+     * PDU into the duplicate handling mechanism, if appropriate and
+     * requested by the caller.
+     * The "if PDU has sibling" condition equals the fact that this
+     * send has been elicited by an incoming message (the sibling PDU)
+     * whose MID is used to locate the corresponding recvd_pdu. */
+    if (dups && pdu->sibling)
+    {
+        /* Retrieve cache entry. */
+        dbg_err_ifm ((rpdu = ec_dups_search(dups, EC_PDU_MID(pdu->sibling),
+                        &pdu->peer)) == NULL, 
+                "could not find received PDU with MID %u", 
+                EC_PDU_MID(pdu->sibling));
+    
+        /* Update cache with supplied PDU pieces. */
+        dbg_err_if (ec_recvd_pdu_update(rpdu, pdu->hdr, opts->enc, opts->enc_sz,
+                    pdu->payload, pdu->payload_sz));
+    }
+    
+    /* Fall through. */
+err:
+    return rc;
 }
 
 int ec_pdu_encode_response_piggyback(ec_pdu_t *pdu)
@@ -82,7 +115,8 @@ int ec_pdu_encode_response_piggyback(ec_pdu_t *pdu)
     dbg_return_if (sibling == NULL, -1);
 
     /* E.g. T=ACK, Code=69, MID=0x7d37. */
-    return encode_response(pdu, EC_COAP_ACK, flow->resp_code, sibling->mid);
+    return encode_response(pdu, EC_COAP_ACK, flow->resp_code,
+            EC_PDU_MID(sibling));
 }
 
 int ec_pdu_encode_response_ack(ec_pdu_t *pdu)
@@ -94,7 +128,7 @@ int ec_pdu_encode_response_ack(ec_pdu_t *pdu)
     dbg_return_if (sibling == NULL, -1);
 
     /* E.g. T=ACK, Code=0, MID=0x7d38. */
-    return encode_response(pdu, EC_COAP_ACK, EC_RC_UNSET, sibling->mid);
+    return encode_response(pdu, EC_COAP_ACK, EC_RC_UNSET, EC_PDU_MID(sibling));
 }
 
 int ec_pdu_encode_response_rst(ec_pdu_t *pdu)
@@ -106,7 +140,7 @@ int ec_pdu_encode_response_rst(ec_pdu_t *pdu)
     dbg_return_if (sibling == NULL, -1);
 
     /* E.g. T=ACK, Code=0, MID=0x7d38. */
-    return encode_response(pdu, EC_COAP_RST, EC_RC_UNSET, sibling->mid);
+    return encode_response(pdu, EC_COAP_RST, EC_RC_UNSET, EC_PDU_MID(sibling));
 }
 
 int ec_pdu_encode_response_separate(ec_pdu_t *pdu)

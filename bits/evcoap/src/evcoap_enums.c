@@ -54,15 +54,15 @@ int ec_mt_from_string(const char *s, ec_mt_t *pmt)
 
 static const char *g_server_states[] =
 {
-    [EC_SRV_STATE_NONE]             = "null state",
-    [EC_SRV_STATE_INTERNAL_ERR]     = "Internal error (FINAL)",
-    [EC_SRV_STATE_DUP_REQ]          = "Duplicate request (FINAL)",
-    [EC_SRV_STATE_BAD_REQ]          = "Bad request (FINAL)",
-    [EC_SRV_STATE_REQ_OK]           = "Client request ok",
-    [EC_SRV_STATE_ACK_SENT]         = "ACK sent to client",
-    [EC_SRV_STATE_WAIT_ACK]         = "Waiting ACK from client",
-    [EC_SRV_STATE_RESP_ACK_TIMEOUT] = "ACK wait timedout",
-    [EC_SRV_STATE_RESP_DONE]        = "Response completed"
+    [EC_SRV_STATE_NONE]             = "NULL STATE",
+    [EC_SRV_STATE_INTERNAL_ERR]     = "INTERNAL ERR (FINAL)",
+    [EC_SRV_STATE_DUP_REQ]          = "DUP REQ (FINAL)",
+    [EC_SRV_STATE_BAD_REQ]          = "BAD REQ (FINAL)",
+    [EC_SRV_STATE_REQ_OK]           = "REQ OK",
+    [EC_SRV_STATE_ACK_SENT]         = "ACK SENT",
+    [EC_SRV_STATE_WAIT_ACK]         = "WAIT ACK",
+    [EC_SRV_STATE_RESP_ACK_TIMEOUT] = "ACK TIMEDOUT",
+    [EC_SRV_STATE_RESP_DONE]        = "RESP DONE"
 };
 
 const char *ec_srv_state_str(ec_srv_state_t s)

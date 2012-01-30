@@ -89,6 +89,16 @@ err:
     return -1;
 }
 
+void ec_dups_term(ec_dups_t *dups)
+{
+    if (dups)
+    {
+        u_hmap_free(dups->map);
+    }
+
+    return;
+}
+
 ec_recvd_pdu_t *ec_dups_search(ec_dups_t *dups, ev_uint16_t mid, 
         struct sockaddr_storage *peer)
 {
@@ -101,7 +111,7 @@ ec_recvd_pdu_t *ec_dups_search(ec_dups_t *dups, ev_uint16_t mid,
     dbg_err_if (!ec_dup_key_new(mid, peer, key));
 
     if ((recvd = (ec_recvd_pdu_t *) u_hmap_easy_get(dups->map, key)))
-        u_dbg("%s is a duplicate", key);
+        u_dbg("%s found", key);
 
     return recvd;
 err:
@@ -180,7 +190,7 @@ err:
 
 /* 
  * '0'  -> no dup
- * '1'  -> dup, (handled here ?)
+ * '1'  -> dup
  * '-1' -> internal error
  */
 int ec_dups_handle_incoming_srvmsg(ec_dups_t *dups, ev_uint16_t mid, int sd,
@@ -195,7 +205,18 @@ int ec_dups_handle_incoming_srvmsg(ec_dups_t *dups, ev_uint16_t mid, int sd,
 
     /* See if this PDU was seen here already. */ 
     if ((recvd = ec_dups_search(dups, mid, ss)))
+    {
+        ec_cached_pdu_t *cpdu = &recvd->cached_pdu;
+
+        /* If message has already elicited a response, then use it. */
+        if (cpdu->is_set)
+        {
+            dbg_if (ec_net_send(cpdu->hdr, cpdu->opts, cpdu->opts_sz,
+                        cpdu->payload, cpdu->payload_sz, sd, ss)); 
+        }
+
         return 1;
+    }
 
     /* New entry, push it into the cache. */
     dbg_err_if (ec_dups_insert(dups, ss, mid));
@@ -292,11 +313,12 @@ void ec_recvd_pdu_free(void *arg)
 
         u_free(pdu->opts);
         u_free(pdu->payload);
-        u_free(recvd);
 
         /* Remove timer. */
         if (recvd->countdown)
             event_free(recvd->countdown);
+
+        u_free(recvd);
     }
 }
 
@@ -304,18 +326,31 @@ int ec_recvd_pdu_update(ec_recvd_pdu_t *recvd, ev_uint8_t *hdr,
         ev_uint8_t *opts, size_t opts_sz, ev_uint8_t *payload, 
         size_t payload_sz)
 {
+    ev_uint8_t *p = NULL, *o = NULL;
+    ec_cached_pdu_t *pdu;
+
     dbg_return_if (recvd == NULL, -1);
 
-    ec_cached_pdu_t *pdu = &recvd->cached_pdu;
+    dbg_err_if ((o = u_memdup(opts, opts_sz)) == NULL);
+    dbg_err_if ((p = u_memdup(payload, payload_sz)) == NULL);
+
+    pdu = &recvd->cached_pdu;
 
     /* Update all pieces. */
     memcpy(pdu->hdr, hdr, 4);
-    pdu->opts = opts;
+    pdu->opts = o;
+    pdu->payload = p;
     pdu->opts_sz = opts_sz;
-    pdu->payload = payload;
     pdu->payload_sz = payload_sz;
 
+    /* Raise the flag. */
     pdu->is_set = true;
 
     return 0;
+err:
+    if (o)
+        u_free(o);
+    if (p)
+        u_free(p);
+    return -1;
 }

@@ -34,6 +34,8 @@ ev_ssize_t ec_net_pullup(evutil_socket_t sd, ev_uint8_t *b, size_t b_sz,
     msg.msg_namelen = *peer_len;
     iov[0].iov_base = b;
     iov[0].iov_len = b_sz;
+    msg.msg_control = NULL;
+    msg.msg_controllen = 0;
     msg.msg_iov = iov;
     msg.msg_iovlen = 1;
 

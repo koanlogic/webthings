@@ -13,3 +13,7 @@ LDADD += $(LIBU_LDADD)
 DPADD += $(LDADD)
 
 include prog.mk
+
+ifdef OS_DARWIN
+all-hook-post: ; /usr/bin/dsymutil $(PROG)
+endif

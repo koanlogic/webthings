@@ -101,8 +101,12 @@ int ec_client_set_uri(ec_client_t *cli, const char *uri)
             dbg_err_if (ec_opts_add_uri_query(opts, p));
     }
 
+    u_uri_free(u);
+
     return 0;
 err:
+    if (u)
+        u_uri_free(u);
     return -1;
 }
 
@@ -267,10 +271,11 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
         }                                       \
     } while (0)
 
-    struct evutil_addrinfo *ai;
+    struct evutil_addrinfo *ai = NULL;
     ec_client_t *cli = (ec_client_t *) a;
     ec_pdu_t *req = &cli->req;
     ec_conn_t *conn = &cli->flow.conn;
+    ec_dups_t *dups = &cli->base->dups;
 
     /* Unset the evdns_getaddrinfo_request pointer, since when we get called
      * its lifetime is complete. */
@@ -294,7 +299,7 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
                     (struct sockaddr_storage *) ai->ai_addr));
 
         /* Send the request PDU. */
-        if (ec_pdu_send(req))
+        if (ec_pdu_send(req, dups))
         {
             /* Mark this socket as failed and try again. */
             evutil_closesocket(conn->socket), conn->socket = -1;
@@ -316,8 +321,14 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
 
     /* TODO add to the duplicate machinery ? */
 
+    /* Remove the heap-allocated evutil_addrinfo's linked list. */
+    if (ai)
+        evutil_freeaddrinfo(ai);
+
     return;
 err:
+    if (ai)
+        evutil_freeaddrinfo(ai);
     return;
     /* TODO Invoke user callback with the failure code. */
 #undef EC_CLI_ASSERT
@@ -393,6 +404,7 @@ static bool ec_client_state_is_final(ec_cli_state_t state)
 static void ec_cli_coap_timeout(evutil_socket_t u0, short u1, void *c)
 {
     ec_client_t *cli = (ec_client_t *) c;
+    ec_dups_t *dups = &cli->base->dups;
     ec_cli_timers_t *t = &cli->timers;
 
     /* First off: check if we've got here with all retransmit attempts 
@@ -406,7 +418,7 @@ static void ec_cli_coap_timeout(evutil_socket_t u0, short u1, void *c)
         /* Enter the RETRY state and try to send the PDU again. */
         ec_client_set_state(cli, EC_CLI_STATE_COAP_RETRY);
 
-        if (ec_pdu_send(&cli->req) == 0)
+        if (ec_pdu_send(&cli->req, dups) == 0)
             ec_client_set_state(cli, EC_CLI_STATE_REQ_SENT);
         else
             ec_client_set_state(cli, EC_CLI_STATE_SEND_FAILED);

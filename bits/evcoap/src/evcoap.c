@@ -42,10 +42,12 @@ err:
  */
 void ec_term(ec_t *coap)
 {
-    if (coap == NULL)
-        return;
-
-    u_free(coap);
+    if (coap)
+    {
+        ec_dups_term(&coap->dups);
+        /* TODO */
+        u_free(coap);
+    }
 
     return;
 }

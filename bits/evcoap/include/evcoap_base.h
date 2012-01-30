@@ -99,6 +99,7 @@ void ec_listener_free(ec_listener_t *l);
 
 /* Duplicate handling. */
 int ec_dups_init(ec_t *coap, ec_dups_t *dups);
+void ec_dups_term(ec_dups_t *dups);
 int ec_dups_insert(ec_dups_t *dups, struct sockaddr_storage *ss,
         ev_uint16_t mid);
 int ec_dups_delete(ec_dups_t *dups, const char *key);

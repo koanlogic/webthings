@@ -9,6 +9,7 @@ static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args,
         struct timeval *interval, bool resched);
 static int ec_server_reply(ec_server_t *srv, ec_rc_t rc, ev_uint8_t *pl, 
         size_t pl_sz);
+static int ec_server_check_transition(ec_srv_state_t cur, ec_srv_state_t next);
 
 ec_server_t *ec_server_new(struct ec_s *coap, evutil_socket_t sd)
 {
@@ -266,18 +267,69 @@ void ec_server_set_state(ec_server_t *srv, ec_srv_state_t state)
 {
     ec_srv_state_t cur = srv->state;
 
-    u_dbg("[server=%p] transition request from '%s' to '%s' "
-          "(TODO check valid transitions, timers, etc.)",
+    u_dbg("[server=%p] transition request from '%s' to '%s'",
             srv, ec_srv_state_str(cur), ec_srv_state_str(state));
+
+    /* Check that the requested state transition is valid. */
+    dbg_err_if (ec_server_check_transition(cur, state));
+
+    /* TODO */
+    u_dbg("TODO handle timers, etc.");
 
     srv->state = state;
 
     return;
+err:
+    die(EXIT_FAILURE, "%s failed (see logs)", __func__);
 }
+
+static int ec_server_check_transition(ec_srv_state_t cur, ec_srv_state_t next)
+{
+    switch (next)
+    {
+        /* Any state can switch to internal error. */
+        case EC_CLI_STATE_INTERNAL_ERR:
+            break;
+
+        case EC_SRV_STATE_DUP_REQ:
+        case EC_SRV_STATE_BAD_REQ:
+        case EC_SRV_STATE_REQ_OK:
+            dbg_err_if (cur != EC_SRV_STATE_NONE);
+            break;
+
+        case EC_SRV_STATE_ACK_SENT:
+            dbg_err_if (cur != EC_SRV_STATE_REQ_OK
+                    && cur != EC_SRV_STATE_WAIT_ACK);
+            break;
+
+        case EC_SRV_STATE_WAIT_ACK:
+            dbg_err_if (cur != EC_SRV_STATE_ACK_SENT);
+            break;
+
+        case EC_SRV_STATE_RESP_ACK_TIMEOUT:
+            dbg_err_if (cur != EC_SRV_STATE_WAIT_ACK);
+            break;
+
+        case EC_SRV_STATE_RESP_DONE:
+            dbg_err_if (cur != EC_SRV_STATE_REQ_OK
+                    && cur != EC_SRV_STATE_WAIT_ACK);
+            break;
+
+        case EC_SRV_STATE_NONE:
+        default:
+            goto err;
+    }
+
+    return 0;
+err:
+    return -1;
+}
+
 
 int ec_server_send_resp(ec_server_t *srv)
 {
     bool is_con;
+    ec_dups_t *dups = &srv->base->dups;
 
     dbg_return_if (srv == NULL, -1);
 
@@ -303,7 +355,7 @@ int ec_server_send_resp(ec_server_t *srv)
         dbg_err_if (ec_pdu_encode_response_separate(res));
 
     /* Send response PDU. */
-    dbg_err_if (ec_pdu_send(res));
+    dbg_err_if (ec_pdu_send(res, dups));
 
     return 0;
 err:
