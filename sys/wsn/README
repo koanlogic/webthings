@@ -1,53 +1,41 @@
-Tested on:
-    - host: Mac OS X
-    - OS: Linux Debian 6.0.3 running in VM
-    - motes: Zolertia Z1 (MSP430 cpu, CC2420 transceiver)
+[[ webthings/sys/wsn ]]
 
-Installing Dependencies
-^^^^^^^^^^^^^^^^^^^^^^^
+The objective of this module is to provide a simplified framework and
+documentation for building Wireless Sensor Networks, using CoAP [1] as a
+HTTP-like REST-ful interface for interacting with sensor nodes, based on the
+most common open source mote OS-level environments, namely Contiki [2] and
+TinyOS [3].
 
-(*) Install: makl, libc, libg++, python-serial, automake.
-        
-(*) Configure, Build and Install
+The external communication, and hence the information gathered by sensors, is
+then made accessible to outer networks via KINK's CoAP/HTTP proxy, as shown in
+following basic architectural diagram:
 
-    $ cd dep/
-    $ maklconf [--prefix=${PREFIX} ]
-    $ . etc/tinyos.env
-    $ makl
-    $ makl install
+                  |       KINK        |             WSN
+                  |                   |     
+    standard      |                   |       mote1     /\ moteN
+    network       |         ___       |         /\ ---- \/
+       /     <=> HTTP <=>  /   \ <=> CoAP <=>   \/  /\   ..
+    Internet      |        \___/      |             \/   
+                  |        proxy      |            mote2
 
-Note: you may get warnings about 32-bit or 64-bit executables not being built
-- you can ignore them by pressing Return if you're not aiming at building
-custom RPMs.
+In the future, the framework should support the largest possible number of
+target mote types, but this kind of horizontal scalability will depend on OS
+support. 
 
-Running Sample Apps
-^^^^^^^^^^^^^^^^^^^
+The current reference hardware platform is Zolertia Z1 [4] (MSP430 F2617 CPU,
+CC2420 transceiver). CoAP support for this mote on TinyOS is currently
+lacking due to space constrains, so for now [README.TinyOS] contains only
+information on how to get plain applications running on motes. So please refer
+to [README.Contiki] to get experimental CoAP-based applications up and running.
 
-(*) Source the installed environment file
+The READMEs have been tested on:
+    - VM host: Mac OS X 10.5 and 10.7
+    - OS: Linux Debian 6.0.3
 
-    . ${PREFIX}/tinyos.env
+[README.trouble] contains some troubleshooting tips.
 
-Hint: you may prefer to put the above line in a shell configuration file such
-as ~/.bash_profile.
-
-(*) List Z1 motes
-
-    $ motelist-z1
-
-(*) Enter the app directory
-(*) Build app
-
-    $ make z1 
-    $ make z1 install
-
-Troubleshooting
-^^^^^^^^^^^^^^^
-(*) installing on motes yields Protocol Errors
-
-    #  apt-get install build-essential linux-source
-
-(*) Patch drivers/usb/serial/cp210x.c by increasing all occurrences of timeout
-from 300 to 3000, then modprobe -r cp210x
-
-More detail here:
-http://pharos.ece.utexas.edu/wiki/index.php/Fixing_the_cp210x_open_-_Unable_to_enable_UART_Error_-_04/17/2011
+==
+[1] http://tools.ietf.org/html/draft-ietf-core-coap
+[2] http://www.contiki-os.org
+[3] http://www.tinyos.net
+[4] http://www.zolertia.com/ti
