@@ -1,3 +1,4 @@
+#include <strings.h>
 #include <u/libu.h>
 #include "evcoap_enums.h"
 

@@ -1,3 +1,4 @@
+#include <strings.h>
 #include <string.h>
 #include <event2/event.h>
 #include <event2/util.h>

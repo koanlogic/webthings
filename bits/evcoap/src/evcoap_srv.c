@@ -1,3 +1,4 @@
+#include <strings.h>
 #include <u/libu.h>
 #include "evcoap_srv.h"
 #include "evcoap_base.h"
