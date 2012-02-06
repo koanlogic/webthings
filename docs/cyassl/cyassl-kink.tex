@@ -16,29 +16,28 @@
 
 \section{Introduction}
 
-Figure \ref{fig:arch} illustrates the system's high-level architecture. KINK is a logical module which may reside on a standalone device or can be integrated into Customer Premise Equipment. Its function is to allow communication between HTTP, the most common Application Layer protocol of the Internet, and CoAP, a similar RESTful transfer protocol which has been designed by the IETF to be applied to particularly constrained scenarios such as typical Wireless Sensors Networks. Such generic design can find an infinite number of applications, ranging from domotics to medical, automotive and agricultural industries, only to mention a few. The diagram shows some more specific examples, such as an Energy provider gathering information from Smart Meters in a home network via the Internet $[2]$, or intelligent nodes communicating independently in a Machine 2 Machine configuration $[4]$.
+Figure \ref{fig:arch} illustrates the system's high-level architecture. KINK is a logical module which may reside on a standalone device or can be integrated into Customer Premise Equipment. Its function is to allow communication between HTTP, the most common Application Layer protocol of the Internet, and CoAP, a similar RESTful transfer protocol which has been designed by the IETF to be applied to particularly constrained scenarios such as typical Wireless Sensors Networks. Such generic design can find an infinite number of applications, ranging from domotics to medical, automotive and agricultural industries, only to mention a few. The diagram shows some more specific examples, such as an Energy provider gathering information from Smart Meters in a home network via the Internet $[2]$, or intelligent nodes communicating independently in a Machine to Machine configuration $[4]$.
 
-\begin{center}
-    \begin{figure}
-        \includegraphics[width=14cm]{../share/images/kink-homenet}
-            \caption{KINK architecture}
-            \label{fig:arch}
-    \end{figure}
-\end{center}
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=12cm,height=12cm]{../share/images/kink-homenet}
+    \caption{KINK architecture}
+    \label{fig:arch}
+\end{figure}
 
 Compared to other available solutions which are only proprietary, the advantages of applying open standards and open source to such framework should be self-evident: they promote and allow for unprecedented levels of interoperability with other systems, and extensibility of pre-existing ones. These are both key factors when such wide-usage systems are expected to constantly evolve in the direction of increasingly smart and useful solutions.
 
 
-\section{CyaSSL}
+\section{Secure Communication Requirements}
 
 \subsection{TLS items required by CoAP}
 \begin{itemize}
-\item \href{http://tools.ietf.org/html/rfc4347}{DTLS version 1.0} (what about 1.2 ?);
+\item \href{http://tools.ietf.org/html/rfc4347}{DTLS version 1.0} (What about 1.2 ?  Check it out.);
 \item \href{http://tools.ietf.org/html/rfc4279}{Pre-Shared Key Ciphersuites};
 \item \href{http://tools.ietf.org/html/draft-wouters-tls-oob-pubkey}{TLS out-of-band public key validation};
 \end{itemize}
 
-\subsection{Target requirements}
+\subsection{Constrained Target Requirements}
 Target operating systems:
 \begin{enumerate}
 \item\label{contiki} \href{http://www.contiki-os.org}{Contiki OS} -- currently working on HEAD;
@@ -49,10 +48,10 @@ mandatory to implement \ref{contiki} which btw seems , preferably \ref{tinyos}.
 
 \section{Trivia}
 
-\subsection{Zolertia Z1}
+\subsection{Zolertia Z1 Features}
 \begin{itemize}
   \item \textbf{microcontroller:} Texas Instruments MSP430F2617;
-  \item \textbf{transciever:} Chipcon CC2420 2.4 GHz IEEE 802.15.4 Wireless Transceiver;
+  \item \textbf{transceiver:} Chipcon CC2420 2.4 GHz IEEE 802.15.4 Wireless Transceiver;
   \item \textbf{program + data mem:} 8 KB RAM;
   \item \textbf{external memory:} 92 KB Flash;
   \item \textbf{programming:} C, nesC
