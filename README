@@ -1,13 +1,11 @@
-CoRE protocols implementation and ramblings.
+docs/
+    misc documents
 
-    docs/
-        misc documents (IETF drafts, presentations, etc.)
+bridge/
+    bridge software and firmware
 
-    bridge/
-        bridge software and firmware
+wsn/
+    motes software and firmware
 
-    wsn/
-        motes software and firmware
-
-    web/
-        API and other client stuff
+web/
+    API and other client stuff
