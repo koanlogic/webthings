@@ -33,11 +33,12 @@ Compared to other available solutions which are only proprietary, the advantages
 
 \section{Secure Communication Requirements}
 
-\subsection{TLS items required by CoAP}
+Please refer to \href{http://tools.ietf.org/html/draft-ietf-core-coap-08#section-10.1}{``Securing CoAP with DTLS''} section of the CoAP I-D for a detailed overview of rationale and requirements.  Briefly, the needed items are:
+
 \begin{itemize}
-\item \href{http://tools.ietf.org/html/rfc4347}{DTLS version 1.0} (What about 1.2 ?  Check it out.);
-\item \href{http://tools.ietf.org/html/rfc4279}{Pre-Shared Key Ciphersuites};
-\item \href{http://tools.ietf.org/html/draft-wouters-tls-oob-pubkey}{TLS out-of-band public key validation};
+\item Pre-Shared Key (\href{http://tools.ietf.org/html/rfc4279}{RFC 4279}) with \texttt{TLS\_PSK\_WITH\_AES\_128\_CCM\_8} cipher suite (\href{http://tools.ietf.org/html/draft-mcgrew-tls-aes-ccm-ecc-02}{I-D.mcgrew-tls-aes-ccm});
+\item Raw Public Key (\href{http://tools.ietf.org/html/draft-wouters-tls-oob-pubkey}{I-D.wouters-tls-oob-pubkey}) with \texttt{TLS\_ECDHE\_ECDSA\_WITH\_AES\_128\_CCM\_8} cipher suite (\href{http://tools.ietf.org/html/rfc4492}{RFC 4492} and \href{http://tools.ietf.org/html/rfc5246}{RFC 5246});
+\item Server Name Indication (\href{http://tools.ietf.org/html/rfc6066}{RFC 6066});
 \end{itemize}
 
 \subsection{OS-level Requirements}
