@@ -4,7 +4,7 @@
 #include <u/libu.h>
 #include <event2/util.h>
 
-#include "evcoap_conf.h"
+#include "kink_conf.h"
 #include "evcoap_enums.h"
 
 /* TODO take care of option delta and length fields overhead which should be

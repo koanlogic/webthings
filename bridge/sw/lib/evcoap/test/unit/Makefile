@@ -1,5 +1,5 @@
 include common.mk
-include ../../Makefile.conf
+include ../../../../Makefile.conf
 
 PROG = runtest
 
@@ -10,12 +10,13 @@ SRCS += filesys.c
 
 CFLAGS += $(LIBU_CFLAGS)
 CFLAGS += $(LIBEVENT_CFLAGS)
-CFLAGS += -I$(SRCDIR)/src
+#CFLAGS += -I$(SRCDIR)/src
 
 LDADD += $(LIBEVENT_LDADD)
 LDADD += $(LIBU_LDADD)
-LDADD += $(SRCDIR)/src/libevcoap.a
-LDADD += $(SRCDIR)/extra/src/libevcoap-extra.a
+
+LDADD += ../../src/libevcoap.a
+LDADD += ../../extra/libevcoap-extra.a
 
 include prog.mk
 

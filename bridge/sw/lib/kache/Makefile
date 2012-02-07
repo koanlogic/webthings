@@ -1,5 +1,4 @@
-
-SUBDIR = src include test
-
+SUBDIR = src
+SUBDIR += test
 
 include subdir.mk

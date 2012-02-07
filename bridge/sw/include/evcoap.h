@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <event2/util.h>
 
-#include "evcoap_conf.h"
+#include "kink_conf.h"
 #include "evcoap_enums.h"
 #include "evcoap_base.h"
 

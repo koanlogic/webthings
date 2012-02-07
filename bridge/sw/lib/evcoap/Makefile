@@ -1,5 +1,5 @@
 include common.mk
-include Makefile.conf
+include ../../Makefile.conf
 
 SUBDIR = src
 SUBDIR += extra

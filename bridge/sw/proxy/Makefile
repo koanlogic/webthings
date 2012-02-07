@@ -1,10 +1,9 @@
 include common.mk
-include Makefile.conf
+include ../Makefile.conf
 
 PROG = kink
 SRCS = main.c
 
-CFLAGS += -I../lib/evcoap/include
 CFLAGS += $(LIBEVENT_CFLAGS)
 CFLAGS += $(LIBEVCOAP_CFLAGS)
 

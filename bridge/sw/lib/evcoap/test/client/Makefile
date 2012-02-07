@@ -1,5 +1,5 @@
 include common.mk
-include ../../Makefile.conf
+include ../../../../Makefile.conf
 
 SRCS = main.c
 PROG = coap-client

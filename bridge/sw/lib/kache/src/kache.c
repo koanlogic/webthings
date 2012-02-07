@@ -183,7 +183,7 @@ int kache_set(kache_t *kache, const char *key, const void *content)
     //object already in, update history
     if(u_hmap_get(kache->hmap,key,&tmp) == U_HMAP_ERR_NONE)
     {
-        kache_entry = (kache_entry_t*)tmp->val;
+        kache_entry = (kache_entry_t*) u_hmap_o_get_val(tmp);
         kache_history_record_t *record;
         dbg_err_if( (record = kache_init_history_record()) == NULL);
         record->insert_time = kache_entry->insert_time;
@@ -223,8 +223,8 @@ int kache_unset(kache_t *kache, const char *key)
 {
     u_hmap_o_t *obj;
     dbg_err_if(u_hmap_del (kache->hmap, key, &obj));
-    u_free(obj->val);
-    u_free(obj);
+    u_free(u_hmap_o_get_val(obj));
+    u_hmap_o_free(obj);
 
     return 0;
 err:
@@ -238,7 +238,7 @@ void *kache_get(kache_t *kache, const char *key)
     u_hmap_get (kache->hmap, key, &obj);
     if (obj == NULL)
         return NULL;
-    kache_entry_t *tmp = ((kache_entry_t*)obj->val);
+    kache_entry_t *tmp = ((kache_entry_t*) u_hmap_o_get_val(obj));
     tmp->access_counter = tmp->access_counter + 1;
     return tmp->resource;
 err:

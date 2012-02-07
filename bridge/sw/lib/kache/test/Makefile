@@ -1,5 +1,5 @@
 include common.mk
-include ../Makefile.conf
+include ../../../Makefile.conf
 
 PROG = runtest
 
@@ -10,7 +10,7 @@ CFLAGS += $(LIBU_CFLAGS)
 CFLAGS += -I$(SRCDIR)/src
 
 LDADD += $(LIBU_LDADD)
-LDADD += $(SRCDIR)/src/libkache.a
+LDADD += ../src/libkache.a
 
 include prog.mk
 
