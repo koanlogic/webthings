@@ -39,6 +39,7 @@ Compared to other available solutions which are only proprietary, the advantages
 Please refer to \href{http://tools.ietf.org/html/draft-ietf-core-coap-08#section-10.1}{``Securing CoAP with DTLS''} section of the CoAP I-D for a detailed overview of rationale and requirements.  Briefly, the needed items are:
 
 \begin{itemize}
+\item DTLS (\href{http://tools.ietf.org/html/rfc4347}{RFC 4347} and \href{http://tools.ietf.org/html/rfc6347}{RFC 6347});
 \item Pre-Shared Key (\href{http://tools.ietf.org/html/rfc4279}{RFC 4279}) with \texttt{TLS\_PSK\_WITH\_AES\_128\_CCM\_8} cipher suite (\href{http://tools.ietf.org/html/draft-mcgrew-tls-aes-ccm-ecc-02}{I-D.mcgrew-tls-aes-ccm});
 \item Raw Public Key (\href{http://tools.ietf.org/html/draft-wouters-tls-oob-pubkey}{I-D.wouters-tls-oob-pubkey}) with \texttt{TLS\_ECDHE\_ECDSA\_WITH\_AES\_128\_CCM\_8} cipher suite (\href{http://tools.ietf.org/html/rfc4492}{RFC 4492} and \href{http://tools.ietf.org/html/rfc5246}{RFC 5246});
 \item Server Name Indication (\href{http://tools.ietf.org/html/rfc6066}{RFC 6066}).
@@ -81,8 +82,8 @@ Let's talk about it!
 \subsection{Zolertia Z1 Features}
 \label{sec:z1-feats}
 \begin{itemize}
-  \item \textbf{microcontroller:} Texas Instruments MSP430F2617;
-  \item \textbf{transceiver:} Chipcon CC2420 2.4 GHz IEEE 802.15.4 Wireless Transceiver;
+  \item \textbf{microcontroller:} Texas Instruments MSP430F2617, 16 MHz frequency;
+  \item \textbf{radio:} Chipcon CC2420 2.4 GHz IEEE 802.15.4 Wireless Transceiver;
   \item \textbf{program + data mem:} 8 KB RAM;
   \item \textbf{external memory:} 92 KB Flash;
   \item \textbf{programming:} C, nesC;
@@ -93,5 +94,5 @@ Let's talk about it!
 Contiki is an open source, highly portable, multi-tasking operating system for memory-efficient networked embedded systems and WSN.  The core of Contiki contains several components including uIP and Sicslopan communication stacks. uIP is a small RFC-compliant TCP/IP stack that makes it possible for Contiki to communicate over the Internet, while the Sicslopan stack realizes 6LoWPAN process according to [RFC4944] and ietf-draft-6lowpan-hc-01.  Contiki is implemented in a layered structure.  The hardware platform difference is also considered by implementing drivers for different platforms.  
 
 \subsection{TinyOS}
-The most extensive implementation of 6LoWPAN for TinyOS is called blip developed at the University of California, Berkeley.  IPv6 neighbor discovery, default route selection and point-to-point routing are the most important features it supports. In addition to the IPv6 functionalities, it supports ICMP, UDP and includes a prototype TCP stack.  Although it implements lots of functionality, it still contains several known issues.  The fragmentation of IP packets used in blip can be problematic, in particular when using multi-hop.  Buffering is a second known issue: several message buffers and windows are used, consuming large amounts of memory, and causing messages to be dropped if space is exhausted. Also, the stack does not include standard IEEE 802.15.4 interfaces.  
+The most extensive implementation of 6LoWPAN for TinyOS is called blip and it is developed at the University of California, Berkeley.  IPv6 neighbor discovery, default route selection and point-to-point routing are the most important features it supports. In addition to the IPv6 functionalities, it supports ICMP, UDP and includes a prototype TCP stack.  Although it implements lots of functionality, it still contains several known issues.  The fragmentation of IP packets used in blip can be problematic, in particular when using multi-hop.  Buffering is a second known issue: several message buffers and windows are used, consuming large amounts of memory, and causing messages to be dropped if space is exhausted. Also, the stack does not include standard IEEE 802.15.4 interfaces.  
 \end{document}
