@@ -1,10 +1,13 @@
 CoRE protocols implementation and ramblings.
 
     docs/
-        misc documents (IETF drafts, presentations, ...)
+        misc documents (IETF drafts, presentations, etc.)
 
-    bits/
-        code (evcoap, kink, ...)
+    bridge/
+        bridge software and firmware
 
-    sys/
-        kernel and base system (kink, wsn, ...)
+    wsn/
+        motes software and firmware
+
+    web/
+        API and other client stuff
