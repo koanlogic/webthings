@@ -18,9 +18,12 @@
 
 \section{Introduction}
 
+The IoT (Internet of Things) is a field which is deemed to expand exponentially in the near future, as more and more devices are embedded into the continuously evolving technology surrounding us. It can find an infinite number of applications, ranging from domotics to medical, automotive and agricultural industries, only to mention a few. The large-scale deployment of such systems has direct implications on integrity and confidentiality of information, issues which need to be faced carefully. That's where a lightweight embedded library such as CyaSSL is necessary.
+
 The wider scope of \href{http://github.com/koanlogic/webthings}{Webthings} is to provide a means of closening WSNs (Wireless Sensor Networks) to the Web by bridging these very different worlds, and to provide an open framework for their deployment, all the way from motes to frontend monitoring and control applications.
 
-Figure \ref{fig:arch} illustrates the system's high-level architecture. KINK is the core logical bridging module, which may reside on a standalone device or can be integrated into Customer Premise Equipment. Its function is to allow communication between HTTP, the most common Application Layer protocol of the Internet, and CoAP, a similar RESTful transfer protocol which has been designed by the IETF to be applied to particularly constrained scenarios such as typical WSNs. Such generic design can find an infinite number of applications, ranging from domotics to medical, automotive and agricultural industries, only to mention a few. The diagram shows some more specific examples, such as an Energy provider gathering information from Smart Meters in a home network via the Internet $[2]$, or intelligent nodes communicating independently in a Machine to Machine configuration $[4]$.
+Figure \ref{fig:arch} illustrates the system's high-level architecture. KINK is the core logical bridging module, which may reside on a standalone device or can be integrated into Customer Premise Equipment. Its function is to allow communication between HTTP, the most common Application Layer protocol of the Internet, and CoAP, a similar RESTful transfer protocol which has been designed by the IETF to be applied to particularly constrained scenarios such as typical WSNs. 
+The diagram shows some more specific examples, such as an Energy provider gathering information from Smart Meters in a home network via the Internet $[2]$, or intelligent nodes communicating independently in a Machine to Machine configuration $[4]$.
 
 \begin{figure}
   \centering
@@ -38,17 +41,19 @@ Please refer to \href{http://tools.ietf.org/html/draft-ietf-core-coap-08#section
 \begin{itemize}
 \item Pre-Shared Key (\href{http://tools.ietf.org/html/rfc4279}{RFC 4279}) with \texttt{TLS\_PSK\_WITH\_AES\_128\_CCM\_8} cipher suite (\href{http://tools.ietf.org/html/draft-mcgrew-tls-aes-ccm-ecc-02}{I-D.mcgrew-tls-aes-ccm});
 \item Raw Public Key (\href{http://tools.ietf.org/html/draft-wouters-tls-oob-pubkey}{I-D.wouters-tls-oob-pubkey}) with \texttt{TLS\_ECDHE\_ECDSA\_WITH\_AES\_128\_CCM\_8} cipher suite (\href{http://tools.ietf.org/html/rfc4492}{RFC 4492} and \href{http://tools.ietf.org/html/rfc5246}{RFC 5246});
-\item Server Name Indication (\href{http://tools.ietf.org/html/rfc6066}{RFC 6066});
+\item Server Name Indication (\href{http://tools.ietf.org/html/rfc6066}{RFC 6066}).
 \end{itemize}
 
 \subsection{OS-level Requirements}
+\label{sec:reqs-os}
 Target operating systems:
 \begin{enumerate}
+\item\label{linux} Linux -- KINK runs a CoAP proxy on an unconstrained (yet still embedded) platform -- since this is a major target for CyaSSL no particular porting operations should be required;
 \item\label{contiki} \href{http://www.contiki-os.org}{Contiki OS} -- currently working on HEAD, basic CoAP communication in place;
 \item\label{tinyos} \href{http://www.tinyos.net}{TinyOS} -- currently working on HEAD, CoAP not verified yet but seems \href{http://zolertia.sourceforge.net/wiki/index.php/Blip_v2.0}{possible}.
 \end{enumerate}
 
-Support for \ref{contiki}, the main target OS for Webthings, but possibly also \ref{tinyos}.
+Should support \ref{linux} for KINK, \ref{contiki}, the main target OS for Webthings WSNs, but possibly also \ref{tinyos}.
 
 \subsection{Constrained Target Requirements}
 Target motes:
@@ -58,11 +63,23 @@ Target motes:
 \item ...
 \end{enumerate}
 
-\ref{z1} is the only target currently supported in Webthings, but the CyaSSL extension shall be hardware-independent, so many other mote types should be supported without extra effort (e.g. \ref{tmote}). The only limitations are given by RAM and flash sizes.
+\ref{z1} is the only target currently supported in Webthings, but the CyaSSL extension shall be hardware-independent, so many other mote types should be supported without extra effort (e.g. \ref{tmote}) -- the only limitations are given by RAM and flash sizes.
+
+\textbf{Z1 note}: during our CoAP experiments we faced some trouble with both constrained OS setups of Section \ref{sec:reqs-os} due to RAM restrictions (8KB as shown in Section \ref{sec:z1-feats}). So already to run plain CoAP, some extra trimmings are necessary to fit within these scrict limits, which should give an idea of how compact the DTLS stack needs to be in order to coexist with other layers. Some extra trimming should be possible on the networking side, for example by lightening the routing protocol or at worst by using static routes, but the remaining amount of memory available might still be well below 1KB.
+
+\section{Partnership}
+There are a few possible scenarios:
+\begin{itemize}
+  \item Balanced: simple task exchange;
+  \item Unbalanced: consulting services;
+  \item Efforts combined into partnership on a new product.
+\end{itemize}
+Let's talk about it!
 
 \section{Appendix}
 
 \subsection{Zolertia Z1 Features}
+\label{sec:z1-feats}
 \begin{itemize}
   \item \textbf{microcontroller:} Texas Instruments MSP430F2617;
   \item \textbf{transceiver:} Chipcon CC2420 2.4 GHz IEEE 802.15.4 Wireless Transceiver;
