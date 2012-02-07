@@ -66,16 +66,10 @@ Target motes:
 
 \ref{z1} is the only target currently supported in Webthings, but the CyaSSL extension shall be hardware-independent, so many other mote types should be supported without extra effort (e.g. \ref{tmote}) -- the only limitations are given by RAM and flash sizes.
 
-\textbf{Z1 note}: during our CoAP experiments we faced some trouble with both constrained OS setups of Section \ref{sec:reqs-os} due to RAM restrictions (8KB as shown in Section \ref{sec:z1-feats}). So already to run plain CoAP, some extra trimmings are necessary to fit within these scrict limits, which should give an idea of how compact the DTLS stack needs to be in order to coexist with other layers. Some extra trimming should be possible on the networking side, for example by lightening the routing protocol or at worst by using static routes, but the remaining amount of memory available might still be well below 1KB.
+\textbf{Z1 note}: during our CoAP experiments in the constrained environments we faced some trouble due to RAM restrictions (Z1 has 8KB as shown in Appendix \ref{sec:z1-feats}). Already to run plain CoAP, some trimming is necessary to fit within these scrict limits, which should give an idea of how compact the DTLS stack needs to be in order to coexist with other layers. Some extra trimming should be possible on the networking side, for example by lightening the routing protocol or at worst by using static routes, but the remaining amount of memory available might still be less than 1KB. As far as flash ROM is concerned, the remaining memory availability for DTLS should be in the order of 20-30KB.
 
-\section{Partnership}
-There are a few possible scenarios:
-\begin{itemize}
-  \item Balanced: simple task exchange;
-  \item Unbalanced: consulting services;
-  \item Efforts combined into partnership on a new product.
-\end{itemize}
-Let's talk about it!
+\section{Partnerships}
+Webthings will be licensed under a very liberal open source license, most likely BSD, hence maximising the possible number of end users (from hobbyists to enterprises wanting to deploy large-scale WSNs). Given the positive predictions for this market, we believe it could be strategic for Sawtooth Consulting to contribute, sponsor and/or invest in porting its own products to the Webthings project to increase revenues given by sales of CyaSSL licenses. KoanLogic partners have already financed a substantial number of man months in the project and have applied for fundings from a EU project and NLNET, both of which are yet to be confirmed. Besides direct funding, we are also looking for new partners in order to expand the shareholders' ecosystem.
 
 \section{Appendix}
 
