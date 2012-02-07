@@ -1,13 +1,11 @@
 The following assumes you have already cloned the webthings git repository
-available at git://github.com/koanlogic/webthings.git .
+available at git://github.com/koanlogic/webthings.git .  After cloning, the
+webthings base directory is:
 
-Let's start:
+    $ export WTDIR=/a/b/c/webthings
+    $ export BDIR=/x/y/z
 
-* Choose a base directory where all the installed bits will go, e.g.:
-    $ export BDIR=~/coap
-
-
-* Install makl (HEAD of the master branch):
+* Install makl (HEAD of the master branch, or 1.9.0 tarball):
 
     $ cd "${BDIR}"
     $ git clone git://github.com/koanlogic/makl.git
@@ -44,11 +42,11 @@ Let's start:
     $ make all install
 
 
-* Install evcoap:
+* Build and install the bridge software bits:
 
-    $ cd "${BDIR}"/webthings/bits/evcoap
+    $ cd "${WTDIR}"/bridge/sw
     $ makl-conf --libs="${IDIR}" --prefix="${IDIR}" --enable_{debug,warns,extra}
     $ makl all install
 
-You may now play with CoAP test client and server (see test/client and 
-test/server directories.)
+You may now play with CoAP test client and server (see lib/evcoap/test/client
+and lib/evcoap/test/server directories.)
