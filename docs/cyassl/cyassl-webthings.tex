@@ -15,7 +15,8 @@
 
 \maketitle
 %\tableofcontents
-
+ 
+\vspace{1cm}
 \section{Introduction}
 
 The IoT (Internet of Things) is a field which is deemed to expand exponentially in the near future, as more and more devices are embedded into the continuously evolving technology surrounding us. It can find an infinite number of applications, ranging from domotics to medical, automotive and agricultural industries, only to mention a few. The large-scale deployment of such systems has direct implications on integrity and confidentiality of information, issues which need to be faced carefully. That's where a lightweight embedded library such as CyaSSL is necessary.
@@ -35,6 +36,7 @@ Compared to other available solutions which are only proprietary, the advantages
     \label{fig:arch}
 \end{figure}
 
+\newpage
 \section{Secure Communication Requirements}
 
 Please refer to \href{http://tools.ietf.org/html/draft-ietf-core-coap-08#section-10.1}{``Securing CoAP with DTLS''} section of the CoAP I-D for a detailed overview of rationale and requirements.  Briefly, the needed items are:
@@ -46,28 +48,13 @@ Please refer to \href{http://tools.ietf.org/html/draft-ietf-core-coap-08#section
 \item Server Name Indication (\href{http://tools.ietf.org/html/rfc6066}{RFC 6066}).
 \end{itemize}
 
-\subsection{OS-level Requirements}
-\label{sec:reqs-os}
-Target operating systems:
-\begin{enumerate}
-\item\label{linux} Linux -- KINK runs a CoAP proxy on an unconstrained (yet still embedded) platform -- since this is a major target for CyaSSL no particular porting operations should be required;
-\item\label{contiki} \href{http://www.contiki-os.org}{Contiki OS} -- currently working on HEAD, basic CoAP communication in place;
-\item\label{tinyos} \href{http://www.tinyos.net}{TinyOS} -- currently working on HEAD, CoAP not verified yet but seems \href{http://zolertia.sourceforge.net/wiki/index.php/Blip_v2.0}{possible}.
-\end{enumerate}
-
-Should support \ref{linux} for KINK, \ref{contiki}, the main target OS for Webthings WSNs, but possibly also \ref{tinyos}.
+\subsection{Constrained OS-level Requirements}
+Assuming Linux/OpenWRT already ported for KINK usage, \href{http://www.contiki-os.org}{Contiki} (GIT master) is the main target OS, but possibly also \href{http://www.tinyos.net}{TinyOS} (SVN trunk) should be supported.
 
 \subsection{Constrained Target Requirements}
-Target motes:
-\begin{enumerate}
-\item\label{z1} \href{http://www.zolertia.com/ti}{Zolertia Z1};
-\item\label{tmote} \href{http://www.ti.com/tool/msp430-3p-motei-tmotesky-dsgkt}{TMote Sky/TelosB}.
-\item ...
-\end{enumerate}
+\href{http://www.zolertia.com/ti}{Zolertia Z1} is the only target currently supported in Webthings, but the CyaSSL extension shall be hardware-independent, so many other mote types should be supported without extra effort -- the only limitations are given by RAM and flash sizes.
 
-\ref{z1} is the only target currently supported in Webthings, but the CyaSSL extension shall be hardware-independent, so many other mote types should be supported without extra effort (e.g. \ref{tmote}) -- the only limitations are given by RAM and flash sizes.
-
-\textbf{Z1 note}: during our CoAP experiments in the constrained environments we faced some trouble due to RAM restrictions (Z1 has 8KB as shown in Appendix \ref{sec:z1-feats}). Already to run plain CoAP, some trimming is necessary to fit within these scrict limits, which should give an idea of how compact the DTLS stack needs to be in order to coexist with other layers. Some extra trimming should be possible on the networking side, for example by lightening the routing protocol or at worst by using static routes, but the remaining amount of memory available might still be less than 1KB. As far as flash ROM is concerned, the remaining memory availability for DTLS should be in the order of 20-30KB.
+\textbf{Note}: during our CoAP experiments in the constrained environments we faced some trouble due to RAM restrictions (Z1 has 8KB as shown in Appendix \ref{sec:z1-feats}). Already to run plain CoAP, some trimming is necessary to fit within these scrict limits, which should give an idea of how compact the DTLS stack needs to be in order to coexist with other layers. Some extra trimming should be possible on the networking side, for example by lightening the routing protocol or at worst by using static routes, but the remaining amount of memory available might still be less than 1KB. As far as flash ROM is concerned, the remaining memory availability for DTLS should be in the order of 20-30KB.
 
 \section{Partnerships}
 Webthings will be licensed under a very liberal open source license, most likely BSD, hence maximising the possible number of end users (from hobbyists to enterprises wanting to deploy large-scale WSNs). Given the positive predictions for this market, we believe it could be strategic for Sawtooth Consulting to contribute, sponsor and/or invest in porting its own products to the Webthings project to increase revenues given by sales of CyaSSL licenses. KoanLogic partners have already financed a substantial number of man months in the project and have applied for fundings from a EU project and NLNET, both of which are yet to be confirmed. Besides direct funding, we are also looking for new partners in order to expand the shareholders' ecosystem.
