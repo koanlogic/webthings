@@ -1,25 +1,23 @@
 The following assumes you have already cloned the webthings git repository
-available at git://github.com/koanlogic/webthings.git .  After cloning, the
-webthings base directory is:
+available at git://github.com/koanlogic/webthings.git
 
-    $ export WTDIR=/a/b/c/webthings
+After cloning, set the base directory where webthings has been cloned to:
+
     $ export BDIR=/x/y/z
 
-* Install makl (HEAD of the master branch, or 1.9.0 tarball):
+* Install makl (1.9.0 or later):
 
     $ cd "${BDIR}"
-    $ git clone git://github.com/koanlogic/makl.git
-    $ cd makl
+    $ wget http://koanlogic.com/download/makl/makl-1.9.0.tar.gz
+    $ tar zxvf makl-1.9.0.tar.gz && cd makl-1.9.0
     $ sh configure.sh
     $ sudo make install
 
 [ step (4) should work on most platforms, makl suggest the right command line ]
 
+* Choose a destination directory for the bridge software (and its dependencies), e.g.:
 
-* Choose a destination directory for evcoap (and its dependencies), e.g.:
-
-    $ export IDIR=~/evcoap-install
-    
+    $ export IDIR="${BDIR}"/__INST__
 
 * Install libu (HEAD of the master branch):
 
@@ -31,7 +29,6 @@ webthings base directory is:
                 --enable_{debug,warns}
     $ makl all install
 
-
 * Install libevent (ver >= 2):
 
     $ cd "${BDIR}"
@@ -41,10 +38,9 @@ webthings base directory is:
     $ ./configure --prefix="${IDIR}"
     $ make all install
 
-
 * Build and install the bridge software bits:
 
-    $ cd "${WTDIR}"/bridge/sw
+    $ cd "${BDIR}"/webthings/bridge/sw
     $ makl-conf --libs="${IDIR}" --prefix="${IDIR}" --enable_{debug,warns,extra}
     $ makl all install
 

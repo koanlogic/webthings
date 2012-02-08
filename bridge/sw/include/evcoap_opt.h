@@ -31,6 +31,8 @@ typedef enum
     EC_OPT_ACCEPT,
     EC_OPT_IF_MATCH,
     EC_OPT_URI_QUERY,
+    EC_OPT_BLOCK2,
+    EC_OPT_BLOCK1,
     EC_OPT_IF_NONE_MATCH,
     
     EC_OPT_MAX = EC_OPT_IF_NONE_MATCH + 1
@@ -106,6 +108,10 @@ int ec_opts_add_if_match(ec_opts_t *opts, const ev_uint8_t *im, size_t im_len);
 int ec_opts_add_uri_query(ec_opts_t *opts, const char *uq);
 int ec_opts_add_if_none_match(ec_opts_t *opts);
 int ec_opts_add_observe(ec_opts_t *opts, ev_uint16_t o);
+int ec_opts_add_block1(ec_opts_t *opts, ev_uint32_t num, bool more,
+        ev_uint8_t szx);
+int ec_opts_add_block2(ec_opts_t *opts, ev_uint32_t num, bool more,
+        ev_uint8_t szx);
 ec_opt_t *ec_opts_get_nth(ec_opts_t *opts, ec_opt_sym_t sym, size_t n);
 ec_opt_t *ec_opts_get(ec_opts_t *opts, ec_opt_sym_t sym);
 const char *ec_opts_get_string(ec_opts_t *opts, ec_opt_sym_t sym);
@@ -116,6 +122,10 @@ int ec_opts_get_accept_all(ec_opts_t *opts, ec_mt_t *mta, size_t *mta_sz);
 int ec_opts_get_content_type(ec_opts_t *opts, ev_uint16_t *ct);
 ev_uint8_t *ec_opts_get_etag_nth(ec_opts_t *opts, size_t *etag_sz, size_t n);
 const char *ec_opts_get_proxy_uri(ec_opts_t *opts, char url[U_URI_STRMAX]);
+int ec_opts_get_block1(ec_opts_t *opts, ev_uint32_t *num, bool *more,
+        ev_uint8_t *szx);
+int ec_opts_get_block2(ec_opts_t *opts, ev_uint32_t *num, bool *more,
+        ev_uint8_t *szx);
 
 int ec_opt_decode_uint(const ev_uint8_t *v, size_t l, ev_uint64_t *ui);
 int ec_opt_encode_uint(ev_uint64_t ui, ev_uint8_t *e, size_t *elen);

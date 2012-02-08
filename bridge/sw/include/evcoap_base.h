@@ -69,6 +69,12 @@ struct ec_dups_s
 };
 typedef struct ec_dups_s ec_dups_t;
 
+struct ec_cfg_s
+{
+    size_t max_pdu_sz;  /* 0 means no upper bound (except UDP limits.) */
+};
+typedef struct ec_cfg_s ec_cfg_t;
+
 struct ec_s
 {
     /* Currently active client and server transactions. */
@@ -87,6 +93,9 @@ struct ec_s
 
     /* Duplicate handling subsystem. */
     ec_dups_t dups;
+
+    /* Runtime configuration. */
+    ec_cfg_t cfg;
 
     struct event_base *base;
     struct evdns_base *dns;
@@ -116,5 +125,8 @@ int ec_recvd_pdu_update(ec_recvd_pdu_t *recvd, ev_uint8_t *hdr,
         ev_uint8_t *opts, size_t opts_sz, ev_uint8_t *payload,
         size_t payload_sz);
 void ec_recvd_pdu_free(void *recvd_pdu);
+
+/* Configuration handling. */
+int ec_set_max_pdu_sz(ec_t *coap, size_t max_pdu_sz);
 
 #endif  /* !_EC_BASE_H_ */
