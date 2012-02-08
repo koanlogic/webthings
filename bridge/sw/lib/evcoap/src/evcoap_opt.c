@@ -12,6 +12,10 @@ static int compose_uri(ec_opts_t *opts, struct sockaddr_storage *us,
 static size_t fenceposts_encsz(size_t cur, size_t last);
 static ev_uint8_t *add_fenceposts(ec_opts_t *opts, ev_uint8_t *p, size_t cur, 
         size_t *delta);
+static int ec_opts_add_block(ec_opts_t *opts, ec_opt_sym_t which,
+        ev_uint32_t num, bool more, ev_uint8_t szx);
+static int ec_opts_get_block(ec_opts_t *opts, ev_uint32_t *num, bool *more,
+        ev_uint8_t *szx, ec_opt_sym_t which);
 
 /*******************************************************************************
  NOTE: the g_opts array entries *MUST* be kept in sync with the ec_opt_sym_t
@@ -37,6 +41,8 @@ static struct opt_rec {
     { 12, "Accept",         EC_OPT_TYPE_UINT },
     { 13, "If-Match",       EC_OPT_TYPE_OPAQUE },
     { 15, "URI-Query",      EC_OPT_TYPE_STRING },
+    { 17, "Block2",         EC_OPT_TYPE_UINT },
+    { 19, "Block1",         EC_OPT_TYPE_UINT },
     { 21, "If-None-Match",  EC_OPT_TYPE_EMPTY }
 };
 #define EC_OPTS_MAX (sizeof g_opts / sizeof(struct opt_rec))
@@ -411,6 +417,18 @@ int ec_opt_decode_uint(const ev_uint8_t *v, size_t l, ev_uint64_t *ui)
     return 0;
 }
 
+int ec_opts_add_block1(ec_opts_t *opts, ev_uint32_t num, bool more, 
+        ev_uint8_t szx)
+{
+    return ec_opts_add_block(opts, EC_OPT_BLOCK1, num, more, szx);
+}
+
+int ec_opts_add_block2(ec_opts_t *opts, ev_uint32_t num, bool more,
+        ev_uint8_t szx)
+{
+    return ec_opts_add_block(opts, EC_OPT_BLOCK2, num, more, szx);
+}
+
 /**
  *  \brief  TODO (user may set a custom content type.)
  */
@@ -704,6 +722,8 @@ int ec_opts_decode(ec_opts_t *opts, const ev_uint8_t *pdu, size_t pdu_sz,
             case EC_OPT_ACCEPT:
             case EC_OPT_IF_MATCH:
             case EC_OPT_URI_QUERY:
+            case EC_OPT_BLOCK2:
+            case EC_OPT_BLOCK1:
             case EC_OPT_IF_NONE_MATCH:
                 break;
             case EC_OPT_NONE:
@@ -790,6 +810,18 @@ int ec_opts_get_content_type(ec_opts_t *opts, ev_uint16_t *ct)
     return 0;
 err:
     return -1;
+}
+
+int ec_opts_get_block1(ec_opts_t *opts, ev_uint32_t *num, bool *more,
+        ev_uint8_t *szx)
+{
+    return ec_opts_get_block(opts, num, more, szx, EC_OPT_BLOCK1);
+}
+
+int ec_opts_get_block2(ec_opts_t *opts, ev_uint32_t *num, bool *more,
+        ev_uint8_t *szx)
+{
+    return ec_opts_get_block(opts, num, more, szx, EC_OPT_BLOCK2);
 }
 
 /* "It MAY NOT occur more than once" seems suggesting that we should be as
@@ -1047,3 +1079,52 @@ static size_t fenceposts_encsz(size_t cur, size_t last)
 
     return fpsz;
 }
+
+static int ec_opts_add_block(ec_opts_t *opts, ec_opt_sym_t which,
+        ev_uint32_t num, bool more, ev_uint8_t szx)
+{
+    ev_uint32_t b = 0;
+
+    dbg_return_if (opts == NULL, -1);
+    dbg_return_if (which != EC_OPT_BLOCK1 && which != EC_OPT_BLOCK2, -1);
+
+    /* Trim unsigned integer size to 20-bit. */
+    dbg_return_if (num > 0xfffff, -1);
+
+    /* The value 7 for SZX (which would indicate a block size of 2048) is 
+     * reserved, i.e. MUST NOT be sent and MUST lead to a 4.00 Bad Request
+     * response code upon reception in a request. */
+    dbg_return_if (szx > 0x7, -1);
+
+    b = szx;
+    b |= (more ? 1 : 0) << 3;
+    b |= num << 4;
+
+    return ec_opts_add_uint(opts, which, b);
+}
+
+static int ec_opts_get_block(ec_opts_t *opts, ev_uint32_t *num, bool *more,
+        ev_uint8_t *szx, ec_opt_sym_t which)
+{
+    ev_uint64_t tmp;
+
+    dbg_return_if (opts == NULL, -1);
+    dbg_return_if (num == NULL, -1);
+    dbg_return_if (more == NULL, -1);
+    dbg_return_if (szx == NULL, -1);
+    dbg_return_if (which != EC_OPT_BLOCK1 && which != EC_OPT_BLOCK2, -1);
+
+    if (ec_opts_get_uint(opts, which, &tmp))
+        return -1;
+
+    dbg_err_ifm (tmp > 0xffffff, "Block encoding overflow");
+
+    *szx = tmp & 0x7;
+    *more = tmp & 0x8;
+    *num = tmp >> 4;
+
+    return 0;
+err:
+    return -1;
+}
+

@@ -354,3 +354,12 @@ err:
         u_free(p);
     return -1;
 }
+
+int ec_set_max_pdu_sz(ec_t *coap, size_t max_pdu_sz)
+{
+    dbg_return_if (coap == NULL, -1);
+
+    coap->cfg.max_pdu_sz = max_pdu_sz;
+
+    return 0;
+}

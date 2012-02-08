@@ -62,6 +62,49 @@ err:
     return U_TEST_FAILURE;
 }
 
+static int test_block(u_test_case_t *tc)
+{
+    size_t i;
+    ec_opts_t in, out;
+    struct tv {
+        ev_uint32_t num;
+        bool more;
+        ev_uint8_t szx; 
+    } tva[] = {
+        { 1, true,  3 }, 
+        { 2, false, 4 } 
+    };
+
+    for (i = 0; i < sizeof tva / sizeof(struct tv); ++i)
+    {
+        ev_uint32_t num;
+        bool more;
+        ev_uint8_t szx; 
+
+        (void) ec_opts_init(&in);
+        (void) ec_opts_init(&out);
+        u_test_err_if (ec_opts_add_block1(&in, tva[i].num, tva[i].more,
+                    tva[i].szx));
+        u_test_err_if (encdec(&in, &out));
+        u_test_err_if (ec_opts_get_block1(&out, &num, &more, &szx));
+        ec_opts_clear(&in);
+        ec_opts_clear(&out);
+
+        u_con("%u, %u", num, tva[i].num);
+
+        u_test_err_ifm (num != tva[i].num, "%u != %u", num, tva[i].num);
+        u_test_err_ifm (more != tva[i].more, "%d != %d", more, tva[i].more);
+        u_test_err_ifm (szx != tva[i].szx, "%u != %u", szx, tva[i].szx);
+    }
+ 
+    return U_TEST_SUCCESS;
+err:
+    ec_opts_clear(&in);
+    ec_opts_clear(&out);
+
+    return U_TEST_SUCCESS;
+}
+
 static int test_fencepost(u_test_case_t *tc)
 {
     ev_uint16_t ct;
@@ -151,6 +194,7 @@ int test_suite_options_register(u_test_t *t)
     con_err_if (u_test_case_register("encode/decode", test_codec_bunch, ts));
     con_err_if (u_test_case_register("Proxy-URI", test_proxy_uri, ts));
     con_err_if (u_test_case_register("Fencepost", test_fencepost, ts));
+    con_err_if (u_test_case_register("Block1/2", test_block, ts));
 
     /* No dependencies. */
 
