@@ -3,14 +3,15 @@ Basic CoAP test working with Zolertia Z1 motes.
 
 Installing Dependencies
 ^^^^^^^^^^^^^^^^^^^^^^^
+(*) Install: makl, libc, libg++, python-serial, evcoap (webthings/bridge/sw) or
+    libcoap.
+
 (*) Download and install the toolchain msp430-gcc-4.4.5.tar.gz from
     Sourceforge, and put the bin directory into your ${PATH}.
 
-(*) Clone a recent version of the repository:
+(*) Clone the Webthings fork of Contiki:
 
-$ git://contiki.git.sourceforge.net/gitroot/contiki/contiki
-
-This document was based on commit a7e4fa343629ad8668a82699088bc579f85f26b2.
+$ git clone git@github.com:koanlogic/contiki-fork
 
 Get CoAPing!
 ^^^^^^^^^^^^
@@ -19,38 +20,61 @@ platform:
 
 $ export TARGET=z1
 
-(*) Then you need to set the identifiers, and corresponding MAC addresses and
-    IPv6 addresses of your motes (the identifier can be found by using the
-    motelist command). The values can be set with the following command:
+For convenience you may want to export both variables in your shell
+configuration file (e.g. ~/.bash_profile).
+
+(*) ONLY ONCE: you need to set the identifiers, and corresponding MAC addresses
+    and IPv6 addresses of your motes (the identifier can be found by using the
+    'make motelist' command). The values can be set with the following command:
 
 $ make clean && make burn-nodeid.upload nodeid=${ID} nodemac=${ID} && \
                make z1-reset && make login
 
-, where
-${ID1} = border router
-${ID2} = rest server
+    , where
+    ${ID1} = border router
+    ${ID2} = rest server
 
-(*) CoAP server setup
-er-rest-example$
-    make rest-server-example.upload [MOTE=..]
+(*) CoAP server setup (first mote)
+examples/z1/rest$
+    make rest-z1.upload [MOTE=..]
     
-, where MOTE is the index into the motelist.
+, where MOTE specifies the index into 'make motelist'.
 
-(*) Border router setup
-ipv6/rpl-border-router$ 
+(*) Border router setup (second mote)
+examples/ipv6/rpl-border-router$
     make border-router.upload [MOTE=...]
+
+Now as root run:
 # make connect-router
 
-When you login to your motes you should come up with settings such as:
+When you login to your motes (make login [MOTE=...]) you should come up with
+settings such as:
 
-[host]  [ID]    [MAC]                       [IPv6 addr]                                 [CSMA]      [ch check rt]
-zbr     ${ID1}    c1:0c:00:00:00:00:xx:xx     fe80:0000:0000:0000:c30c:0000:0000:xxxx     ContikiMAC  8hz
-zrs     ${ID2}    c1:0c:00:00:00:00:yy:yy     fe80:0000:0000:0000:c30c:0000:0000:yyyy     nullrdc     128Hz
+    host            zbr
+    ID              ${ID1}
+    MAC             c1:0c:00:00:00:00:xx:xx
+    IPv6 addr       fe80:0000:0000:0000:c30c:0000:0000:xxxx
+    CSMA            ContikiMAC
+    ch check rt     8hz
+
+    host            zrs
+    ID              ${ID2}
+    MAC             c1:0c:00:00:00:00:yy:yy
+    IPv6 addr       fe80:0000:0000:0000:c30c:0000:0000:yyyy
+    CSMA            nullrdc
+    ch check rt     128Hz
 
 (*) Insert the IPv6 address to hostname mappings into your /etc/hosts file.
 
-(*) Now Run Client
-tinyos/support/sdk/c/coap/examples$
-    coap-client -m get coap://zrs:5683/helloworld -t binary
+(*) Now run the CoAP client
 
-'Hello World!'
+Check out the temperature!
+
+[evcoap]
+    $ coap-client -m GET -u coap://zrs:5683/tmp -M CON && \
+        cat response.payload
+
+[libcoap]
+    $ coap-client -m get coap://zrs:5683/tmp -t binary
+
+Take a look at the source code of examples/z1/rest for info on the interface.
