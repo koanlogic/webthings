@@ -33,9 +33,12 @@ makl_append_var_mk "CFLAGS" "-I\$(SRCDIR)"
 makl_append_var_mk "CFLAGS" "-I\$(SRCDIR)/include"
 makl_append_var_mk "CFLAGS" "-DHAVE_CONF_H"
 
-# define features (TODO if OS_LINUX)
-makl_append_var_mk "CFLAGS" "-D_POSIX_SOURCE"
-makl_append_var_mk "CFLAGS" "-D_BSD_SOURCE"
+# #define features
+if [ "`makl_get_var_h "OS_LINUX"`" ]
+then
+    makl_append_var_mk "CFLAGS" "-D_POSIX_SOURCE"
+    makl_append_var_mk "CFLAGS" "-D_BSD_SOURCE"
+fi
 
 # hard requirement on libevent and libu
 makl_require lib event

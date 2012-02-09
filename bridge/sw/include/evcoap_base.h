@@ -71,6 +71,7 @@ typedef struct ec_dups_s ec_dups_t;
 
 struct ec_cfg_s
 {
+    bool block_is_stateless;
     size_t max_pdu_sz;  /* 0 means no upper bound (except UDP limits.) */
 };
 typedef struct ec_cfg_s ec_cfg_t;
@@ -127,6 +128,10 @@ int ec_recvd_pdu_update(ec_recvd_pdu_t *recvd, ev_uint8_t *hdr,
 void ec_recvd_pdu_free(void *recvd_pdu);
 
 /* Configuration handling. */
-int ec_set_max_pdu_sz(ec_t *coap, size_t max_pdu_sz);
+int ec_cfg_init(ec_cfg_t *cfg);
+int ec_cfg_set_max_pdu_sz(ec_cfg_t *cfg, size_t max_pdu_sz);
+int ec_cfg_set_block_is_stateless(ec_cfg_t *cfg, bool val);
+int ec_cfg_get_block_is_stateless(ec_cfg_t *cfg, bool *val);
+int ec_cfg_get_max_pdu_sz(ec_cfg_t *cfg, size_t *val);
 
 #endif  /* !_EC_BASE_H_ */

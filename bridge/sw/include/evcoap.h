@@ -16,12 +16,16 @@ extern "C" {
  * Setup / Teardown / Control.
  */
 ec_t *ec_init(struct event_base *base, struct evdns_base *dns);
-
 void ec_term(ec_t *coap);
 
 int ec_loopbreak(ec_t *coap);
-
 int ec_loopexit(ec_t *coap, const struct timeval *tv);
+
+/* Global configuration parameters. */
+int ec_set_max_pdu_size(ec_t *coap, size_t val);
+int ec_get_max_pdu_size(ec_t *coap, size_t *val);
+int ec_set_block_is_stateless(ec_t *coap, bool val);
+int ec_get_block_is_stateless(ec_t *coap, bool *val);
 
 /* 
  * Client API
