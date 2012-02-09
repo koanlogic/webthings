@@ -361,6 +361,7 @@ void usage(const char *prog)
         "                                                               \n"
         "   where opts is one of:                                       \n"
         "       -h  this help                                           \n"
+        "       -v  be verbose                                          \n"
         "       -f <conf file>      (default is "DEFAULT_CONF")         \n"
         "                                                               \n"
         ;

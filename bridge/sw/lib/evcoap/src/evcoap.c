@@ -31,6 +31,7 @@ ec_t *ec_init(struct event_base *base, struct evdns_base *dns)
     TAILQ_INIT(&coap->resources);
 
     dbg_err_if (ec_dups_init(coap, &coap->dups));
+    dbg_err_if (ec_cfg_init(&coap->cfg));
 
     return coap;
 err:
@@ -156,9 +157,22 @@ int ec_request_set_payload(ec_client_t *cli, ev_uint8_t *payload, size_t sz)
 {
     dbg_return_if (cli == NULL, -1);
 
+    /* Check if Block fragmentation is needed.  In case it is not handled
+     * transparently, check that the supplied payload fits in the currently
+     * set bound. */
+    bool bis;
+    size_t mps;
+
+    dbg_err_if (ec_get_block_is_stateless(cli->base, &bis));
+    dbg_err_if (ec_get_max_pdu_size(cli->base, &mps));
+    dbg_err_ifm (bis && sz > mps,
+            "payload would be fragmented (Block must be handled manually !)");
+
     ec_pdu_t *req = &cli->req;
 
     return ec_pdu_set_payload(req, payload, sz);
+err:
+    return -1;
 }
 
 /**
@@ -490,6 +504,37 @@ err:
     if (r)
         ec_resource_free(r);
     return -1;
+}
+
+/* Supplying val=0 means unlimited (bounded only by lower layer protocols.) */
+int ec_set_max_pdu_size(ec_t *coap, size_t val)
+{
+    dbg_return_if (coap == NULL, -1);
+
+    return ec_cfg_set_max_pdu_sz(&coap->cfg, val);
+}
+
+int ec_set_block_is_stateless(ec_t *coap, bool val)
+{
+    dbg_return_if (coap == NULL, -1);
+
+    return ec_cfg_set_block_is_stateless(&coap->cfg, val);
+}
+
+int ec_get_max_pdu_size(ec_t *coap, size_t *val)
+{
+    dbg_return_if (coap == NULL, -1);
+    dbg_return_if (val == NULL, -1);
+
+    return ec_cfg_get_max_pdu_sz(&coap->cfg, val);
+}
+
+int ec_get_block_is_stateless(ec_t *coap, bool *val)
+{
+    dbg_return_if (coap == NULL, -1);
+    dbg_return_if (val == NULL, -1);
+
+    return ec_cfg_get_block_is_stateless(&coap->cfg, val);
 }
 
 static ec_resource_t *ec_resource_new(const char *url, ec_server_cb_t cb,

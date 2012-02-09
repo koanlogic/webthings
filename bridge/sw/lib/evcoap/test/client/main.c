@@ -10,6 +10,7 @@ int facility = LOG_LOCAL0;
 
 #define DEFAULT_URI "coap://[::1]/.well-known/core"
 #define DEFAULT_OFN "./response.payload"
+#define DEFAULT_PFN "/etc/hosts"
 #define DEFAULT_TOUT 60
 
 typedef struct 
@@ -24,6 +25,7 @@ typedef struct
     struct timeval app_tout;
     ev_uint8_t etag[4];
     const char *ofn;
+    const char *pfn;
     bool verbose;
 } ctx_t;
 
@@ -38,6 +40,7 @@ ctx_t g_ctx = {
     .app_tout = { .tv_sec = DEFAULT_TOUT, .tv_usec = 0 },
     .etag = { 0xde, 0xad, 0xbe, 0xef },
     .ofn = DEFAULT_OFN,
+    .pfn = DEFAULT_PFN,
     .verbose = false
 };
 
@@ -49,6 +52,7 @@ int client_set_uri(const char *s);
 int client_set_method(const char *s);
 int client_set_model(const char *s);
 int client_set_output_file(const char *s);
+int client_set_payload_file(const char *s);
 int client_set_app_timeout(const char *s);
 int client_save_to_file(const ev_uint8_t *pl, size_t pl_sz);
 void cb(ec_client_t *cli);
@@ -57,7 +61,7 @@ int main(int ac, char *av[])
 {
     int c;
 
-    while ((c = getopt(ac, av, "hu:m:M:o:vt:")) != -1)
+    while ((c = getopt(ac, av, "hu:m:M:o:p:vt:")) != -1)
     {
         switch (c)
         {
@@ -75,6 +79,10 @@ int main(int ac, char *av[])
                 break;
             case 'o':
                 if (client_set_output_file(optarg))
+                    usage(av[0]);
+                break;
+            case 'p':
+                if (client_set_payload_file(optarg))
                     usage(av[0]);
                 break;
             case 'v':
@@ -146,6 +154,7 @@ void usage(const char *prog)
         "       -m <GET|POST|PUT|DELETE>    (default is GET)               \n"
         "       -M <CON|NON>                (default is NON)               \n"
         "       -o <file>                   (default is "DEFAULT_OFN")     \n"
+        "       -p <file>                   (default is "DEFAULT_PFN")     \n"
         "       -u <uri>                    (default is "DEFAULT_URI")     \n"
         "       -t <timeout>                (default is %u sec)            \n"
         "                                                                  \n"
@@ -178,8 +187,19 @@ void client_term(void)
 
 int client_run(void)
 {
+    ev_uint8_t *payload = NULL;
+    size_t payload_sz;
+    
     dbg_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, g_ctx.method, 
                     g_ctx.uri, g_ctx.model)) == NULL);
+
+    /* In case of POST/PUT load payload from file. */
+    if (g_ctx.method == EC_POST || g_ctx.method == EC_PUT)
+    {
+        dbg_err_if (u_load_file(g_ctx.pfn, 0, (char **) &payload, &payload_sz));
+        dbg_err_if (ec_request_set_payload(g_ctx.cli, payload, payload_sz));
+        u_free(payload), payload = NULL;
+    }
 
     CHAT("sending request to %s", g_ctx.uri);
 
@@ -193,6 +213,8 @@ int client_run(void)
 
     return event_base_dispatch(g_ctx.base);
 err:
+    if (payload)
+        u_free(payload);
     return -1;
 }
 
@@ -270,6 +292,15 @@ int client_set_output_file(const char *s)
     dbg_return_if (s == NULL, -1);
     
     g_ctx.ofn = s;
+
+    return 0;
+}
+
+int client_set_payload_file(const char *s)
+{
+    dbg_return_if (s == NULL, -1);
+    
+    g_ctx.pfn = s;
 
     return 0;
 }

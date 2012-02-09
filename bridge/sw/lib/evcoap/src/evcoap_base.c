@@ -355,11 +355,50 @@ err:
     return -1;
 }
 
-int ec_set_max_pdu_sz(ec_t *coap, size_t max_pdu_sz)
+int ec_cfg_init(ec_cfg_t *cfg)
 {
-    dbg_return_if (coap == NULL, -1);
+    dbg_return_if (cfg == NULL, -1);
 
-    coap->cfg.max_pdu_sz = max_pdu_sz;
+    cfg->block_is_stateless = true; /* TODO should be false. */
+    cfg->max_pdu_sz = 0;            /* i.e. unset. */
+
+    return 0;
+}
+
+int ec_cfg_set_block_is_stateless(ec_cfg_t *cfg, bool val)
+{
+    dbg_return_if (cfg == NULL, -1);
+
+    cfg->block_is_stateless = val;
+
+    return 0;
+}
+
+int ec_cfg_set_max_pdu_sz(ec_cfg_t *cfg, size_t val)
+{
+    dbg_return_if (cfg == NULL, -1);
+
+    cfg->max_pdu_sz = val;
+
+    return 0;
+}
+
+int ec_cfg_get_max_pdu_sz(ec_cfg_t *cfg, size_t *val)
+{
+    dbg_return_if (cfg == NULL, -1);
+    dbg_return_if (val == NULL, -1);
+
+    *val = U_MIN(cfg->max_pdu_sz, EC_COAP_MAX_REQ_SIZE);
+
+    return 0;
+}
+
+int ec_cfg_get_block_is_stateless(ec_cfg_t *cfg, bool *val)
+{
+    dbg_return_if (cfg == NULL, -1);
+    dbg_return_if (val == NULL, -1);
+
+    *val = cfg->block_is_stateless;
 
     return 0;
 }
