@@ -92,7 +92,12 @@
     </section>
 
     <section anchor="Security" title="Security Considerations">
-    <t>TODO</t>
+    <t>The resources published through the described facility need to be exported in a controlled way, in order not to leak out sensitive information about the internal/protected network.  HTTPS can provide the access control mechanism needed to implement secure authorization and to protect both the confidentiality of the information and the identities of the communicating actors.  If for any reason HTTPS isn't an affordable option, digest authentication can be traded off as a weaker replacement (in particular, when considering its use, one must be aware about its vulnerability to MitM attacks.)</t>
+
+    <t>Another important fact to note is that the availability of this service is critical, and as such should be protected at least from easy DoS of the hosting node -- which should be possibly redounded.  To aggravate a bit, the OPTIONS method is non cacheable and the hosting node must be ready to absorb all the clients' load.  Also note that availability could be incidentally interrupted by any HTTP intermediary (e.g. an HTTP/1.0 proxy) refusing to forward a request carrying the OPTION method.</t>
+
+    <t>{{TODO refs}}</t>
+
     </section>
   </middle>
 
