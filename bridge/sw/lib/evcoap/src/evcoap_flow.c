@@ -1,6 +1,6 @@
 #include "evcoap_flow.h"
 
-int ec_flow_save_token(ec_flow_t *flow, ev_uint8_t *tok, size_t tok_sz)
+int ec_flow_save_token(ec_flow_t *flow, uint8_t *tok, size_t tok_sz)
 {
     dbg_return_if (flow == NULL, -1);
 
@@ -30,7 +30,7 @@ int ec_flow_save_url(ec_flow_t *flow, u_uri_t *url)
     return 0;
 }
 
-int ec_flow_get_token(ec_flow_t *flow, ev_uint8_t token[8], size_t *token_sz)
+int ec_flow_get_token(ec_flow_t *flow, uint8_t token[8], size_t *token_sz)
 {
     dbg_return_if (flow == NULL, -1);
     dbg_return_if (token == NULL, -1);

@@ -1,8 +1,9 @@
 #include "evcoap_base.h"
 
-static const char *ec_dup_key_new(ev_uint16_t mid, 
+static const char *ec_dup_key_new(uint16_t mid, 
         struct sockaddr_storage *peer, char key[EC_DUP_KEY_MAX]);
 static void ec_dup_zap(evutil_socket_t u0, short u1, void *c);
+static int ec_nearest_block(size_t orig, uint8_t *szx);
 
 int ec_listeners_add(ec_t *coap, evutil_socket_t sd)
 {
@@ -99,7 +100,7 @@ void ec_dups_term(ec_dups_t *dups)
     return;
 }
 
-ec_recvd_pdu_t *ec_dups_search(ec_dups_t *dups, ev_uint16_t mid, 
+ec_recvd_pdu_t *ec_dups_search(ec_dups_t *dups, uint16_t mid, 
         struct sockaddr_storage *peer)
 {
     ec_recvd_pdu_t *recvd;
@@ -119,7 +120,7 @@ err:
 }
 
 int ec_dups_insert(ec_dups_t *dups, struct sockaddr_storage *ss,
-        ev_uint16_t mid)
+        uint16_t mid)
 {
     char key[EC_DUP_KEY_MAX];
     ec_recvd_pdu_t *recvd = NULL;
@@ -170,7 +171,7 @@ err:
 }
 
 /* Key format is: "mid'+'IPaddr':'port" */
-static const char *ec_dup_key_new(ev_uint16_t mid, 
+static const char *ec_dup_key_new(uint16_t mid, 
         struct sockaddr_storage *peer, char key[EC_DUP_KEY_MAX])
 {
     char ap[EC_DUP_KEY_MAX];
@@ -193,7 +194,7 @@ err:
  * '1'  -> dup
  * '-1' -> internal error
  */
-int ec_dups_handle_incoming_srvmsg(ec_dups_t *dups, ev_uint16_t mid, int sd,
+int ec_dups_handle_incoming_srvmsg(ec_dups_t *dups, uint16_t mid, int sd,
         struct sockaddr_storage *ss)
 {
     ec_recvd_pdu_t *recvd = NULL;
@@ -226,7 +227,7 @@ err:
     return -1;
 }
 
-int ec_dups_handle_incoming_climsg(ec_dups_t *dups, ev_uint16_t mid, int sd,
+int ec_dups_handle_incoming_climsg(ec_dups_t *dups, uint16_t mid, int sd,
         struct sockaddr_storage *ss)
 {
     ec_recvd_pdu_t *recvd = NULL;
@@ -257,7 +258,7 @@ err:
 }
 
 ec_recvd_pdu_t *ec_recvd_pdu_new(const char *key, ec_t *coap, ec_dups_t *dups,
-        struct sockaddr_storage *ss, ev_uint16_t mid)
+        struct sockaddr_storage *ss, uint16_t mid)
 {
     struct event *t = NULL;
     struct timeval tout = { .tv_sec = EC_DUP_LIFETIME, .tv_usec = 0 };
@@ -322,11 +323,11 @@ void ec_recvd_pdu_free(void *arg)
     }
 }
 
-int ec_recvd_pdu_update(ec_recvd_pdu_t *recvd, ev_uint8_t *hdr,
-        ev_uint8_t *opts, size_t opts_sz, ev_uint8_t *payload, 
+int ec_recvd_pdu_update(ec_recvd_pdu_t *recvd, uint8_t *hdr,
+        uint8_t *opts, size_t opts_sz, uint8_t *payload, 
         size_t payload_sz)
 {
-    ev_uint8_t *p = NULL, *o = NULL;
+    uint8_t *p = NULL, *o = NULL;
     ec_cached_pdu_t *pdu;
 
     dbg_return_if (recvd == NULL, -1);
@@ -358,47 +359,61 @@ err:
 int ec_cfg_init(ec_cfg_t *cfg)
 {
     dbg_return_if (cfg == NULL, -1);
-
-    cfg->block_is_stateless = true; /* TODO should be false. */
-    cfg->max_pdu_sz = 0;            /* i.e. unset. */
+    
+    /* Assume Block Option's are completely handled by the user. */
+    cfg->block_is_stateless = true;
 
     return 0;
 }
 
-int ec_cfg_set_block_is_stateless(ec_cfg_t *cfg, bool val)
+int ec_cfg_set_block_sz(ec_cfg_t *cfg, size_t val)
 {
+    uint8_t szx;
+
     dbg_return_if (cfg == NULL, -1);
 
-    cfg->block_is_stateless = val;
+    dbg_return_if (val < EC_COAP_BLOCK_MIN || val > EC_COAP_BLOCK_MAX, -1);
+
+    dbg_return_if (ec_nearest_block(val, &szx), -1);
+
+    /* Since the user has explicitly set a preferred block size, assume evcoap 
+     * will handle the whole fragmentation/reassembly. */
+    cfg->block_is_stateless = false;
+    cfg->block_szx = szx;
 
     return 0;
 }
 
-int ec_cfg_set_max_pdu_sz(ec_cfg_t *cfg, size_t val)
+int ec_cfg_get_block_info(ec_cfg_t *cfg, bool *is_stateless, uint8_t *szx)
 {
     dbg_return_if (cfg == NULL, -1);
+    dbg_return_if (is_stateless == NULL, -1);
+    dbg_return_if (szx == NULL, -1);
 
-    cfg->max_pdu_sz = val;
+    *szx = cfg->block_szx;
+    *is_stateless = cfg->block_is_stateless;
 
     return 0;
 }
 
-int ec_cfg_get_max_pdu_sz(ec_cfg_t *cfg, size_t *val)
+static int ec_nearest_block(size_t orig, uint8_t *szx)
 {
-    dbg_return_if (cfg == NULL, -1);
-    dbg_return_if (val == NULL, -1);
+    size_t i, e;
 
-    *val = U_MIN(cfg->max_pdu_sz, EC_COAP_MAX_REQ_SIZE);
+    if (orig < EC_COAP_BLOCK_MIN)
+        return -1;
 
-    return 0;
+    for (i = 10; i >= 4; i--)
+    {
+        e = 1 << i;
+
+        if (orig > e)
+        {
+            *szx = i - 4;
+            return 0;
+        }
+    }
+
+    return -1;
 }
 
-int ec_cfg_get_block_is_stateless(ec_cfg_t *cfg, bool *val)
-{
-    dbg_return_if (cfg == NULL, -1);
-    dbg_return_if (val == NULL, -1);
-
-    *val = cfg->block_is_stateless;
-
-    return 0;
-}

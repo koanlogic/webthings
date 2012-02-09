@@ -23,7 +23,7 @@ typedef struct
     ec_method_t method;
     ec_msg_model_t model;
     struct timeval app_tout;
-    ev_uint8_t etag[4];
+    uint8_t etag[4];
     const char *ofn;
     const char *pfn;
     bool verbose;
@@ -54,7 +54,7 @@ int client_set_model(const char *s);
 int client_set_output_file(const char *s);
 int client_set_payload_file(const char *s);
 int client_set_app_timeout(const char *s);
-int client_save_to_file(const ev_uint8_t *pl, size_t pl_sz);
+int client_save_to_file(const uint8_t *pl, size_t pl_sz);
 void cb(ec_client_t *cli);
 
 int main(int ac, char *av[])
@@ -126,12 +126,21 @@ void cb(ec_client_t *cli)
 
     if (rc == EC_CONTENT)
     {
-        ev_uint8_t *pl;
-        size_t pl_sz;
+        uint32_t block_no;
+        bool more;
+        uint8_t *pl;
+        size_t pl_sz, block_sz;
 
         /* Get response payload. */
         con_err_ifm ((pl = ec_response_get_payload(cli, &pl_sz)) == NULL,
                     "empty payload");
+
+        /* Try to see if it is fragmented. */
+        if (ec_response_get_block2(cli, &block_no, &more, &block_sz))
+        {
+            if (more)
+                u_con("Payload has been chopped!");
+        }
 
         /* Save payload to file. */
         con_err_sifm (client_save_to_file(pl, pl_sz),
@@ -187,7 +196,7 @@ void client_term(void)
 
 int client_run(void)
 {
-    ev_uint8_t *payload = NULL;
+    uint8_t *payload = NULL;
     size_t payload_sz;
     
     dbg_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, g_ctx.method, 
@@ -305,7 +314,7 @@ int client_set_payload_file(const char *s)
     return 0;
 }
 
-int client_save_to_file(const ev_uint8_t *pl, size_t pl_sz)
+int client_save_to_file(const uint8_t *pl, size_t pl_sz)
 {
     FILE *fp = fopen(g_ctx.ofn, "w");
 

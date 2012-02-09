@@ -15,10 +15,10 @@ err:
     return -1;
 }
 
-ev_ssize_t ec_net_pullup(evutil_socket_t sd, ev_uint8_t *b, size_t b_sz,
-        int *flags, struct sockaddr *peer, ev_socklen_t *peer_len, int *e)
+ssize_t ec_net_pullup(evutil_socket_t sd, uint8_t *b, size_t b_sz,
+        int *flags, struct sockaddr *peer, socklen_t *peer_len, int *e)
 {
-    ev_ssize_t n;
+    ssize_t n;
     struct msghdr msg;
     struct iovec iov[1];
 
@@ -63,8 +63,8 @@ void ec_net_pullup_all(evutil_socket_t sd, ec_pdu_handler_t pdu_proc, void *arg)
 {
     int e;
     struct sockaddr_storage peer;
-    ev_socklen_t peer_len = sizeof(peer);
-    ev_uint8_t d[EC_COAP_MAX_REQ_SIZE + 1];
+    socklen_t peer_len = sizeof(peer);
+    uint8_t d[EC_COAP_MAX_REQ_SIZE + 1];
 
     /* Dequeue all buffered PDUs. */
     for (;;)
@@ -72,7 +72,7 @@ void ec_net_pullup_all(evutil_socket_t sd, ec_pdu_handler_t pdu_proc, void *arg)
         int flags = 0;
 
         /* Pull up next UDP packet from the socket input buffer. */
-        ev_ssize_t n = ec_net_pullup(sd, d, sizeof d, &flags,
+        ssize_t n = ec_net_pullup(sd, d, sizeof d, &flags,
                 (struct sockaddr *) &peer, &peer_len, &e);
 
         /* Skip empty or too big UDP datagrams (TODO check truncation.) */
@@ -104,14 +104,14 @@ void ec_net_pullup_all(evutil_socket_t sd, ec_pdu_handler_t pdu_proc, void *arg)
     }
 }
 
-int ec_net_send(ev_uint8_t h[EC_COAP_HDR_SIZE], ev_uint8_t *o, size_t o_sz,
-        ev_uint8_t *p, size_t p_sz, evutil_socket_t sd, 
+int ec_net_send(uint8_t h[EC_COAP_HDR_SIZE], uint8_t *o, size_t o_sz,
+        uint8_t *p, size_t p_sz, evutil_socket_t sd, 
         struct sockaddr_storage *d)
 {
     struct msghdr msg;
     size_t iov_idx = 0;
     struct iovec iov[3];
-    ev_uint8_t dlen;
+    uint8_t dlen;
 
     dbg_return_if (h == NULL, -1);
     dbg_return_if (sd == -1, -1);
@@ -160,7 +160,7 @@ int ec_net_save_us(ec_conn_t *conn, evutil_socket_t sd)
     dbg_return_if (sd == -1, -1);
     dbg_return_if (conn == NULL, -1);
 
-    ev_socklen_t slen = sizeof conn->us;
+    socklen_t slen = sizeof conn->us;
 
     dbg_err_sif (getsockname(sd, (struct sockaddr *) &conn->us, &slen) == -1);
 
@@ -203,7 +203,7 @@ int ec_net_get_confirmable(ec_conn_t *conn, bool *is_con)
     return 0;
 }
 
-int ec_net_socklen(const struct sockaddr_storage *ss, ev_uint8_t *ss_len)
+int ec_net_socklen(const struct sockaddr_storage *ss, uint8_t *ss_len)
 {
     dbg_return_if (ss == NULL, -1);
     dbg_return_if (ss_len == NULL, -1);

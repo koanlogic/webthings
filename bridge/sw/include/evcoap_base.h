@@ -39,10 +39,10 @@ typedef struct ec_listener_s ec_listener_t;
 struct ec_cached_pdu_s
 {
     bool is_set;
-    ev_uint8_t hdr[4];
-    ev_uint8_t *opts;
+    uint8_t hdr[4];
+    uint8_t *opts;
     size_t opts_sz;
-    ev_uint8_t *payload;
+    uint8_t *payload;
     size_t payload_sz;
 };
 typedef struct ec_cached_pdu_s ec_cached_pdu_t;
@@ -52,7 +52,7 @@ struct ec_recvd_pdu_s
 {
     struct timeval when;
     struct sockaddr_storage who;
-    ev_uint16_t mid;
+    uint16_t mid;
     ec_cached_pdu_t cached_pdu;
 #define EC_DUP_LIFETIME     60  /* 1 minute seems reasonable. */
     struct event *countdown;
@@ -72,7 +72,7 @@ typedef struct ec_dups_s ec_dups_t;
 struct ec_cfg_s
 {
     bool block_is_stateless;
-    size_t max_pdu_sz;  /* 0 means no upper bound (except UDP limits.) */
+    uint8_t block_szx;
 };
 typedef struct ec_cfg_s ec_cfg_t;
 
@@ -111,27 +111,25 @@ void ec_listener_free(ec_listener_t *l);
 int ec_dups_init(ec_t *coap, ec_dups_t *dups);
 void ec_dups_term(ec_dups_t *dups);
 int ec_dups_insert(ec_dups_t *dups, struct sockaddr_storage *ss,
-        ev_uint16_t mid);
+        uint16_t mid);
 int ec_dups_delete(ec_dups_t *dups, const char *key);
-ec_recvd_pdu_t *ec_dups_search(ec_dups_t *dups, ev_uint16_t mid,
+ec_recvd_pdu_t *ec_dups_search(ec_dups_t *dups, uint16_t mid,
         struct sockaddr_storage *peer);
-int ec_dups_handle_incoming_srvmsg(ec_dups_t *dups, ev_uint16_t mid, int sd,
+int ec_dups_handle_incoming_srvmsg(ec_dups_t *dups, uint16_t mid, int sd,
         struct sockaddr_storage *ss);
-int ec_dups_handle_incoming_climsg(ec_dups_t *dups, ev_uint16_t mid, int sd,
+int ec_dups_handle_incoming_climsg(ec_dups_t *dups, uint16_t mid, int sd,
         struct sockaddr_storage *ss);
 
 ec_recvd_pdu_t *ec_recvd_pdu_new(const char *key, ec_t *coap, ec_dups_t *dups,
-        struct sockaddr_storage *ss, ev_uint16_t mid);
-int ec_recvd_pdu_update(ec_recvd_pdu_t *recvd, ev_uint8_t *hdr,
-        ev_uint8_t *opts, size_t opts_sz, ev_uint8_t *payload,
+        struct sockaddr_storage *ss, uint16_t mid);
+int ec_recvd_pdu_update(ec_recvd_pdu_t *recvd, uint8_t *hdr,
+        uint8_t *opts, size_t opts_sz, uint8_t *payload,
         size_t payload_sz);
 void ec_recvd_pdu_free(void *recvd_pdu);
 
 /* Configuration handling. */
 int ec_cfg_init(ec_cfg_t *cfg);
-int ec_cfg_set_max_pdu_sz(ec_cfg_t *cfg, size_t max_pdu_sz);
-int ec_cfg_set_block_is_stateless(ec_cfg_t *cfg, bool val);
-int ec_cfg_get_block_is_stateless(ec_cfg_t *cfg, bool *val);
-int ec_cfg_get_max_pdu_sz(ec_cfg_t *cfg, size_t *val);
+int ec_cfg_set_block_sz(ec_cfg_t *cfg, size_t val);
+int ec_cfg_get_block_info(ec_cfg_t *cfg, bool *is_stateless, uint8_t *szx);
 
 #endif  /* !_EC_BASE_H_ */

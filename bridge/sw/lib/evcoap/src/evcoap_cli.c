@@ -11,7 +11,7 @@
 
 static int ec_client_check_transition(ec_cli_state_t cur, ec_cli_state_t next);
 static bool ec_client_state_is_final(ec_cli_state_t state);
-static int ec_client_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
+static int ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         struct sockaddr_storage *peer, void *arg);
 static void ec_cli_app_timeout(evutil_socket_t u0, short u1, void *c);
 static void ec_cli_coap_timeout(evutil_socket_t u0, short u1, void *c);
@@ -30,7 +30,7 @@ int ec_client_set_method(ec_client_t *cli, ec_method_t m)
     return 0;
 }
 
-int ec_client_set_proxy(ec_client_t *cli, const char *host, ev_uint16_t port)
+int ec_client_set_proxy(ec_client_t *cli, const char *host, uint16_t port)
 {
     ec_conn_t *conn = &cli->flow.conn;
 
@@ -79,7 +79,7 @@ int ec_client_set_uri(ec_client_t *cli, const char *uri)
             int port;
 
             dbg_err_if (u_atoi(p, &port));
-            dbg_err_if (ec_opts_add_uri_port(opts, (ev_uint16_t) port));
+            dbg_err_if (ec_opts_add_uri_port(opts, (uint16_t) port));
         }
 
         /* Separate path components. */
@@ -143,7 +143,7 @@ int ec_client_set_msg_model(ec_client_t *cli, bool is_con)
 }
 
 ec_client_t *ec_client_new(struct ec_s *coap, ec_method_t m, const char *uri, 
-        ec_msg_model_t mm, const char *proxy_host, ev_uint16_t proxy_port)
+        ec_msg_model_t mm, const char *proxy_host, uint16_t proxy_port)
 {
     ec_client_t *cli = NULL;
 
@@ -186,7 +186,7 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
     ec_cli_timers_t *timers;
     ec_opt_t *pu = NULL;
     const char *host;
-    ev_uint16_t port;
+    uint16_t port;
     char sport[16];
     struct evutil_addrinfo hints;
     struct timeval app_tout_dflt = { 
@@ -645,7 +645,7 @@ ec_cli_state_t ec_client_get_state(ec_client_t *cli)
     return cli->state;
 }
 
-static int ec_client_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
+static int ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         struct sockaddr_storage *peer, void *arg)
 {
     ec_opt_t *t;
@@ -742,7 +742,7 @@ static int ec_client_invoke_user_callback(ec_client_t *cli)
     return 0;
 }
 
-int ec_client_handle_empty_pdu(ec_client_t *cli, ev_uint8_t t, ev_uint16_t mid)
+int ec_client_handle_empty_pdu(ec_client_t *cli, uint8_t t, uint16_t mid)
 {
     /* TODO */
     return 0;
@@ -770,7 +770,7 @@ static int ec_client_check_req_token(ec_client_t *cli)
     ec_opt_t *t;
     ec_flow_t *flow;
     ec_pdu_t *req;
-    ev_uint8_t tok[8];
+    uint8_t tok[8];
     const size_t tok_sz = sizeof tok;
 
     dbg_return_if (cli == NULL, -1);

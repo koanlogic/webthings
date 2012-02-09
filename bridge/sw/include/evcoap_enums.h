@@ -23,6 +23,10 @@ extern "C" {
 #define EC_COAP_MAX_OPTIONS 15
 #define EC_COAP_HDR_SIZE    4
 
+/* Block Options size range. */
+#define EC_COAP_BLOCK_MIN   (1 << 4)
+#define EC_COAP_BLOCK_MAX   (1 << 10)
+
 /* CON retransmission parameters. */
 #define EC_COAP_RESPONSE_TIMEOUT        2
 #define EC_COAP_RESPONSE_RANDOM_FACTOR  1.5

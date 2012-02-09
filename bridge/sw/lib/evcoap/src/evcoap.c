@@ -75,14 +75,14 @@ int ec_loopbreak(ec_t *coap)
 ec_client_t *ec_request_new(ec_t *coap, ec_method_t m, const char *uri, 
         ec_msg_model_t mm)
 {
-    return ec_client_new(coap, m, uri, mm, NULL, (ev_uint16_t) 0);
+    return ec_client_new(coap, m, uri, mm, NULL, (uint16_t) 0);
 }
 
 /**
  *  \brief  TODO
  */
 ec_client_t *ec_proxy_request_new(ec_t *coap, ec_method_t m, const char *uri,
-        ec_msg_model_t mm, const char *proxy_host, ev_uint16_t proxy_port)
+        ec_msg_model_t mm, const char *proxy_host, uint16_t proxy_port)
 {
     return ec_client_new(coap, m, uri, mm, proxy_host, proxy_port);
 }
@@ -105,7 +105,7 @@ int ec_request_send(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
 /**
  *  \brief  TODO
  */
-int ec_bind_socket(ec_t *coap, const char *addr, ev_uint16_t port)
+int ec_bind_socket(ec_t *coap, const char *addr, uint16_t port)
 {
     evutil_socket_t sd = (evutil_socket_t) -1;
     char addrport[1024] = { '\0' };
@@ -153,19 +153,17 @@ int ec_register_fb(ec_t *coap, ec_server_cb_t fb, void *fb_args)
 /**
  *  \brief  TODO
  */
-int ec_request_set_payload(ec_client_t *cli, ev_uint8_t *payload, size_t sz)
+int ec_request_set_payload(ec_client_t *cli, uint8_t *payload, size_t sz)
 {
     dbg_return_if (cli == NULL, -1);
 
-    /* Check if Block fragmentation is needed.  In case it is not handled
-     * transparently, check that the supplied payload fits in the currently
-     * set bound. */
-    bool bis;
-    size_t mps;
+    /* Check if Block fragmentation is needed.
+     * In case it were not handled transparently, check that the supplied 
+     * payload fits in the currently set upper bound. */
+    size_t bsz;
 
-    dbg_err_if (ec_get_block_is_stateless(cli->base, &bis));
-    dbg_err_if (ec_get_max_pdu_size(cli->base, &mps));
-    dbg_err_ifm (bis && sz > mps,
+    dbg_err_if (ec_get_block_size(cli->base, &bsz));
+    dbg_err_ifm (bsz && sz > bsz,
             "payload would be fragmented (Block must be handled manually !)");
 
     ec_pdu_t *req = &cli->req;
@@ -220,15 +218,51 @@ int ec_response_get_content_type(ec_client_t *cli, ec_mt_t *ct)
 
     dbg_return_if (cli == NULL, -1);
 
-    dbg_err_if ((opts = ec_client_get_response_options(cli)) == NULL);
+    nop_err_if ((opts = ec_client_get_response_options(cli)) == NULL);
 
-    return ec_opts_get_content_type(opts, (ev_uint16_t *) ct);
+    return ec_opts_get_content_type(opts, (uint16_t *) ct);
+err:
+    return -1;
+}
+
+int ec_response_get_block1(ec_client_t *cli, uint32_t *bnum, bool *more,
+        size_t *bsz)
+{
+    uint8_t szx;
+    ec_opts_t *opts;
+
+    dbg_return_if (cli == NULL, -1);
+    dbg_return_if (bsz == NULL, -1);
+
+    nop_err_if ((opts = ec_client_get_response_options(cli)) == NULL);
+    nop_err_if (ec_opts_get_block1(opts, bnum, more, &szx));
+
+    *bsz = 1 << (szx + 4);
+
+err:
+    return -1;
+}
+
+int ec_response_get_block2(ec_client_t *cli, uint32_t *bnum, bool *more,
+        size_t *bsz)
+{
+    uint8_t szx;
+    ec_opts_t *opts;
+
+    dbg_return_if (cli == NULL, -1);
+    dbg_return_if (bsz == NULL, -1);
+
+    nop_err_if ((opts = ec_client_get_response_options(cli)) == NULL);
+    nop_err_if (ec_opts_get_block2(opts, bnum, more, &szx));
+
+    *bsz = 1 << (szx + 4);
+
 err:
     return -1;
 }
 
 /* Works for unicast exchanges only. */
-ev_uint8_t *ec_response_get_payload(ec_client_t *cli, size_t *sz)
+uint8_t *ec_response_get_payload(ec_client_t *cli, size_t *sz)
 {
     ec_pdu_t *res;
 
@@ -248,7 +282,7 @@ err:
 /**
  *  \brief  TODO
  */
-int ec_request_add_content_type(ec_client_t *cli, ev_uint16_t ct)
+int ec_request_add_content_type(ec_client_t *cli, uint16_t ct)
 {
     dbg_return_if (cli == NULL, -1);
 
@@ -260,7 +294,7 @@ int ec_request_add_content_type(ec_client_t *cli, ev_uint16_t ct)
 /**
  *  \brief  TODO
  */
-int ec_request_add_max_age(ec_client_t *cli, ev_uint32_t ma)
+int ec_request_add_max_age(ec_client_t *cli, uint32_t ma)
 {
     dbg_return_if (cli == NULL, -1);
 
@@ -284,7 +318,7 @@ int ec_request_add_proxy_uri(ec_client_t *cli, const char *pu)
 /**
  *  \brief  TODO
  */
-int ec_request_add_etag(ec_client_t *cli, const ev_uint8_t *et, size_t et_len)
+int ec_request_add_etag(ec_client_t *cli, const uint8_t *et, size_t et_len)
 {
     dbg_return_if (cli == NULL, -1);
     
@@ -320,7 +354,7 @@ int ec_request_add_location_path(ec_client_t *cli, const char *lp)
 /**
  *  \brief  TODO
  */
-int ec_request_add_uri_port(ec_client_t *cli, ev_uint16_t up)
+int ec_request_add_uri_port(ec_client_t *cli, uint16_t up)
 {
     dbg_return_if (cli == NULL, -1);
     
@@ -356,7 +390,7 @@ int ec_request_add_uri_path(ec_client_t *cli, const char *up)
 /**
  *  \brief  TODO
  */
-int ec_request_add_token(ec_client_t *cli, const ev_uint8_t *t, size_t t_len)
+int ec_request_add_token(ec_client_t *cli, const uint8_t *t, size_t t_len)
 {
     dbg_return_if (cli == NULL, -1);
     
@@ -368,7 +402,7 @@ int ec_request_add_token(ec_client_t *cli, const ev_uint8_t *t, size_t t_len)
 /**
  *  \brief  TODO
  */
-int ec_request_add_accept(ec_client_t *cli, ev_uint16_t a)
+int ec_request_add_accept(ec_client_t *cli, uint16_t a)
 {
     dbg_return_if (cli == NULL, -1);
     
@@ -380,7 +414,7 @@ int ec_request_add_accept(ec_client_t *cli, ev_uint16_t a)
 /**
  *  \brief  TODO
  */
-int ec_request_add_if_match(ec_client_t *cli, const ev_uint8_t *im, 
+int ec_request_add_if_match(ec_client_t *cli, const uint8_t *im, 
         size_t im_len)
 {
     dbg_return_if (cli == NULL, -1);
@@ -417,7 +451,7 @@ int ec_request_add_if_none_match(ec_client_t *cli)
 /**
  *  \brief  TODO
  */
-int ec_request_add_observe(ec_client_t *cli, ev_uint16_t o)
+int ec_request_add_observe(ec_client_t *cli, uint16_t o)
 {
     dbg_return_if (cli == NULL, -1);
     
@@ -429,7 +463,7 @@ int ec_request_add_observe(ec_client_t *cli, ev_uint16_t o)
 /**
  *  \brief  TODO
  */
-int ec_response_set_payload(ec_server_t *srv, ev_uint8_t *payload, size_t sz)
+int ec_response_set_payload(ec_server_t *srv, uint8_t *payload, size_t sz)
 {
     dbg_return_if (srv == NULL, -1);
 
@@ -441,7 +475,7 @@ int ec_response_set_payload(ec_server_t *srv, ev_uint8_t *payload, size_t sz)
 /**
  *  \brief  TODO
  */
-int ec_response_add_etag(ec_server_t *srv, const ev_uint8_t *et, size_t et_len)
+int ec_response_add_etag(ec_server_t *srv, const uint8_t *et, size_t et_len)
 {
     ec_pdu_t *res;
 
@@ -456,7 +490,7 @@ int ec_response_add_etag(ec_server_t *srv, const ev_uint8_t *et, size_t et_len)
 /**
  *  \brief  TODO
  */
-int ec_response_add_content_type(ec_server_t *srv, ev_uint16_t ct)
+int ec_response_add_content_type(ec_server_t *srv, uint16_t ct)
 {
     ec_pdu_t *res;
 
@@ -471,7 +505,7 @@ int ec_response_add_content_type(ec_server_t *srv, ev_uint16_t ct)
 /**
  *  \brief  TODO
  */
-int ec_update_representation(const char *uri, const ev_uint8_t *rep,
+int ec_update_representation(const char *uri, const uint8_t *rep,
         size_t rep_len, ec_mt_t media_type)
 {
     return -1;
@@ -507,34 +541,28 @@ err:
 }
 
 /* Supplying val=0 means unlimited (bounded only by lower layer protocols.) */
-int ec_set_max_pdu_size(ec_t *coap, size_t val)
+int ec_set_block_size(ec_t *coap, size_t val)
 {
     dbg_return_if (coap == NULL, -1);
 
-    return ec_cfg_set_max_pdu_sz(&coap->cfg, val);
+    return ec_cfg_set_block_sz(&coap->cfg, val);
 }
 
-int ec_set_block_is_stateless(ec_t *coap, bool val)
+int ec_get_block_size(ec_t *coap, size_t *val)
 {
-    dbg_return_if (coap == NULL, -1);
+    uint8_t szx;
+    bool is_stateless;
 
-    return ec_cfg_set_block_is_stateless(&coap->cfg, val);
-}
-
-int ec_get_max_pdu_size(ec_t *coap, size_t *val)
-{
     dbg_return_if (coap == NULL, -1);
     dbg_return_if (val == NULL, -1);
 
-    return ec_cfg_get_max_pdu_sz(&coap->cfg, val);
-}
+    dbg_err_if (ec_cfg_get_block_info(&coap->cfg, &is_stateless, &szx));
 
-int ec_get_block_is_stateless(ec_t *coap, bool *val)
-{
-    dbg_return_if (coap == NULL, -1);
-    dbg_return_if (val == NULL, -1);
+    *val = is_stateless ? 0 : 1 << (szx + 4);
 
-    return ec_cfg_get_block_is_stateless(&coap->cfg, val);
+    return 0;
+err:
+    return -1;
 }
 
 static ec_resource_t *ec_resource_new(const char *url, ec_server_cb_t cb,

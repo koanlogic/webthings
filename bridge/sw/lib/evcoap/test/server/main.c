@@ -18,6 +18,7 @@ typedef struct
     struct evdns_base *dns;
     const char *conf;
     ec_filesys_t *fs;
+    size_t block_sz;
     bool verbose;
 } ctx_t;
 
@@ -27,6 +28,7 @@ ctx_t g_ctx = {
     .dns = NULL,
     .conf = DEFAULT_CONF, 
     .fs = NULL,
+    .block_sz = 0,  /* By default Block is fully under user control. */
     .verbose = false
 };
 
@@ -39,7 +41,7 @@ int vhost_setup(u_config_t *vhost);
 int vhost_load_contents(u_config_t *vhost, const char *origin);
 int vhost_load_resource(u_config_t *res, const char *origin);
 
-int parse_addr(const char *ap, char *a, size_t a_sz, ev_uint16_t *p);
+int parse_addr(const char *ap, char *a, size_t a_sz, uint16_t *p);
 int normalize_origin(const char *o, char co[U_URI_STRMAX]);
 
 ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2);
@@ -52,10 +54,14 @@ int main(int ac, char *av[])
     int c, i;
     u_config_t *cfg = NULL, *vhost;
 
-    while ((c = getopt(ac, av, "hf:v")) != -1)
+    while ((c = getopt(ac, av, "b:hf:v")) != -1)
     {
         switch (c)
         {
+            case 'b':
+                if (sscanf(optarg, "%zu", &g_ctx.block_sz) != 1)
+                    usage(av[0]);
+                break;
             case 'f':
                 g_ctx.conf = optarg;
                 break;
@@ -185,7 +191,7 @@ int vhost_load_resource(u_config_t *resource, const char *origin)
 {
     int tmp;
     size_t i, val_sz;
-    ev_uint32_t ma;
+    uint32_t ma;
     const char *path, *max_age, *val;
     ec_filesys_res_t *res = NULL;
     ec_mt_t mt;
@@ -204,7 +210,7 @@ int vhost_load_resource(u_config_t *resource, const char *origin)
     else
     {
         con_err_ifm (u_atoi(max_age, &tmp), "conversion error for %s", max_age);
-        ma = (ev_uint32_t) tmp;
+        ma = (uint32_t) tmp;
     }
 
     /* Create complete resource name. */
@@ -229,7 +235,7 @@ int vhost_load_resource(u_config_t *resource, const char *origin)
                 "no value for resource %s", uri);
         val_sz = strlen(val);
 
-        con_err_ifm (ec_filesys_add_rep(res, (const ev_uint8_t *) val, 
+        con_err_ifm (ec_filesys_add_rep(res, (const uint8_t *) val, 
                     val_sz, mt, NULL),
                 "error adding representation for %s", uri);
     }
@@ -258,6 +264,9 @@ int server_init(void)
     dbg_err_if ((g_ctx.coap = ec_init(g_ctx.base, g_ctx.dns)) == NULL);
     dbg_err_if ((g_ctx.fs = ec_filesys_create()) == NULL);
 
+    if (g_ctx.block_sz)
+        dbg_err_if (ec_set_block_size(g_ctx.coap, g_ctx.block_sz));
+
     return 0;
 err:
     server_term();
@@ -272,16 +281,28 @@ int server_run(void)
 void server_term(void)
 {
     if (g_ctx.coap)
+    {
         ec_term(g_ctx.coap);
+        g_ctx.coap = NULL;
+    }
 
     if (g_ctx.dns)
+    {
         evdns_base_free(g_ctx.dns, 0);
+        g_ctx.dns = NULL;
+    }
 
     if (g_ctx.base)
+    {
         event_base_free(g_ctx.base);
+        g_ctx.base = NULL;
+    }
 
     if (g_ctx.fs)
+    {
         ec_filesys_destroy(g_ctx.fs);
+        g_ctx.fs = NULL;
+    }
 
     return;
 }
@@ -292,7 +313,7 @@ int server_bind(u_config_t *cfg)
     u_config_t *addr;
     const char *v;
     char a[256];
-    ev_uint16_t port;
+    uint16_t port;
 
     dbg_return_if (cfg == NULL, -1);
 
@@ -318,7 +339,7 @@ err:
     return -1;
 }
 
-int parse_addr(const char *ap, char *a, size_t a_sz, ev_uint16_t *p)
+int parse_addr(const char *ap, char *a, size_t a_sz, uint16_t *p)
 {
     int tmp;
     char *ptr;
@@ -333,7 +354,7 @@ int parse_addr(const char *ap, char *a, size_t a_sz, ev_uint16_t *p)
     if ((ptr = strchr(ap, '+')) != NULL && ptr[1] != '\0')
     {
         con_err_ifm (u_atoi(++ptr, &tmp), "could not parse port %s", ptr);
-        *p = (ev_uint16_t) tmp;
+        *p = (uint16_t) tmp;
     }
     else
     {
@@ -363,6 +384,7 @@ void usage(const char *prog)
         "       -h  this help                                           \n"
         "       -v  be verbose                                          \n"
         "       -f <conf file>      (default is "DEFAULT_CONF")         \n"
+        "       -b <block size>     (enables automatic Block handling)  \n"
         "                                                               \n"
         ;
 
@@ -383,7 +405,12 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
 
     /* Get the requested URI and method (GET only at present.) */
     con_err_ifm (!(url = ec_server_get_url(srv)), "no URL (!)");
-    con_err_ifm (ec_server_get_method(srv) != EC_GET, "method not supported");
+
+    if (ec_server_get_method(srv) != EC_GET)
+    {
+        (void) ec_response_set_code(srv, EC_NOT_IMPLEMENTED); 
+        goto end;
+    }
 
     CHAT("requested resource is '%s'", url);
     
@@ -404,6 +431,7 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
     else
         (void) ec_response_set_code(srv, EC_NOT_FOUND);
 
+end:
     return EC_CBRC_READY;
 err:
     return EC_CBRC_ERROR;

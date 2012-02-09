@@ -10,12 +10,12 @@ static int compose_uri(ec_opts_t *opts, struct sockaddr_storage *us,
         bool nosec, char uri[U_URI_STRMAX]);
 
 static size_t fenceposts_encsz(size_t cur, size_t last);
-static ev_uint8_t *add_fenceposts(ec_opts_t *opts, ev_uint8_t *p, size_t cur, 
+static uint8_t *add_fenceposts(ec_opts_t *opts, uint8_t *p, size_t cur, 
         size_t *delta);
 static int ec_opts_add_block(ec_opts_t *opts, ec_opt_sym_t which,
-        ev_uint32_t num, bool more, ev_uint8_t szx);
-static int ec_opts_get_block(ec_opts_t *opts, ev_uint32_t *num, bool *more,
-        ev_uint8_t *szx, ec_opt_sym_t which);
+        uint32_t num, bool more, uint8_t szx);
+static int ec_opts_get_block(ec_opts_t *opts, uint32_t *num, bool *more,
+        uint8_t *szx, ec_opt_sym_t which);
 
 /*******************************************************************************
  NOTE: the g_opts array entries *MUST* be kept in sync with the ec_opt_sym_t
@@ -49,7 +49,7 @@ static struct opt_rec {
 
 #define EC_OPT_NUM_IS_FENCEPOST(n)  ((n) && ((n) % 14 == 0))
 
-ec_opt_t *ec_opt_new(ec_opt_sym_t sym, size_t l, const ev_uint8_t *v)
+ec_opt_t *ec_opt_new(ec_opt_sym_t sym, size_t l, const uint8_t *v)
 {
     size_t vlen;
     ec_opt_t *o = NULL;
@@ -187,7 +187,7 @@ end:
     return 0;
 }
 
-int ec_opts_add(ec_opts_t *opts, ec_opt_sym_t sym, const ev_uint8_t *v, 
+int ec_opts_add(ec_opts_t *opts, ec_opt_sym_t sym, const uint8_t *v, 
         size_t l)
 {
     ec_opt_t *o = NULL;
@@ -205,7 +205,7 @@ err:
 
 /* 'v' is the complete value, which will be fragmented in one or more option 
  *  * slots if needed. */
-int ec_opts_add_raw(ec_opts_t *opts, ec_opt_sym_t sym, const ev_uint8_t *v,  
+int ec_opts_add_raw(ec_opts_t *opts, ec_opt_sym_t sym, const uint8_t *v,  
         size_t l)
 {
     size_t nseg, offset = 0,
@@ -239,9 +239,9 @@ err:
     return -1;
 }
 
-int ec_opts_add_uint(ec_opts_t *opts, ec_opt_sym_t sym, ev_uint64_t v)
+int ec_opts_add_uint(ec_opts_t *opts, ec_opt_sym_t sym, uint64_t v)
 {
-    ev_uint8_t e[8];
+    uint8_t e[8];
     size_t elen = sizeof e;
 
     dbg_return_if (ec_opt_sym2type(sym) != EC_OPT_TYPE_UINT, -1);
@@ -254,10 +254,10 @@ int ec_opts_add_string(ec_opts_t *opts, ec_opt_sym_t sym, const char *s)
 {
     dbg_return_if (ec_opt_sym2type(sym) != EC_OPT_TYPE_STRING, -1);
 
-    return ec_opts_add_raw(opts, sym, (const ev_uint8_t *) s, strlen(s));
+    return ec_opts_add_raw(opts, sym, (const uint8_t *) s, strlen(s));
 }
 
-int ec_opts_add_opaque(ec_opts_t *opts, ec_opt_sym_t sym, const ev_uint8_t *v,
+int ec_opts_add_opaque(ec_opts_t *opts, ec_opt_sym_t sym, const uint8_t *v,
         size_t l)
 {
     dbg_return_if (ec_opt_sym2type(sym) != EC_OPT_TYPE_OPAQUE, -1);
@@ -275,11 +275,11 @@ int ec_opts_add_empty(ec_opts_t *opts, ec_opt_sym_t sym)
 /* 'elen' is value-result argument.  It MUST be initially set to the size
  * of 'e'.  On a successful return it will hold the lenght of the encoded 
  * uint (i.e. # of valid bytes in 'e'.) */
-int ec_opt_encode_uint(ev_uint64_t ui, ev_uint8_t *e, size_t *elen)
+int ec_opt_encode_uint(uint64_t ui, uint8_t *e, size_t *elen)
 {
     size_t i, j;
     
-    ev_uint64_t ui_bytes[] =
+    uint64_t ui_bytes[] =
     {
         (1ULL <<  8) - 1,
         (1ULL << 16) - 1,
@@ -292,7 +292,7 @@ int ec_opt_encode_uint(ev_uint64_t ui, ev_uint8_t *e, size_t *elen)
     };
     
     /* Pick size. */
-    for (i = 0; i < (sizeof ui_bytes / sizeof(ev_uint64_t)); i++)
+    for (i = 0; i < (sizeof ui_bytes / sizeof(uint64_t)); i++)
         if (ui_bytes[i] > ui)
             break;
     
@@ -363,7 +363,7 @@ const char *ec_opts_get_string(ec_opts_t *opts, ec_opt_sym_t sym)
     return o ? (const char *) o->v : NULL;
 }
 
-int ec_opts_get_uint(ec_opts_t *opts, ec_opt_sym_t sym, ev_uint64_t *ui)
+int ec_opts_get_uint(ec_opts_t *opts, ec_opt_sym_t sym, uint64_t *ui)
 {
     dbg_return_if (ec_opt_sym2type(sym) != EC_OPT_TYPE_UINT, -1);
 
@@ -383,27 +383,27 @@ const char *ec_opts_get_proxy_uri(ec_opts_t *opts, char url[U_URI_STRMAX])
     return url;
 }
 
-int ec_opts_get_uri_port(ec_opts_t *opts, ev_uint16_t *port)
+int ec_opts_get_uri_port(ec_opts_t *opts, uint16_t *port)
 {
-    ev_uint64_t tmp;
+    uint64_t tmp;
 
     if (ec_opts_get_uint(opts, EC_OPT_URI_PORT, &tmp))
         return -1;
 
     dbg_err_ifm (tmp > EV_UINT16_MAX, "Uri-Port encoding overflow");
 
-    *port = (ev_uint16_t) tmp;
+    *port = (uint16_t) tmp;
 
     return 0;
 err:
     return -1;
 }
 
-int ec_opt_decode_uint(const ev_uint8_t *v, size_t l, ev_uint64_t *ui)
+int ec_opt_decode_uint(const uint8_t *v, size_t l, uint64_t *ui)
 {
     size_t i;
 
-    dbg_return_if (l > sizeof(ev_uint64_t), -1);
+    dbg_return_if (l > sizeof(uint64_t), -1);
 
     *ui = 0;
 
@@ -417,14 +417,14 @@ int ec_opt_decode_uint(const ev_uint8_t *v, size_t l, ev_uint64_t *ui)
     return 0;
 }
 
-int ec_opts_add_block1(ec_opts_t *opts, ev_uint32_t num, bool more, 
-        ev_uint8_t szx)
+int ec_opts_add_block1(ec_opts_t *opts, uint32_t num, bool more, 
+        uint8_t szx)
 {
     return ec_opts_add_block(opts, EC_OPT_BLOCK1, num, more, szx);
 }
 
-int ec_opts_add_block2(ec_opts_t *opts, ev_uint32_t num, bool more,
-        ev_uint8_t szx)
+int ec_opts_add_block2(ec_opts_t *opts, uint32_t num, bool more,
+        uint8_t szx)
 {
     return ec_opts_add_block(opts, EC_OPT_BLOCK2, num, more, szx);
 }
@@ -432,7 +432,7 @@ int ec_opts_add_block2(ec_opts_t *opts, ev_uint32_t num, bool more,
 /**
  *  \brief  TODO (user may set a custom content type.)
  */
-int ec_opts_add_content_type(ec_opts_t *opts, ev_uint16_t ct)
+int ec_opts_add_content_type(ec_opts_t *opts, uint16_t ct)
 {
     dbg_return_if (opts == NULL, -1);
 
@@ -446,7 +446,7 @@ int ec_opts_add_content_type(ec_opts_t *opts, ev_uint16_t ct)
 /**
  *  \brief  TODO
  */
-int ec_opts_add_max_age(ec_opts_t *opts, ev_uint32_t ma)
+int ec_opts_add_max_age(ec_opts_t *opts, uint32_t ma)
 {
     dbg_return_if (opts == NULL, -1);
 
@@ -478,7 +478,7 @@ int ec_opts_add_proxy_uri(ec_opts_t *opts, const char *pu)
 /**
  *  \brief  TODO
  */
-int ec_opts_add_etag(ec_opts_t *opts, const ev_uint8_t *et, size_t et_len)
+int ec_opts_add_etag(ec_opts_t *opts, const uint8_t *et, size_t et_len)
 {
     dbg_return_if (opts == NULL, -1);
     dbg_return_if (et == NULL, -1);
@@ -514,7 +514,7 @@ int ec_opts_add_location_path(ec_opts_t *opts, const char *lp)
 /**
  *  \brief  TODO
  */
-int ec_opts_add_uri_port(ec_opts_t *opts, ev_uint16_t up)
+int ec_opts_add_uri_port(ec_opts_t *opts, uint16_t up)
 {
     dbg_return_if (opts == NULL, -1);
     /* 0-2 B length is enforced by 16-bit 'up'. */
@@ -549,7 +549,7 @@ int ec_opts_add_uri_path(ec_opts_t *opts, const char *up)
 /**
  *  \brief  TODO
  */
-int ec_opts_add_token(ec_opts_t *opts, const ev_uint8_t *t, size_t t_len)
+int ec_opts_add_token(ec_opts_t *opts, const uint8_t *t, size_t t_len)
 {
     dbg_return_if (opts == NULL, -1);
     dbg_return_if (t == NULL, -1);
@@ -561,7 +561,7 @@ int ec_opts_add_token(ec_opts_t *opts, const ev_uint8_t *t, size_t t_len)
 /**
  *  \brief  TODO
  */
-int ec_opts_add_accept(ec_opts_t *opts, ev_uint16_t a)
+int ec_opts_add_accept(ec_opts_t *opts, uint16_t a)
 {
     dbg_return_if (opts == NULL, -1);
     /* 0-2 B length is enforced by 16-bit 'a'. */
@@ -572,7 +572,7 @@ int ec_opts_add_accept(ec_opts_t *opts, ev_uint16_t a)
 /**
  *  \brief  TODO
  */
-int ec_opts_add_if_match(ec_opts_t *opts, const ev_uint8_t *im, 
+int ec_opts_add_if_match(ec_opts_t *opts, const uint8_t *im, 
         size_t im_len)
 {
     dbg_return_if (opts == NULL, -1);
@@ -607,7 +607,7 @@ int ec_opts_add_if_none_match(ec_opts_t *opts)
 /**
  *  \brief  TODO
  */
-int ec_opts_add_observe(ec_opts_t *opts, ev_uint16_t o)
+int ec_opts_add_observe(ec_opts_t *opts, uint16_t o)
 {
     dbg_return_if (opts == NULL, -1);
     /* 0-2 B length is enforced by 16-bit 'o'. */
@@ -619,7 +619,7 @@ int ec_opts_encode(ec_opts_t *opts)
 {
     ec_opt_t *o;
     size_t cur, last = 0, delta, left, elen;
-    ev_uint8_t *p;
+    uint8_t *p;
 
     dbg_return_if (opts == NULL, -1);
 
@@ -675,14 +675,15 @@ err:
     return -1;
 }
 
-int ec_opts_decode(ec_opts_t *opts, const ev_uint8_t *pdu, size_t pdu_sz, 
-        ev_uint8_t oc, size_t *olen)
+ec_rc_t ec_opts_decode(ec_opts_t *opts, const uint8_t *pdu, size_t pdu_sz, 
+        uint8_t oc, size_t *olen)
 {
     ec_opt_sym_t sym;
     unsigned char skip_this;
     size_t opt_len, opt_num = 0;
     unsigned int opt_count;
-    const ev_uint8_t *opt_p;
+    const uint8_t *opt_p;
+    ec_rc_t rc = EC_INTERNAL_SERVER_ERROR;
 
     dbg_return_if (pdu == NULL, -1);
     dbg_return_if (pdu_sz <= EC_COAP_HDR_SIZE, -1);
@@ -734,7 +735,11 @@ int ec_opts_decode(ec_opts_t *opts, const ev_uint8_t *pdu, size_t pdu_sz,
                  * human-readable error message describing the unrecognized
                  * option(s). (Even option number == critical.) */
                 if (opt_num % 2)
-                    dbg_err_ifm(1, "unknown Critical Option %zu", opt_num);
+                {
+                    u_dbg("unknown Critical Option %zu", opt_num);
+                    rc = EC_BAD_OPTION;
+                    goto err;
+                }
                 else
                 {
                     skip_this = 1;
@@ -767,9 +772,9 @@ int ec_opts_decode(ec_opts_t *opts, const ev_uint8_t *pdu, size_t pdu_sz,
     /* Set payload offset. */
     *olen = opt_p - (pdu + EC_COAP_HDR_SIZE); 
 
-    return 0;
+    return EC_RC_UNSET;
 err:
-    return -1;
+    return rc;
 }
 
 u_uri_t *ec_opts_compose_url(ec_opts_t *opts, struct sockaddr_storage *us,
@@ -793,9 +798,9 @@ err:
 }
 
 /* It MUST NOT occur more than once. */
-int ec_opts_get_content_type(ec_opts_t *opts, ev_uint16_t *ct)
+int ec_opts_get_content_type(ec_opts_t *opts, uint16_t *ct)
 {
-    ev_uint64_t tmp;
+    uint64_t tmp;
 
     dbg_return_if (opts == NULL, -1);
     dbg_return_if (ct == NULL, -1);
@@ -805,21 +810,21 @@ int ec_opts_get_content_type(ec_opts_t *opts, ev_uint16_t *ct)
 
     dbg_err_ifm (tmp > EV_UINT16_MAX, "Content-Type encoding overflow");
 
-    *ct = (ev_uint16_t) tmp;
+    *ct = (uint16_t) tmp;
 
     return 0;
 err:
     return -1;
 }
 
-int ec_opts_get_block1(ec_opts_t *opts, ev_uint32_t *num, bool *more,
-        ev_uint8_t *szx)
+int ec_opts_get_block1(ec_opts_t *opts, uint32_t *num, bool *more,
+        uint8_t *szx)
 {
     return ec_opts_get_block(opts, num, more, szx, EC_OPT_BLOCK1);
 }
 
-int ec_opts_get_block2(ec_opts_t *opts, ev_uint32_t *num, bool *more,
-        ev_uint8_t *szx)
+int ec_opts_get_block2(ec_opts_t *opts, uint32_t *num, bool *more,
+        uint8_t *szx)
 {
     return ec_opts_get_block(opts, num, more, szx, EC_OPT_BLOCK2);
 }
@@ -836,7 +841,7 @@ int ec_opts_get_if_none_match(ec_opts_t *opts)
 /* It MUST NOT occur more than once in a response, and MAY occur one or more 
  * times in a request. 
  * TODO rephrase this routine to resemble ec_opts_get_accept_all(). */
-ev_uint8_t *ec_opts_get_etag_nth(ec_opts_t *opts, size_t *etag_sz, size_t n)
+uint8_t *ec_opts_get_etag_nth(ec_opts_t *opts, size_t *etag_sz, size_t n)
 {
     ec_opt_t *o;
 
@@ -854,7 +859,7 @@ ev_uint8_t *ec_opts_get_etag_nth(ec_opts_t *opts, size_t *etag_sz, size_t n)
 int ec_opts_get_accept_all(ec_opts_t *opts, ec_mt_t *mta, size_t *mta_sz)
 {
     ec_opt_t *o;
-    ev_uint64_t mt;
+    uint64_t mt;
     size_t nfound = 0;
 
     dbg_return_if (opts == NULL, -1);
@@ -943,7 +948,7 @@ static int compose_uri(ec_opts_t *opts, struct sockaddr_storage *us,
                 && port[0] == '\0' 
                 && authority[0] == '\0')
         {
-            ev_uint64_t p;
+            uint64_t p;
             const struct sockaddr *sa = (const struct sockaddr *) us;
             const struct sockaddr_in6 *s6;
             const struct sockaddr_in *s4;
@@ -1041,7 +1046,7 @@ err:
     return -1;
 }
 
-static ev_uint8_t *add_fenceposts(ec_opts_t *opts, ev_uint8_t *p, size_t cur, 
+static uint8_t *add_fenceposts(ec_opts_t *opts, uint8_t *p, size_t cur, 
         size_t *delta)
 {
     size_t opt_num, last = cur - *delta;
@@ -1081,9 +1086,9 @@ static size_t fenceposts_encsz(size_t cur, size_t last)
 }
 
 static int ec_opts_add_block(ec_opts_t *opts, ec_opt_sym_t which,
-        ev_uint32_t num, bool more, ev_uint8_t szx)
+        uint32_t num, bool more, uint8_t szx)
 {
-    ev_uint32_t b = 0;
+    uint32_t b = 0;
 
     dbg_return_if (opts == NULL, -1);
     dbg_return_if (which != EC_OPT_BLOCK1 && which != EC_OPT_BLOCK2, -1);
@@ -1103,10 +1108,10 @@ static int ec_opts_add_block(ec_opts_t *opts, ec_opt_sym_t which,
     return ec_opts_add_uint(opts, which, b);
 }
 
-static int ec_opts_get_block(ec_opts_t *opts, ev_uint32_t *num, bool *more,
-        ev_uint8_t *szx, ec_opt_sym_t which)
+static int ec_opts_get_block(ec_opts_t *opts, uint32_t *num, bool *more,
+        uint8_t *szx, ec_opt_sym_t which)
 {
-    ev_uint64_t tmp;
+    uint64_t tmp;
 
     dbg_return_if (opts == NULL, -1);
     dbg_return_if (num == NULL, -1);

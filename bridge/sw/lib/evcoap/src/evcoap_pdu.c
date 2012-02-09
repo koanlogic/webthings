@@ -3,12 +3,12 @@
 #include "evcoap_pdu.h"
 #include "evcoap_base.h"
 
-static int encode_response(ec_pdu_t *pdu, ev_uint8_t t, ec_rc_t rc,
-        ev_uint16_t mid);
-static void encode_header(ec_pdu_t *pdu, ev_uint8_t code, ev_uint8_t t,
-        ev_uint16_t mid);
+static int encode_response(ec_pdu_t *pdu, uint8_t t, ec_rc_t rc,
+        uint16_t mid);
+static void encode_header(ec_pdu_t *pdu, uint8_t code, uint8_t t,
+        uint16_t mid);
 
-int ec_pdu_set_payload(ec_pdu_t *pdu, ev_uint8_t *payload, size_t sz)
+int ec_pdu_set_payload(ec_pdu_t *pdu, uint8_t *payload, size_t sz)
 {
     dbg_return_if (pdu == NULL, -1);
     dbg_return_if (payload == NULL, -1);
@@ -31,7 +31,7 @@ int ec_pdu_set_flow(ec_pdu_t *pdu, ec_flow_t *flow)
 
 int ec_pdu_set_peer(ec_pdu_t *pdu, const struct sockaddr_storage *peer)
 {
-    ev_uint8_t peer_len;
+    uint8_t peer_len;
 
     dbg_return_if (pdu == NULL, -1);
     dbg_return_if (peer == NULL, -1);
@@ -146,7 +146,7 @@ int ec_pdu_encode_response_rst(ec_pdu_t *pdu)
 int ec_pdu_encode_response_separate(ec_pdu_t *pdu)
 {
     bool is_con;
-    ev_uint16_t mid;
+    uint16_t mid;
 
     dbg_return_if (pdu == NULL, -1);
 
@@ -167,8 +167,8 @@ int ec_pdu_encode_response_separate(ec_pdu_t *pdu)
             flow->resp_code, mid);
 }
 
-static int encode_response(ec_pdu_t *pdu, ev_uint8_t t, ec_rc_t rc,
-        ev_uint16_t mid)
+static int encode_response(ec_pdu_t *pdu, uint8_t t, ec_rc_t rc,
+        uint16_t mid)
 {
     /* Dare the incredible: trust the caller :-) */
 
@@ -195,7 +195,7 @@ err:
 int ec_pdu_encode_request(ec_pdu_t *pdu)
 {
     bool is_con;
-    ev_uint16_t mid;
+    uint16_t mid;
 
     dbg_return_if (pdu == NULL, -1);
 
@@ -220,9 +220,9 @@ err:
     return -1;
 }
 
-int ec_pdu_decode_header(ec_pdu_t *pdu, const ev_uint8_t *raw, size_t raw_sz)
+int ec_pdu_decode_header(ec_pdu_t *pdu, const uint8_t *raw, size_t raw_sz)
 {
-    ev_uint8_t ver;
+    uint8_t ver;
 
     dbg_return_if (pdu == NULL, -1);
     dbg_return_if (raw == NULL, -1);
@@ -248,10 +248,10 @@ err:
     return -1;
 }
 
-static void encode_header(ec_pdu_t *pdu, ev_uint8_t code, ev_uint8_t t,
-        ev_uint16_t mid)
+static void encode_header(ec_pdu_t *pdu, uint8_t code, uint8_t t,
+        uint16_t mid)
 {
-    ev_uint8_t ver = EC_COAP_VERSION_1, oc = pdu->opts.noptions;
+    uint8_t ver = EC_COAP_VERSION_1, oc = pdu->opts.noptions;
 
     pdu->hdr[0] = ((ver & 0x03) << 6) | ((t & 0x03) << 4) | (oc & 0x0f);
     pdu->hdr[1] = code;
@@ -284,7 +284,7 @@ void ec_pdu_free(ec_pdu_t *pdu)
     }
 }
 
-int ec_pdu_get_type(ec_pdu_t *pdu, ev_uint8_t *t)
+int ec_pdu_get_type(ec_pdu_t *pdu, uint8_t *t)
 {
     dbg_return_if (pdu == NULL, -1);
     dbg_return_if (t == NULL, -1);
@@ -296,7 +296,7 @@ int ec_pdu_get_type(ec_pdu_t *pdu, ev_uint8_t *t)
     return 0;
 }
 
-int ec_pdu_get_mid(ec_pdu_t *pdu, ev_uint16_t *mid)
+int ec_pdu_get_mid(ec_pdu_t *pdu, uint16_t *mid)
 {
     dbg_return_if (pdu == NULL, -1);
     dbg_return_if (mid == NULL, -1);

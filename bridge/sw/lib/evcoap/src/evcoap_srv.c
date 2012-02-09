@@ -4,13 +4,14 @@
 #include "evcoap_base.h"
 #include "evcoap_flow.h"
 
-static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
+static int ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         struct sockaddr_storage *peer, void *arg);
 static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args, 
         struct timeval *interval, bool resched);
-static int ec_server_reply(ec_server_t *srv, ec_rc_t rc, ev_uint8_t *pl, 
+static int ec_server_reply(ec_server_t *srv, ec_rc_t rc, uint8_t *pl, 
         size_t pl_sz);
 static int ec_server_check_transition(ec_srv_state_t cur, ec_srv_state_t next);
+static int ec_trim_payload_sz(ec_cfg_t *cfg, size_t *pl_sz);
 
 ec_server_t *ec_server_new(struct ec_s *coap, evutil_socket_t sd)
 {
@@ -61,7 +62,7 @@ void ec_server_input(evutil_socket_t sd, short u, void *arg)
 
 /* TODO factor out common code with ec_client_handle_pdu, namely the PDU 
  *      decoding */
-static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
+static int ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         struct sockaddr_storage *peer, void *arg)
 {
     ec_resource_t *r;
@@ -71,6 +72,7 @@ static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
     ec_server_t *srv = NULL;
     ec_t *coap;
     bool nosec = true;
+    ec_rc_t rc = EC_RC_UNSET;
 
     dbg_return_if ((coap = (ec_t *) arg) == NULL, -1);
     dbg_return_if (raw == NULL, -1);
@@ -87,8 +89,12 @@ static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
     dbg_err_if (ec_pdu_decode_header(req, raw, raw_sz));
 
     /* Avoid processing spurious stuff (i.e. responses in server context.) */
-    dbg_err_ifm (h->code >= 64 && h->code <= 191, 
-            "unexpected response code in server request context");
+    if (h->code >= 64 && h->code <= 191)
+    {
+        u_dbg("unexpected response code in server request context");
+        rc = EC_BAD_REQUEST;
+        goto err;
+    }
 
     /* Pass MID and peer address to the dup handler machinery. */
     ec_dups_t *dups = &coap->dups;
@@ -122,8 +128,8 @@ static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
     /* Decode options. */
     if (h->oc)
     {
-        dbg_err_ifm (ec_opts_decode(&req->opts, raw, raw_sz, h->oc, &olen),
-                "CoAP options could not be parsed correctly");
+        rc = ec_opts_decode(&req->opts, raw, raw_sz, h->oc, &olen);
+        dbg_err_ifm (rc, "CoAP options could not be parsed correctly");
     }
 
     ec_flow_t *flow = &srv->flow;   /* shortcut */
@@ -182,35 +188,98 @@ static int ec_server_handle_pdu(ev_uint8_t *raw, size_t raw_sz, int sd,
     dbg_if (ec_server_reply(srv, EC_NOT_FOUND, NULL, 0));
     ec_server_set_state(srv, EC_SRV_STATE_RESP_DONE);
 
-    /* TODO resource de-allocation */
+    /* TODO check temp resources de-allocation */
 
 end:
     return 0;
 
 err:
-    /* Send 5.00 Internal Server Error (add human readable message ?) */
-    dbg_if (ec_server_reply(srv, EC_INTERNAL_SERVER_ERROR, NULL, 0));
+    /* Send the selected error (defaulting to 5.00 Internal Server Error.) */
+    dbg_if (ec_server_reply(srv, rc ? rc : EC_INTERNAL_SERVER_ERROR, NULL, 0));
     ec_server_set_state(srv, EC_SRV_STATE_INTERNAL_ERR);
 
     return -1;
 }
 
-static int ec_server_reply(ec_server_t *srv, ec_rc_t rc, ev_uint8_t *pl, 
+#if TODO_BLOCK
+static ec_handle_block_option(ec_server_t *srv)
+{
+    size_t bsz;
+    bool stateless_block;
+    uint8_t szx;
+
+    /*
+     * WIP: Incremental Block Option support (factor it out ASAP!):
+     *  - Fig.2 (Simple blockwise GET) 
+     */
+    if (flow->resp_code == EC_CONTENT
+            && flow->method == EC_GET)
+    {
+        dbg_err_if (ec_cfg_get_block_info(cfg, &stateless_block, &szx));
+
+        bsz = 1 << (szx + 4);
+
+        /* See if this payload needs to be trimmed via Block. */
+        if (!stateless_block && pl_sz > bsz)
+        {
+            /* Trim 'pl_sz' to the requested block boundary and add a Block2
+             * option advertising the first block [2/0/1/bsz]. */
+            pl_sz = bsz;
+            dbg_err_if (ec_opts_add_block2(&srv->res->opts, 0, true, szx));
+        }
+    }
+
+    return 0;
+}
+#endif  /* TODO_BLOCK */
+
+static int ec_trim_payload_sz(ec_cfg_t *cfg, size_t *pl_sz)
+{
+    size_t bsz;
+    bool stateless_block;
+    uint8_t szx;
+
+    dbg_return_if (cfg == NULL, -1);
+    dbg_return_if (pl_sz == NULL, -1);
+
+    /* Retrieve block size information from configuration. */
+    dbg_err_if (ec_cfg_get_block_info(cfg, &stateless_block, &szx));
+
+    bsz = 1 << (szx + 4);
+
+    /* See if this payload needs to be trimmed to the requested block 
+     * boundary. */
+    if (!stateless_block && *pl_sz > bsz)
+        *pl_sz = bsz;
+
+    return 0;
+err:
+    return -1;
+}
+
+static int ec_server_reply(ec_server_t *srv, ec_rc_t rc, uint8_t *pl, 
         size_t pl_sz)
 {
     ec_flow_t *flow;
+    ec_cfg_t *cfg;
         
     dbg_return_if (srv == NULL, -1);
     dbg_return_if (!EC_IS_RESP_CODE(rc), -1);
 
     flow = &srv->flow;
+    cfg = &srv->base->cfg;
 
     /* Set response code. */
     dbg_err_if (ec_flow_set_resp_code(flow, rc));
 
-    /* Stick payload, if supplied. */
+    /* Stick payload to the response PDU, if supplied. */
     if (pl && pl_sz)
+    {
+        /* Do not handle Block here: just trunc payload to fit block size
+         * if needed. */
+        dbg_err_if (ec_trim_payload_sz(cfg, &pl_sz));
         dbg_err_if (ec_pdu_set_payload(srv->res, pl, pl_sz));
+    }
 
     /* Send response PDU. */
     dbg_err_if (ec_server_send_resp(srv));
