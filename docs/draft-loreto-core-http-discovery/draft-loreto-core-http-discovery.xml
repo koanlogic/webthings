@@ -6,6 +6,7 @@
 <!ENTITY RFC3552 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.3552.xml">
 <!ENTITY I-D.narten-iana-considerations-rfc2434bis SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.narten-iana-considerations-rfc2434bis.xml">
 ]>
+
 <?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
 <?rfc strict="yes" ?>
 <?rfc toc="yes"?>
@@ -23,8 +24,7 @@
     <author
       fullname="Salvatore Loreto"
       initials="S.L."
-      surname="Loreto"
-    >
+      surname="Loreto">
       <organization>Ericsson</organization>
         <address>
           <postal>
@@ -40,8 +40,7 @@
     <author
       fullname="Thomas Fossati"
       initials="T.F."
-      surname="Fossati"
-    >
+      surname="Fossati">
       <organization>KoanLogic Srl</organization>
         <address>
           <postal>
@@ -62,26 +61,67 @@
     <keyword>CoAP, HTTP, resource discovery, resource mapping</keyword>
 
     <abstract>
-      <t>TODO.</t>
+      <t>The Core Resource discovery mechanism allows to discovery resources hosted by a constrained server within a CoAP network.</t>
+      <t>This draft define how the HTTP OPTION request can be mapped to a CoAP request to let an HTTP user agent to discover the resource hosted by a constrained server
+          without implying a resource action or initiating a resource retrieval.</t>
     </abstract>
   </front>
 
   <middle>
     <section title="Introduction">
 
-      <t>TODO</t>
+      <t>The Core Link Format (Ref) defines a mechanism to discover resources hosted by a constrained server.
+      The Core Resource discovery mechanism is specified extending the HTTP link Header Format (Ref). 
+      However it does not describe how the Core Link Format can be mapped to an HTTP Link Header Format neither how a HTTP user agent can
+      explicitly discover, through a HTTP-CoAP gateway, the resource available in a CoAP network.</t>
+
+      <t>This document defines how an HTTP User agent can use an OPTION request to discover the resources available, and how the description of those resources
+      are transported in the answer of an OPTION request.</t>
 
       <section title="Requirements Language">
         <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119">RFC 2119</xref>.</t>
       </section>
     </section>
 
-    <section title="TODO">
-      <t>TODO</t>
+    <section title="OPTIONS HTTP-CoAP Mapping">
+      <t> The OPTIONS method as stated in (ref: draft-ietf-httpbis-p2-semantics-18 section-6.2) allows a client to determine the options and/or requirements associated with a resource, 
+          or the capabilities of a server, without implying a resource action or initiating a resource retrieval. The capabilities of a server as whole can retrieved using the asterisk
+          "*" form of request-target (Note that the OPTION request method is the only one allowing the usage of the asterisk "*" form of request-target).</t>
+
+      <t>Since the "*" OPTIONS request, as defined in (ref), does nothing beyond allowing the client to test the capabilities of the server, it appears as a perfect mapping of a COAP
+         GET to /.well-known/core on an constrained server, which returns a payload in the CoRE Link Format.</t>
+
+     <t>OPEN ISSUE 1: ietf-coap, section 8.2.1, states "As the OPTIONS and TRACE methods are not supported in CoAP a 501 (Not Implemented) error MUST be returned to the client." </t>
+
+      <t>A 200 response to an OPTIONS request includes any header fields that indicate optional features implemented by the server, however the (ref) does not define any format for the
+	response body. So the payload of a COAP GET to /.well-know/core MUST be mapped to an HTTP Link Header Format that can be easily transported by a 200 response to an OPTION request.</t> 
+
+
+     <t>OPEN ISSUE 2: How would be possible use the OPTIONS * to discover all the constrained nodes and the relative resource of a CoAP network.</t>
+
+
+ <figure title="" ><artwork>
+<![CDATA[
+     OPTIONS * HTTP/1.1
+     Host: www.example.org
+]]>
+            </artwork></figure>
+
+
+
+    <section title="Core Link Format to Web Linking mapping">
+      <t>TODO: we have to possibilities here transport the Link format as payload like in CoAP or map it to a Link Header. I would prefer the latter as it is already known by the current Browsers</t>
+    </section>
+
     </section>
 
     <!-- This PI places the pagebreak correctly (before the section title) in the text output. -->
-    <?rfc needLines="8" ?>
+    <!--?rfc needLines="8" ?-->
+
+    <section title="Example">
+      <t>TODO</t>
+    </section>
+
 
     <section anchor="Acknowledgements" title="Acknowledgements">
       <t>TODO</t>
