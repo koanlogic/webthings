@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="US-ASCII"?>
 <!-- vim: set ts=2 expandtab: -->
 <!DOCTYPE rfc SYSTEM "rfc2629.dtd" [
-<!ENTITY RFC2119 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml">
-<!ENTITY RFC2629 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2629.xml">
-<!ENTITY RFC3552 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.3552.xml">
-<!ENTITY I-D.narten-iana-considerations-rfc2434bis SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.narten-iana-considerations-rfc2434bis.xml">
+  <!ENTITY RFC2119 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml">
+  <!ENTITY RFC2629 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2629.xml">
+  <!ENTITY RFC3552 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.3552.xml">
+  <!ENTITY RFC5785 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.5785.xml">
+  <!ENTITY RFC5988 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.5988.xml">
+  <!ENTITY I-D.narten-iana-considerations-rfc2434bis SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.narten-iana-considerations-rfc2434bis.xml">
+  <!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-coap-08.xml">
+  <!ENTITY I-D.ietf-core-link-format SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-link-format-11.xml">
+  <!ENTITY I-D.ietf-httpbis-p2-semantics-18 SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-httpbis-p2-semantics-18.xml">
+  <!ENTITY I-D.castellani-core-http-mapping SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-castellani-core-http-mapping-02.xml">
 ]>
 
 <?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
@@ -61,9 +67,8 @@
     <keyword>CoAP, HTTP, resource discovery, resource mapping</keyword>
 
     <abstract>
-      <t>The Core Resource discovery mechanism allows to discovery resources hosted by a constrained server within a CoAP network.</t>
-      <t>This draft define how the HTTP OPTION request can be mapped to a CoAP request to let an HTTP user agent to discover the resource hosted by a constrained server
-          without implying a resource action or initiating a resource retrieval.</t>
+      <t>The CoRE Resource Discovery mechanism allows to discover resources hosted by a constrained server within a CoAP network.</t>
+      <t>This draft define how the HTTP OPTION request can be mapped to a CoAP request to let an HTTP user agent to discover the resource hosted by a constrained server without implying a resource action or initiating a resource retrieval.</t>
     </abstract>
   </front>
 
@@ -99,15 +104,12 @@
 
      <t>OPEN ISSUE 2: How would be possible use the OPTIONS * to discover all the constrained nodes and the relative resource of a CoAP network.</t>
 
-
- <figure title="" ><artwork>
+<figure title="" ><artwork>
 <![CDATA[
      OPTIONS * HTTP/1.1
      Host: www.example.org
 ]]>
-            </artwork></figure>
-
-
+</artwork></figure>
 
     <section title="Core Link Format to Web Linking mapping">
       <t>TODO: we have to possibilities here transport the Link format as payload like in CoAP or map it to a Link Header. I would prefer the latter as it is already known by the current Browsers</t>
@@ -132,7 +134,9 @@
     </section>
 
     <section anchor="Security" title="Security Considerations">
-    <t>The resources published through the described facility need to be exported in a controlled way, in order not to leak out sensitive information about the internal/protected network.  HTTPS can provide the access control mechanism needed to implement secure authorization and to protect both the confidentiality of the information and the identities of the communicating actors.  If for any reason HTTPS isn't an affordable option, digest authentication can be traded off as a weaker replacement (in particular, when considering its use, one must be aware about its vulnerability to MitM attacks.)</t>
+    <t>It may be needed to export the resources published through the described facility in a controlled way, in order not to leak out sensitive information about the internal/protected network.</t>  
+
+    <t>In this case, HTTPS can provide the access control mechanism needed to implement secure authorization and to protect both integrity and confidentiality of the information, and ascertain the identities of the communicating actors.  If for any reason HTTPS isn't an affordable option, digest authentication can be traded off as a weaker replacement (in particular, when considering its use, one must be aware about its vulnerability to MitM attacks.)</t>
 
     <t>Another important fact to note is that the availability of this service is critical, and as such should be protected at least from easy DoS of the hosting node -- which should be possibly redounded.  To aggravate a bit, the OPTIONS method is non cacheable and the hosting node must be ready to absorb all the clients' load.  Also note that availability could be incidentally interrupted by any HTTP intermediary (e.g. an HTTP/1.0 proxy) refusing to forward a request carrying the OPTION method.</t>
 
@@ -144,6 +148,13 @@
   <back>
     <references title="Normative References">
       &RFC2119;
+      &RFC5988;
+      &I-D.ietf-httpbis-p2-semantics-18;
+      &I-D.ietf-core-coap;
+      &I-D.ietf-core-link-format;
+    </references>
+    <references title="Informative References">
+      &I-D.castellani-core-http-mapping;
     </references>
   </back>
 </rfc>
