@@ -12,6 +12,7 @@ INCS += evcoap_net.h
 INCS += evcoap_opt.h
 INCS += evcoap_pdu.h
 INCS += evcoap_srv.h
+INCS += evcoap_resource.h
 
 INCS += evcoap_filesys.h
 

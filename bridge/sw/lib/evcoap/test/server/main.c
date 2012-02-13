@@ -193,7 +193,7 @@ int vhost_load_resource(u_config_t *resource, const char *origin)
     size_t i, val_sz;
     uint32_t ma;
     const char *path, *max_age, *val;
-    ec_filesys_res_t *res = NULL;
+    ec_res_t *res = NULL;
     ec_mt_t mt;
     char uri[512];
     u_config_t *repr;
@@ -220,7 +220,7 @@ int vhost_load_resource(u_config_t *resource, const char *origin)
     CHAT("adding resource %s", uri);
 
     /* Create FS resource. */
-    con_err_ifm ((res = ec_filesys_new_resource(uri, ma)) == NULL,
+    con_err_ifm ((res = ec_resource_new(uri, ma)) == NULL,
             "resource creation failed");
 
     /* Load each resource representation. */
@@ -235,7 +235,7 @@ int vhost_load_resource(u_config_t *resource, const char *origin)
                 "no value for resource %s", uri);
         val_sz = strlen(val);
 
-        con_err_ifm (ec_filesys_add_rep(res, (const uint8_t *) val, 
+        con_err_ifm (ec_resource_add_rep(res, (const uint8_t *) val, 
                     val_sz, mt, NULL),
                 "error adding representation for %s", uri);
     }
@@ -253,7 +253,7 @@ int vhost_load_resource(u_config_t *resource, const char *origin)
     return 0;
 err:
     if (res)
-        ec_filesys_free_resource(res);
+        ec_resource_free(res);
     return -1;
 }
 
@@ -398,7 +398,7 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
 {
     ec_mt_t mta[16];
     size_t mta_sz = sizeof mta / sizeof(ec_mt_t);
-    ec_filesys_rep_t *rep;
+    ec_rep_t *rep;
     const char *url;
 
     u_unused_args(u0, u1, u2);

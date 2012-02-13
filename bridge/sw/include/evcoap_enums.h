@@ -36,6 +36,8 @@ extern "C" {
   #define EC_COAP_MAX_REQ_SIZE 1500
 #endif  /* !EC_COAP_MAX_REQ_SIZE */
 
+#define EC_URI_MAX  512
+
 typedef enum
 {
     EC_CON = 0,

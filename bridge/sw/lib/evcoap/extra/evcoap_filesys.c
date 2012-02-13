@@ -1,10 +1,7 @@
 #include "evcoap_filesys.h"
+#include "evcoap_resource.h"
 
 static void __free_resource(void *arg);
-static void ec_filesys_free_rep(ec_filesys_rep_t *rep);
-static ec_filesys_rep_t *ec_filesys_new_rep(const ev_uint8_t *data,
-        size_t data_sz, ec_mt_t media_type);
-static bool ec_filesys_mt_matches(ec_mt_t mt, ec_mt_t *mta, size_t mta_sz);
 
 ec_filesys_t *ec_filesys_create(void)
 {
@@ -50,7 +47,7 @@ void ec_filesys_destroy(ec_filesys_t *fs)
 }
 
 /* Add or update the filesys resource 'res'. */
-int ec_filesys_put_resource(ec_filesys_t *filesys, ec_filesys_res_t *res)
+int ec_filesys_put_resource(ec_filesys_t *filesys, ec_res_t *res)
 {
     dbg_return_if (filesys == NULL, -1);
     dbg_return_if (res == NULL, -1);
@@ -73,169 +70,43 @@ int ec_filesys_del_resource(ec_filesys_t *filesys, const char *uri)
     return -1;
 }
 
-ec_filesys_res_t *ec_filesys_new_resource(const char *uri, ev_uint32_t max_age)
-{
-    ec_filesys_res_t *res = NULL;
-
-    dbg_err_sif ((res = u_zalloc(sizeof *res)) == NULL);
-    dbg_err_if (u_strlcpy(res->uri, uri, sizeof res->uri));
-    res->max_age = max_age ? max_age : 60;
-    TAILQ_INIT(&res->reps);
-
-    return res;
-err:
-    if (res)
-        ec_filesys_free_resource(res);
-    return NULL;
-}
-
-void ec_filesys_free_resource(ec_filesys_res_t *res)
-{
-    if (res)
-    {
-        ec_filesys_rep_t *rep;
-
-        while ((rep = TAILQ_FIRST(&res->reps)) != NULL)
-        {
-            TAILQ_REMOVE(&res->reps, rep, next);
-            ec_filesys_free_rep(rep);
-        }
-
-        u_free(res);
-    }
-
-    return;
-}
-
-int ec_filesys_add_rep(ec_filesys_res_t *res, const ev_uint8_t *data,
-        size_t data_sz, ec_mt_t media_type, ev_uint8_t etag[EC_ETAG_SZ])
-{
-    ec_filesys_rep_t *rep = NULL;
-
-    dbg_return_if (res == NULL, -1);
-
-    /* Create new representation. */
-    dbg_err_if ((rep = ec_filesys_new_rep(data, data_sz,
-                    media_type)) == NULL);
-
-    /* Return the ETag to the caller. */
-    if (etag)
-        memcpy(etag, rep->etag, EC_ETAG_SZ);
-
-    /* Stick the created representation to its parent resource. */
-    TAILQ_INSERT_TAIL(&res->reps, rep, next);
-
-    return 0;
-err:
-    if (rep)
-        ec_filesys_free_rep(rep);
-    return -1;
-}
-
-static ec_filesys_rep_t *ec_filesys_new_rep(const ev_uint8_t *data,
-        size_t data_sz, ec_mt_t media_type)
-{
-    ec_filesys_rep_t *rep = NULL;
-
-    dbg_err_sif ((rep = u_zalloc(sizeof *rep)) == NULL);
-
-    if (data && data_sz)
-    {
-        dbg_err_if ((rep->data = u_memdup(data, data_sz)) == NULL);
-        rep->data_sz = data_sz;
-    }
-
-    rep->media_type = media_type;
-
-    /* Attach a random etag on registration. */
-    evutil_secure_rng_get_bytes(rep->etag, sizeof rep->etag);
-
-    return rep;
-err:
-    if (rep)
-        ec_filesys_free_rep(rep); 
-    return NULL;
-}
-
 /* 'etag' is optional (set it to NULL if you don't want it to be used as
  * lookup parameter.)
  * 'media_type' is optional (set it to EC_MT_ANY if you don't care about
  *  a specific representation.) */
-ec_filesys_rep_t *ec_filesys_get_rep(ec_filesys_t *fs,
-        const char *uri, ec_mt_t media_type, const ev_uint8_t *etag)
+ec_rep_t *ec_filesys_get_rep(ec_filesys_t *fs, const char *uri, 
+        ec_mt_t media_type, const ev_uint8_t *etag)
 {
+    ec_res_t *res;
     ec_mt_t mta[1] = { [0] = media_type };
-    size_t mta_sz = 1;
-
-    if (media_type == EC_MT_ANY)
-       mta_sz = 0;  /* See ec_filesys_mt_matches(). */
-
-    return ec_filesys_get_suitable_rep(fs, uri, mta, mta_sz, etag);
-}
-
-ec_filesys_rep_t *ec_filesys_get_suitable_rep(ec_filesys_t *fs,
-        const char *uri, ec_mt_t *mta, size_t mta_sz, const ev_uint8_t *etag)
-{
-    bool mt_match, et_match;
-    ec_filesys_rep_t *rep = NULL;
-    ec_filesys_res_t *res = NULL;
+    size_t mta_sz = sizeof mta / sizeof(ec_mt_t);
 
     dbg_return_if (fs == NULL, NULL);
     dbg_return_if (uri == NULL || *uri == '\0', NULL);
 
     /* Lookup resource. */
-    dbg_err_if ((res = u_hmap_easy_get(fs->map, uri)) == NULL);
+    dbg_return_if ((res = u_hmap_easy_get(fs->map, uri)) == NULL, NULL);
 
-    /* Try to get a matching representation. */
-    TAILQ_FOREACH(rep, &res->reps, next)
-    {
-        mt_match = (ec_filesys_mt_matches(rep->media_type, mta, mta_sz))
-            ? true : false;
-
-        et_match = (etag == NULL || !memcmp(rep->etag, etag, sizeof rep->etag))
-            ? true : false;
-
-        if (mt_match && et_match)
-            return rep;
-    }
-
-    /* Fall through. */
-err:
-    return NULL;
+    return ec_resource_get_suitable_rep(res, uri, mta, mta_sz, etag);
 }
 
-
-static bool ec_filesys_mt_matches(ec_mt_t mt, ec_mt_t *mta, size_t mta_sz)
+ec_rep_t *ec_filesys_get_suitable_rep(ec_filesys_t *fs, const char *uri,
+        ec_mt_t *mta, size_t mta_sz, const uint8_t *etag)
 {
-    size_t i;
+    ec_res_t *res;
 
-    /* An empty array is acceptable, and means EC_MT_ANY. */
-    if (mta_sz == 0)
-        return true;
+    dbg_return_if (fs == NULL, NULL);
+    dbg_return_if (uri == NULL || *uri == '\0', NULL);
 
-    for (i = 0; i < mta_sz; ++i)
-    {
-        if (mta[i] == mt)
-            return true;
-    }
+    /* Lookup resource. */
+    dbg_return_if ((res = u_hmap_easy_get(fs->map, uri)) == NULL, NULL);
 
-    return false;
-}
-
-static void ec_filesys_free_rep(ec_filesys_rep_t *rep)
-{
-    if (rep)
-    {
-        if (rep->data)
-           u_free(rep->data);
-        u_free(rep);
-    }
+    return ec_resource_get_suitable_rep(res, uri, mta, mta_sz, etag);
 }
 
 /* Wrapper to make hmap happy. */
 static void __free_resource(void *arg)
 {
-    ec_filesys_free_resource((ec_filesys_res_t *) arg);
+    ec_resource_free((ec_res_t *) arg);
     return;
 }
-

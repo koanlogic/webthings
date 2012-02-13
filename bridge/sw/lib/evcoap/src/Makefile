@@ -13,6 +13,7 @@ SRCS += evcoap_net.c
 SRCS += evcoap_enums.c
 SRCS += evcoap_base.c
 SRCS += evcoap_flow.c
+SRCS += evcoap_resource.c
 
 CFLAGS += $(LIBU_CFLAGS)
 CFLAGS += $(LIBEVENT_CFLAGS)

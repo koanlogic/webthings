@@ -39,14 +39,14 @@ static int put_res(ec_filesys_t *fs, u_test_case_t *tc, const char *uri,
         ev_uint32_t max_age, const ev_uint8_t *data, size_t data_sz, 
         ec_mt_t media_type, ev_uint8_t etag[EC_ETAG_SZ])
 {
-    ec_filesys_res_t *res = NULL;
+    ec_res_t *res = NULL;
     
     /* Create new resource. */
-    u_test_err_ifm(!(res = ec_filesys_new_resource(uri, max_age)),
+    u_test_err_ifm(!(res = ec_resource_new(uri, max_age)),
             "resource creation failed");
 
     /* Add representation to resource. */
-    u_test_err_ifm (ec_filesys_add_rep(res, data, data_sz, 
+    u_test_err_ifm (ec_resource_add_rep(res, data, data_sz, 
                 media_type, etag), "adding representation failed");
 
     /* Insert resource into the file system. */
@@ -56,7 +56,7 @@ static int put_res(ec_filesys_t *fs, u_test_case_t *tc, const char *uri,
     return 0;
 err:
     if (res)
-        ec_filesys_free_resource(res);
+        ec_resource_free(res);
     return -1;
 }
 
@@ -64,7 +64,7 @@ static int insert_all(ec_filesys_t *fs, u_test_case_t *tc)
 {
     int rc;
     size_t i;
-    ec_filesys_res_t *res = NULL;
+    ec_res_t *res = NULL;
 
     for (i = 0; i < RES_SET_CARDINALITY; ++i)
     {
@@ -79,14 +79,14 @@ static int insert_all(ec_filesys_t *fs, u_test_case_t *tc)
     return 0;
 err:
     if (res)
-        ec_filesys_free_resource(res);
+        ec_resource_free(res);
     return -1;
 }
 
 static int lookup_all(ec_filesys_t *fs, u_test_case_t *tc)
 {
     size_t i;
-    ec_filesys_rep_t *rep;
+    ec_rep_t *rep;
 
     for (i = 0; i < RES_SET_CARDINALITY; ++i)
     {
@@ -109,7 +109,7 @@ err:
 static int iur(ec_filesys_t *fs, u_test_case_t *tc)
 {
     int rc;
-    ec_filesys_rep_t *rep;
+    ec_rep_t *rep;
     ev_uint8_t etag[EC_ETAG_SZ];
 
     /* Create resource with initial content. */
@@ -119,7 +119,6 @@ static int iur(ec_filesys_t *fs, u_test_case_t *tc)
 
     u_test_err_ifm (rc != 0, "inserting resource %zu failed");
 
-   
     /* Update representation. */
     rc = put_res(fs, tc, TEST_URI, TEST_MAXAGE, 
             (const ev_uint8_t *) TEST_DATA_1, strlen(TEST_DATA_1) + 1, 
