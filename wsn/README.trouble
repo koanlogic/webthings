@@ -1,17 +1,34 @@
-Troubleshooting
-===============
+Troubleshooting - Generic
+=========================
 
-(*) installing on motes yields Protocol Errors. 
+(*) Installing on motes yields Protocol Errors.
 
 There is known bug in cp210x USB driver support on 2.6 kernel, which causes the
 device to timeout too quickly.
-
-#  apt-get install build-essential linux-source
+    # apt-get install build-essential linux-source
 
 Patch file drivers/usb/serial/cp210x.c by increasing all occurrences of
 timeout from 300 to 3000, then 
-
-# modprobe -r cp210x
+    # modprobe -r cp210x
 
 More detail here:
 http://pharos.ece.utexas.edu/wiki/index.php/Fixing_the_cp210x_open_-_Unable_to_enable_UART_Error_-_04/17/2011
+
+If problems persist, make sure device is not already opened or try reloading
+the module:
+    # rmmod cp210x && modprobe -r cp210x
+    or rebooting
+
+(*) Having trouble fitting apps.
+
+    $ msp430-size <executable>
+        bytes in ROM = text + data
+        bytes in RAM = bss + data
+
+Troubleshooting - TinyOS
+========================
+
+(*) printfz1()/printfUART() not working
+
+Add to Makefile:
+    CFLAGS += -DPRINTFUART_ENABLED

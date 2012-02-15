@@ -1,10 +1,10 @@
 * CURRENT STATUS * 
-Basic CoAP test working with Zolertia Z1 motes.
+- basic CoAP test working with Zolertia Z1 motes over tunslip;
+- GET, PUT, POST, DELETE supported.
 
 Installing Dependencies
 ^^^^^^^^^^^^^^^^^^^^^^^
-(*) Install: makl, libc, libg++, python-serial, evcoap (webthings/bridge/sw) or
-    libcoap.
+(*) Install: makl, libc, libg++, python-serial, evcoap (webthings/bridge/sw).
 
 (*) Download and install the toolchain msp430-gcc-4.4.5.tar.gz from
     Sourceforge, and put the bin directory into your ${PATH}.
@@ -66,15 +66,13 @@ settings such as:
 
 (*) Insert the IPv6 address to hostname mappings into your /etc/hosts file.
 
-(*) Now run the CoAP client
+(*) Now run the CoAP client (evcoap).
 
-Check out the temperature!
+- check out the temperature:
+    $ coap-client -m GET -u coap://zrs:5683/tmp -M CON -o -
 
-[evcoap]
-    $ coap-client -m GET -u coap://zrs:5683/tmp -M CON && \
-        cat response.payload
+- turn green led on:
+    $ coap-client -m POST -u "coap://zrs:5683/leds?on=1&col=g" -M CON -o -
 
-[libcoap]
-    $ coap-client -m get coap://zrs:5683/tmp -t binary
-
-Take a look at the source code of examples/z1/rest for info on the interface.
+- list out all resources (uses blockwise transfer):
+    $ coap-client -m GET -u "coap://zrs:5683/.well-known/core" -M CON  -o -
