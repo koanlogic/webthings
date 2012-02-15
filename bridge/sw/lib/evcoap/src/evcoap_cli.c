@@ -121,12 +121,14 @@ void ec_client_free(ec_client_t *cli)
 
         /* Close socket. */
         evutil_closesocket(conn->socket);
+        event_free(conn->ev_input);
 
         /* Free URI. */
         u_uri_free(flow->uri);
 
-        /* TODO free cli->req */
-        /* TODO free cli->res */
+        ec_res_set_clear(&cli->res_set);
+        ec_opts_clear(&cli->req.opts);
+
         /* TODO Destroy any associated timer ? */
 
         u_free(cli);
