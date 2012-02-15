@@ -547,7 +547,8 @@ int ec_cli_stop_app_timer(ec_client_t *cli)
     return 0;
 }
 
-void ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
+/* Returns 0 on success, -1 on failure, 1 on dead client  */
+int ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
 {
     ec_cli_state_t cur = cli->state;
     bool is_con = false, is_final_state = false;
@@ -597,12 +598,15 @@ void ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
 
         /* We can now finish off with this client. */
         ec_client_free(cli);
+
+        return 1;
     }
 
-    return;
+    return 0;
 err:
     /* Should never happen ! */
     die(EXIT_FAILURE, "%s failed (see logs)", __func__);
+    return -1;
 }
 
 int ec_client_register(ec_client_t *cli)
@@ -746,14 +750,12 @@ static int ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     dbg_err_if (ec_res_set_add(&cli->res_set, res));
 
     /* Just before invoking the client callback, set state to DONE. */
-    ec_client_set_state(cli, EC_CLI_STATE_REQ_DONE);
+    if (ec_client_set_state(cli, EC_CLI_STATE_REQ_DONE) == 1);
+        return EC_NET_CBRC_DEAD;
 
-    if (!flow->conn.is_multicast)
-        dbg_if (ec_res_set_clear(&cli->res_set));
-
-    return 0;
+    return EC_NET_CBRC_SUCCESS;
 err:
-    return -1;
+    return EC_NET_CBRC_ERROR;
 }
 
 static int ec_client_invoke_user_callback(ec_client_t *cli)

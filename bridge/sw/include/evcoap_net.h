@@ -5,6 +5,13 @@
 #include "event2/util.h"
 #include "evcoap_enums.h"
 
+typedef enum
+{
+    EC_NET_CBRC_SUCCESS = 0,
+    EC_NET_CBRC_DEAD,
+    EC_NET_CBRC_ERROR
+} ec_net_cbrc_t;
+
 typedef struct
 {
     evutil_socket_t socket;
@@ -22,7 +29,7 @@ typedef struct
 } ec_conn_t;
 
 /* PDU handler interface (both client and server.) */
-typedef int (*ec_pdu_handler_t)(uint8_t *, size_t, int,
+typedef ec_net_cbrc_t (*ec_pdu_handler_t)(uint8_t *, size_t, int,
         struct sockaddr_storage *, void *);
 
 evutil_socket_t ec_net_bind_socket(struct sockaddr_storage *ss, int ss_len);

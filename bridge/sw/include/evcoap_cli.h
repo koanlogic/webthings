@@ -59,7 +59,7 @@ int ec_client_set_proxy(ec_client_t *cli, const char *host, uint16_t port);
 int ec_client_set_method(ec_client_t *cli, ec_method_t m);
 int ec_client_set_uri(ec_client_t *cli, const char *uri);
 int ec_client_set_msg_model(ec_client_t *cli, bool is_con);
-void ec_client_set_state(ec_client_t *cli, ec_cli_state_t state);
+int ec_client_set_state(ec_client_t *cli, ec_cli_state_t state);
 ec_pdu_t *ec_client_get_request_pdu(ec_client_t *cli);
 ec_opts_t *ec_client_get_request_options(ec_client_t *cli);
 
