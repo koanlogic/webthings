@@ -65,7 +65,7 @@ void ec_server_input(evutil_socket_t sd, short u, void *arg)
 static int ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         struct sockaddr_storage *peer, void *arg)
 {
-    ec_resource_t *r;
+    ec_rescb_t *r;
     size_t olen = 0, plen;
     int flags = 0;
     ec_pdu_t *req = NULL;
@@ -201,7 +201,7 @@ err:
     return -1;
 }
 
-#if TODO_BLOCK
+#ifdef TODO_BLOCK
 static ec_handle_block_option(ec_server_t *srv)
 {
     size_t bsz;

@@ -15,21 +15,21 @@ typedef ec_cbrc_t (*ec_server_cb_t)(ec_server_t *, void *, struct timeval *,
         bool);
 
 /* An hosted resource. */
-struct ec_resource_s
+/* TODO busy flag + resched timer */
+struct ec_rescb_s
 {
     char *path;
     ec_server_cb_t cb;
     void *cb_args;
-    /* TODO busy flag + resched timer */
-    TAILQ_ENTRY(ec_resource_s) next;
+    TAILQ_ENTRY(ec_rescb_s) next;
 };
-typedef struct ec_resource_s ec_resource_t;
+typedef struct ec_rescb_s ec_rescb_t;
 
 /* A listening CoAP endpoint. */
+/* TODO Security context goes here. */
 struct ec_listener_s
 {
     evutil_socket_t sd;
-    /* TODO Security context goes here. */
     struct event *ev_input;
 
     TAILQ_ENTRY(ec_listener_s) next;
@@ -78,15 +78,16 @@ typedef struct ec_cfg_s ec_cfg_t;
 
 struct ec_s
 {
-    /* Currently active client and server transactions. */
+    /* Currently active client, server and observe transactions. */
     TAILQ_HEAD(, ec_client_s) clients;
     TAILQ_HEAD(, ec_server_s) servers;
+    TAILQ_HEAD(, ec_observation_s) observing;
 
     /* Bound sockets. */
     TAILQ_HEAD(, ec_listener_s) listeners;
 
     /* Registered URI and associated callbacks. */
-    TAILQ_HEAD(, ec_resource_s) resources;
+    TAILQ_HEAD(, ec_rescb_s) resources;
 
     /* Fallback in case incoming request does not match any resource. */
     ec_server_cb_t fb;
@@ -131,5 +132,9 @@ void ec_recvd_pdu_free(void *recvd_pdu);
 int ec_cfg_init(ec_cfg_t *cfg);
 int ec_cfg_set_block_sz(ec_cfg_t *cfg, size_t val);
 int ec_cfg_get_block_info(ec_cfg_t *cfg, bool *is_stateless, uint8_t *szx);
+
+/* URI and associated callback. */
+ec_rescb_t *ec_rescb_new(const char *url, ec_server_cb_t cb, void *args);
+void ec_rescb_free(ec_rescb_t *r);
 
 #endif  /* !_EC_BASE_H_ */

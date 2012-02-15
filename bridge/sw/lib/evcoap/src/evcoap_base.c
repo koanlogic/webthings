@@ -396,6 +396,32 @@ int ec_cfg_get_block_info(ec_cfg_t *cfg, bool *is_stateless, uint8_t *szx)
     return 0;
 }
 
+ec_rescb_t *ec_rescb_new(const char *url, ec_server_cb_t cb, void *args)
+{
+    ec_rescb_t *r = NULL;
+
+    dbg_err_sif ((r = u_zalloc(sizeof *r)) == NULL);
+    dbg_err_sif ((r->path = u_strdup(url)) == NULL);
+    r->cb = cb;
+    r->cb_args = args;
+
+    return r;
+err:
+    if (r)
+        u_free(r);
+    return NULL;
+}
+
+void ec_rescb_free(ec_rescb_t *r)
+{
+    if (r)
+    {
+        if (r->path)
+            u_free(r->path);
+        u_free(r);
+    }
+}
+
 static int ec_nearest_block(size_t orig, uint8_t *szx)
 {
     size_t i, e;

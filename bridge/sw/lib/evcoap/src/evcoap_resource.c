@@ -5,7 +5,7 @@
 
 static bool ec_mt_matches(ec_mt_t mt, ec_mt_t *mta, size_t mta_sz);
 
-ec_res_t *ec_resource_new(const char *uri, ev_uint32_t max_age)
+ec_res_t *ec_resource_new(const char *uri, uint32_t max_age)
 {
     ec_res_t *res = NULL;
 
@@ -41,8 +41,8 @@ void ec_resource_free(ec_res_t *res)
     return;
 }
 
-int ec_resource_add_rep(ec_res_t *res, const ev_uint8_t *data, size_t data_sz, 
-        ec_mt_t media_type, ev_uint8_t etag[EC_ETAG_SZ])
+int ec_resource_add_rep(ec_res_t *res, const uint8_t *data, size_t data_sz, 
+        ec_mt_t media_type, uint8_t etag[EC_ETAG_SZ])
 {
     ec_rep_t *rep = NULL;
 
@@ -65,7 +65,7 @@ err:
     return -1;
 }
 
-ec_rep_t *ec_rep_new(const ev_uint8_t *data, size_t data_sz, ec_mt_t media_type)
+ec_rep_t *ec_rep_new(const uint8_t *data, size_t data_sz, ec_mt_t media_type)
 {
     ec_rep_t *rep = NULL;
 
@@ -94,7 +94,7 @@ err:
  * 'media_type' is optional (set it to EC_MT_ANY if you don't care about
  *  a specific representation.) */
 ec_rep_t *ec_resource_get_rep(ec_res_t *res, const char *uri, 
-        ec_mt_t media_type, const ev_uint8_t *etag)
+        ec_mt_t media_type, const uint8_t *etag)
 {
     ec_mt_t mta[1] = { [0] = media_type };
     size_t mta_sz = 1;
@@ -106,7 +106,7 @@ ec_rep_t *ec_resource_get_rep(ec_res_t *res, const char *uri,
 }
 
 ec_rep_t *ec_resource_get_suitable_rep(ec_res_t *res, const char *uri, 
-        ec_mt_t *mta, size_t mta_sz, const ev_uint8_t *etag)
+        ec_mt_t *mta, size_t mta_sz, const uint8_t *etag)
 {
     bool mt_match, et_match;
     ec_rep_t *rep = NULL;

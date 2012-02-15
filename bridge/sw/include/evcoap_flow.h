@@ -13,7 +13,7 @@ typedef struct
 
     ec_method_t method;
     u_uri_t *uri;
-    char urlstr[U_URI_STRMAX];
+    char urlstr[U_URI_STRMAX];  /* URI string \minus the query */
     ec_rc_t resp_code;
 
     uint8_t token[8];

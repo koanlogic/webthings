@@ -6,10 +6,6 @@
 #include "evcoap_net.h"
 #include "evcoap_opt.h"
 
-static ec_resource_t *ec_resource_new(const char *url, ec_server_cb_t cb,
-        void *args);
-static void ec_resource_free(ec_resource_t *r);
-
 /**
  *  \brief  TODO
  */
@@ -590,7 +586,7 @@ int ec_update_representation(const char *uri, const uint8_t *rep,
  */ 
 int ec_register_cb(ec_t *coap, const char *url, ec_server_cb_t cb, void *args)
 {
-    ec_resource_t *tmp, *r;
+    ec_rescb_t *tmp, *r;
 
     dbg_return_if (coap == NULL, -1);
     dbg_return_if (url == NULL, -1);
@@ -603,14 +599,14 @@ int ec_register_cb(ec_t *coap, const char *url, ec_server_cb_t cb, void *args)
     }
 
     /* Create a new resource record and stick it to the global context. */
-    dbg_err_sif ((r = ec_resource_new(url, cb, args)) == NULL);
+    dbg_err_sif ((r = ec_rescb_new(url, cb, args)) == NULL);
 
     TAILQ_INSERT_TAIL(&coap->resources, r, next);
 
     return 0;
 err:
     if (r)
-        ec_resource_free(r);
+        ec_rescb_free(r);
     return -1;
 }
 
@@ -637,31 +633,4 @@ int ec_get_block_size(ec_t *coap, size_t *val)
     return 0;
 err:
     return -1;
-}
-
-static ec_resource_t *ec_resource_new(const char *url, ec_server_cb_t cb,
-        void *args)
-{
-    ec_resource_t *r = NULL;
-
-    dbg_err_sif ((r = u_zalloc(sizeof *r)) == NULL);
-    dbg_err_sif ((r->path = u_strdup(url)) == NULL);
-    r->cb = cb;
-    r->cb_args = args;
-
-    return r;
-err:
-    if (r)
-        u_free(r);
-    return NULL;
-}
-
-static void ec_resource_free(ec_resource_t *r)
-{
-    if (r)
-    {
-        if (r->path)
-            u_free(r->path);
-        u_free(r);
-    }
 }
