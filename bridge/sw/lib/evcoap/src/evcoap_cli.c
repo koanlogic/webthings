@@ -116,20 +116,21 @@ void ec_client_free(ec_client_t *cli)
 {
     if (cli)
     {
+        ec_t *coap = cli->base;
         ec_flow_t *flow = &cli->flow;
         ec_conn_t *conn = &flow->conn;
 
+        /* Unregister me from list of clients and events. */
+        ec_client_unregister(cli);
+
         /* Close socket. */
         evutil_closesocket(conn->socket);
-        event_free(conn->ev_input);
 
         /* Free URI. */
         u_uri_free(flow->uri);
 
         ec_res_set_clear(&cli->res_set);
         ec_opts_clear(&cli->req.opts);
-
-        /* TODO Destroy any associated timer ? */
 
         u_free(cli);
     }
@@ -591,7 +592,12 @@ void ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
     cli->state = state;
 
     if (is_final_state)
+    {
         (void) ec_client_invoke_user_callback(cli);
+
+        /* We can now finish off with this client. */
+        ec_client_free(cli);
+    }
 
     return;
 err:
@@ -626,6 +632,26 @@ int ec_client_register(ec_client_t *cli)
 err:
     if (ev_input)
         event_del(ev_input);
+    return -1;
+}
+
+int ec_client_unregister(ec_client_t *cli)
+{
+    ec_t *coap;
+    ec_conn_t *conn;
+
+    dbg_return_if (cli == NULL, -1);
+
+    coap = cli->base;
+    conn = &cli->flow.conn;
+
+    if (conn->ev_input)
+        event_free(conn->ev_input);
+
+    TAILQ_REMOVE(&coap->clients, cli, next);
+
+    return 0;
+err:
     return -1;
 }
 

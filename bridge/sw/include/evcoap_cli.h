@@ -75,6 +75,7 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
 void ec_client_input(evutil_socket_t sd, short u, void *arg);
 int ec_client_handle_empty_pdu(ec_client_t *cli, uint8_t t, uint16_t mid);
 int ec_client_register(ec_client_t *cli);
+int ec_client_unregister(ec_client_t *cli);
 
 /* Timers handling. */
 int ec_cli_start_app_timer(ec_client_t *cli);
