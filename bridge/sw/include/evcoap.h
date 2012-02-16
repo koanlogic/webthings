@@ -45,10 +45,12 @@ int ec_register_fb(ec_t *coap, ec_server_cb_t cb, void *cb_args);
 
 /* PDU manipulation API */
 int ec_request_set_payload(ec_client_t *cli, uint8_t *payload, size_t sz);
-int ec_request_set_block1(ec_client_t *cli, uint32_t bnum, bool more,
+
+int ec_request_add_block1(ec_client_t *cli, uint32_t bnum, bool more,
         size_t bsz);
-int ec_request_set_block2(ec_client_t *cli, uint32_t bnum, bool more,
+int ec_request_add_block2(ec_client_t *cli, uint32_t bnum, bool more,
         size_t bsz);
+int ec_request_add_observe(ec_client_t *cli);
 
 int ec_request_add_content_type(ec_client_t *cli, uint16_t ct);
 int ec_request_add_max_age(ec_client_t *cli, uint32_t ma);
@@ -65,7 +67,7 @@ int ec_request_add_if_match(ec_client_t *cli, const uint8_t *im,
         size_t im_len);
 int ec_request_add_uri_query(ec_client_t *cli, const char *uq);
 int ec_request_add_if_none_match(ec_client_t *cli);
-int ec_request_add_observe(ec_client_t *cli, uint16_t o);
+int ec_request_add_observe(ec_client_t *cli);
 
 ec_rc_t ec_response_get_code(ec_client_t *cli);
 int ec_response_get_content_type(ec_client_t *cli, ec_mt_t *ct);

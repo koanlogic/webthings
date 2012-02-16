@@ -32,6 +32,7 @@ typedef struct
     uint8_t etag[4];
     const char *ofn;
     const char *pfn;
+    bool observe;
     bool verbose;
     blockopt_t bopt;
 } ctx_t;
@@ -48,6 +49,7 @@ ctx_t g_ctx = {
     .etag = { 0xde, 0xad, 0xbe, 0xef },
     .ofn = DEFAULT_OFN,
     .pfn = NULL,
+    .observe = false,
     .verbose = false
 };
 
@@ -68,7 +70,7 @@ int main(int ac, char *av[])
 {
     int c;
 
-    while ((c = getopt(ac, av, "hu:m:M:o:p:vt:")) != -1)
+    while ((c = getopt(ac, av, "hu:m:M:Oo:p:vt:")) != -1)
     {
         switch (c)
         {
@@ -83,6 +85,9 @@ int main(int ac, char *av[])
             case 'M': /* .model */
                 if (client_set_model(optarg))
                     usage(av[0]);
+                break;
+            case 'O':
+                g_ctx.observe = true;
                 break;
             case 'o':
                 if (client_set_output_file(optarg))
@@ -177,6 +182,7 @@ void usage(const char *prog)
         "       -h  this help                                              \n"
         "       -m <GET|POST|PUT|DELETE>    (default is GET)               \n"
         "       -M <CON|NON>                (default is NON)               \n"
+        "       -O                          observe the requested resource \n"
         "       -o <file>                   (default is "DEFAULT_OFN")     \n"
         "       -p <file>                   (default is NULL)              \n"
         "       -u <uri>                    (default is "DEFAULT_URI")     \n"
@@ -222,6 +228,9 @@ int client_run(void)
     dbg_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, g_ctx.method, 
                     g_ctx.uri, g_ctx.model)) == NULL);
 
+    if (g_ctx.observe)
+        dbg_err_if (ec_request_add_observe(g_ctx.cli));
+
     /* Handle blockwise transfer. */
     if (g_ctx.bopt.more)
     {
@@ -231,7 +240,7 @@ int client_run(void)
                 g_ctx.bopt.block_sz);
 
         /* The client MUST set the M bit of a Block2 Option to zero. */
-        dbg_err_if (ec_request_set_block2(g_ctx.cli, g_ctx.bopt.block_no,
+        dbg_err_if (ec_request_add_block2(g_ctx.cli, g_ctx.bopt.block_no,
                     0, g_ctx.bopt.block_sz) == -1);
     }
 

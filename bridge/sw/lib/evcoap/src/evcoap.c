@@ -146,7 +146,7 @@ int ec_register_fb(ec_t *coap, ec_server_cb_t fb, void *fb_args)
     return 0;
 }
 
-static int ec_request_set_block(ec_client_t *cli, ec_opt_sym_t which, 
+static int ec_request_add_block(ec_client_t *cli, ec_opt_sym_t which, 
         uint32_t bnum, bool more, size_t bsz)
 {
     ec_opts_t *opts;
@@ -154,11 +154,10 @@ static int ec_request_set_block(ec_client_t *cli, ec_opt_sym_t which,
     uint8_t i, szx;
     uint64_t tmp;
 
-    dbg_err_if (cli == NULL);
+    dbg_return_if (cli == NULL, -1);
     dbg_return_if (which != EC_OPT_BLOCK1 && which != EC_OPT_BLOCK2, -1);
-    dbg_err_if (more != true && more != false);
-    dbg_err_if (bsz < EC_COAP_BLOCK_MIN || bsz > EC_COAP_BLOCK_MAX);
-    dbg_err_if ((bsz & (~bsz + 1)) != bsz);  /* not a power of 2 */
+    dbg_return_if (bsz < EC_COAP_BLOCK_MIN || bsz > EC_COAP_BLOCK_MAX, -1);
+    dbg_return_if ((bsz & (~bsz + 1)) != bsz, -1);  /* not a power of 2 */
 
     dbg_err_if ((opts = ec_client_get_request_options(cli)) == NULL);
 
@@ -166,16 +165,18 @@ static int ec_request_set_block(ec_client_t *cli, ec_opt_sym_t which,
             "Block Option MUST NOT occur more than once");
 
     for (i = 0, sz = EC_COAP_BLOCK_MIN; sz <= EC_COAP_BLOCK_MAX; i++, sz <<= 1)
+    {
         if (bsz == sz)
         {
             szx = i;
             break;
         }
+    }
     dbg_err_if (sz > EC_COAP_BLOCK_MAX);
 
     dbg_err_if (ec_opts_add_block(opts, which, bnum, more, szx));
 
-    return 1;
+    return 0;
 err:
     return -1;
 }
@@ -183,19 +184,40 @@ err:
 /**
  *  \brief  TODO
  */
-int ec_request_set_block1(ec_client_t *cli, uint32_t bnum, bool more,
+int ec_request_add_block1(ec_client_t *cli, uint32_t bnum, bool more,
         size_t bsz)
 {
-    return ec_request_set_block(cli, EC_OPT_BLOCK1, bnum, more, bsz);
+    return ec_request_add_block(cli, EC_OPT_BLOCK1, bnum, more, bsz);
 }
 
 /**
  *  \brief  TODO
  */
-int ec_request_set_block2(ec_client_t *cli, uint32_t bnum, bool more,
+int ec_request_add_block2(ec_client_t *cli, uint32_t bnum, bool more,
         size_t bsz)
 {
-    return ec_request_set_block(cli, EC_OPT_BLOCK2, bnum, more, bsz);
+    return ec_request_add_block(cli, EC_OPT_BLOCK2, bnum, more, bsz);
+}
+
+/**
+ *  \brief  TODO
+ */ 
+int ec_request_add_observe(ec_client_t *cli)
+{
+    ec_opts_t *opts;
+
+    dbg_return_if (cli == NULL, -1);
+
+    dbg_err_if ((opts = ec_client_get_request_options(cli)) == NULL);
+
+    dbg_err_ifm (ec_opts_get_observe(opts, NULL) == 0,
+            "Observe Option MUST NOT occur more than once");
+
+    dbg_err_if (ec_opts_add_observe(opts, 0));
+
+    return 0;
+err:
+    return -1;
 }
 
 /**
@@ -299,7 +321,7 @@ int ec_response_get_block1(ec_client_t *cli, uint32_t *bnum, bool *more,
 
     *bsz = 1 << (szx + 4);
 
-    return 1;
+    return 0;
 err:
     return -1;
 }
@@ -318,7 +340,7 @@ int ec_response_get_block2(ec_client_t *cli, uint32_t *bnum, bool *more,
 
     *bsz = 1 << (szx + 4);
 
-    return 1;
+    return 0;
 err:
     return -1;
 }
@@ -508,18 +530,6 @@ int ec_request_add_if_none_match(ec_client_t *cli)
     ec_opts_t *opts = &cli->req.opts;
 
     return ec_opts_add_if_none_match(opts);
-}
-
-/**
- *  \brief  TODO
- */
-int ec_request_add_observe(ec_client_t *cli, uint16_t o)
-{
-    dbg_return_if (cli == NULL, -1);
-    
-    ec_opts_t *opts = &cli->req.opts;
-
-    return ec_opts_add_observe(opts, o);
 }
 
 /**
