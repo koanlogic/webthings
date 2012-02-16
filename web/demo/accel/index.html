@@ -42,8 +42,15 @@
     var rot_angle = 0;
     var rot_vector = [0,0,-1];
     var received_value = "";
+
+    // testing (randomly generated vectors)
     var ACCEL_RESOURCE = "http://demo_webthings.local/accel/accel_values.php";
-    var INTERVAL = 1000; //ajax call interval in milliseconds
+
+    // demo (real data: KINK and motes attached)
+    //var ACCEL_RESOURCE = "http://demo_webthings.local/accel/proxy.php";
+
+    var INTERVAL = 500; //ajax call interval in milliseconds
+
     function initGL(canvas) {
         try {
             gl = canvas.getContext("experimental-webgl");
