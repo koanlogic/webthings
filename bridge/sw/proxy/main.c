@@ -36,7 +36,7 @@ void process_http_request(struct evhttp_request *req, void *arg)
     char huri[1024];
     char curi[U_URI_STRMAX];
     ec_client_t *ccli = NULL;
-    struct timeval tout = { .tv_sec = 20, .tv_usec = 0 };
+    struct timeval tout = { .tv_sec = 3, .tv_usec = 0 };
 
     (void) u_snprintf(huri, sizeof huri, "http://%s%s", 
             evhttp_find_header(req->input_headers, "Host"), hpath);
