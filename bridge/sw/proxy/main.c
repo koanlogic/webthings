@@ -6,17 +6,34 @@ int facility = LOG_LOCAL0;
 
 typedef struct
 {
+    uint32_t block_no;
+    bool more;
+    size_t block_sz;
+} blockopt_t;
+
+typedef struct
+{
     ec_t *coap;
+    ec_client_t *cli;
+    char curi[U_URI_STRMAX];
     struct event_base *base;
     struct evdns_base *dns;
     struct evhttp *http;
+    struct evbuffer *buf;
+    blockopt_t bopt;
+    struct timeval tout;
 } ctx_t;
 
 ctx_t g_ctx = {
     .coap = NULL,
+    .cli = NULL,
+    .curi = "\0",
     .base = NULL,
     .dns = NULL,
-    .http = NULL
+    .http = NULL,
+    .buf = NULL,
+    .bopt = { 0, 0, 0 },
+    .tout = { .tv_sec = 3, .tv_usec = 0 }
 };
 
 void process_http_request(struct evhttp_request *req, void *arg);
@@ -41,16 +58,27 @@ err:
 
 void process_http_request(struct evhttp_request *req, void *arg)
 {
-    u_uri_t *u = NULL;
-    const char *hpath = evhttp_request_uri(req);
+    const char *hpath;
     char huri[1024];
-    char curi[U_URI_STRMAX];
-    ec_client_t *ccli = NULL;
-    struct timeval tout = { .tv_sec = 3, .tv_usec = 0 };
+    u_uri_t *u = NULL;
 
+    con_err_if (req == NULL);
     u_unused_args(arg);
 
-    (void) u_snprintf(huri, sizeof huri, "http://%s%s", 
+    /* Per-round initialisations. */
+    g_ctx.bopt.block_no = 0;
+    g_ctx.bopt.more = 0;
+    g_ctx.bopt.block_sz = 0;
+
+    g_ctx.curi[0] = '\0';
+
+    if (g_ctx.buf)
+        evbuffer_free(g_ctx.buf);
+    con_err_if ((g_ctx.buf = evbuffer_new()) == NULL);
+
+    hpath = evhttp_request_uri(req);
+
+    (void) u_snprintf(huri, sizeof huri, "http://%s%s",
             evhttp_find_header(req->input_headers, "Host"), hpath);
 
     u_con("requested URI: %s", huri);
@@ -61,12 +89,12 @@ void process_http_request(struct evhttp_request *req, void *arg)
     (void) u_uri_set_scheme(u, "coap");
     (void) u_uri_set_host(u, "zrs");
 
-    con_err_if (u_uri_knead(u, curi));
+    con_err_if (u_uri_knead(u, g_ctx.curi));
 
-    u_con("mapped URI: %s", curi);
+    u_con("mapped URI: %s", g_ctx.curi);
 
-    con_err_if ((ccli = ec_request_new(g_ctx.coap, EC_GET, curi, EC_CON)) == NULL);
-    con_err_if (ec_request_send(ccli, process_coap_response, req, &tout));
+    con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_GET, g_ctx.curi, EC_CON)) == NULL);
+    con_err_if (ec_request_send(g_ctx.cli, process_coap_response, req, &g_ctx.tout));
 
     u_uri_free(u);
 
@@ -74,8 +102,8 @@ void process_http_request(struct evhttp_request *req, void *arg)
 err:
     if (u)
         u_uri_free(u);
-    if (ccli)
-        ec_client_free(ccli);
+    if (g_ctx.cli)
+        ec_client_free(g_ctx.cli);
     return;
 }
 
@@ -84,10 +112,13 @@ void process_coap_response(ec_client_t *cli)
     ec_rc_t rc;
     ec_cli_state_t s;
     ev_uint8_t *pl;
+    ev_uint32_t bnum;
+
     char payload[1024] = { '\0' };
     size_t pl_sz;
-    struct evbuffer *buf = NULL;
     struct evhttp_request *req = (struct evhttp_request *) cli->cb_args;
+
+    con_err_if (cli == NULL);
 
     con_err_ifm ((s = ec_client_get_state(cli)) != EC_CLI_STATE_REQ_DONE,
             "request failed: %s", ec_cli_state_str(s));
@@ -95,6 +126,16 @@ void process_coap_response(ec_client_t *cli)
     /* Get response code. */
     con_err_ifm ((rc = ec_response_get_code(cli)) == EC_RC_UNSET,
             "could not get response code");
+
+    /* If fragmented will set g_ctx.bopt. */
+    if (ec_response_get_block2(cli, &bnum, &g_ctx.bopt.more,
+                &g_ctx.bopt.block_sz) == 0) {
+
+            /* Blockwise transfer - make sure requested block was returned. */
+            con_err_if (bnum != g_ctx.bopt.block_no);
+
+            g_ctx.bopt.block_no = bnum;
+    }
 
     if (rc == EC_CONTENT)
     {
@@ -104,19 +145,26 @@ void process_coap_response(ec_client_t *cli)
         payload[pl_sz] = '\0';
     }
 
-    con_err_if ((buf = evbuffer_new()) == NULL);
-
-    evhttp_add_header(evhttp_request_get_output_headers(req), 
+    evhttp_add_header(evhttp_request_get_output_headers(req),
             "Content-Type", "text/plain; charset=UTF-8");
 
-    evbuffer_add_printf(buf, "%s", payload);
+    evbuffer_add_printf(g_ctx.buf, "%s", payload);
 
-    evhttp_send_reply(req, HTTP_OK, "OK", buf);
-    evbuffer_free(buf);
+    /* No more blocks => send reply. */
+    if (!g_ctx.bopt.more)
+    {
+        evhttp_send_reply(req, HTTP_OK, "OK", g_ctx.buf);
+        return;
+    }
 
+    /* If there is more, send a new request with Block2 Option. */
+    con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_GET, g_ctx.curi,
+                    EC_CON)) == NULL);
+    con_err_if (ec_request_add_block2(g_ctx.cli, ++g_ctx.bopt.block_no, 0,
+                g_ctx.bopt.block_sz) == -1);
+    con_err_if (ec_request_send(g_ctx.cli, process_coap_response, req,
+                &g_ctx.tout));
     return;
 err:
-    if (buf)
-        evbuffer_free(buf);
     evhttp_send_reply(req, HTTP_INTERNAL, "wtf!", NULL);
 }
