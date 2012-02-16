@@ -714,7 +714,7 @@ static int ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         case 1:
             /* Duplicate, possible resending of the paired message is handled 
              * by ec_dups_handle_incoming_srvmsg(). */
-            return 0;
+            goto cleanup;
         default:
             /* Internal error. */
             u_dbg("Duplicate handling machinery failed !");
@@ -724,7 +724,10 @@ static int ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     /* Handle empty responses (i.e. resets and separated acknowledgements)
      * specially. */
     if (!h->code)
-        return ec_client_handle_empty_pdu(cli, h->t, h->mid);
+    {
+        dbg_err_if (ec_client_handle_empty_pdu(cli, h->t, h->mid));
+        goto cleanup;
+    }
 
     /* Parse options.  At least one option (namely the Token) must be present
      * because evcoap always sends one non-empty Token to its clients. */
@@ -754,7 +757,15 @@ static int ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         return EC_NET_CBRC_DEAD;
 
     return EC_NET_CBRC_SUCCESS;
+
+cleanup:
+    ec_pdu_free(res);
+
+    return EC_NET_CBRC_SUCCESS;
 err:
+    if (res)
+        ec_pdu_free(res);
+
     return EC_NET_CBRC_ERROR;
 }
 
