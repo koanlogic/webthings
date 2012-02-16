@@ -395,6 +395,12 @@ void usage(const char *prog)
     return;
 }
 
+/* Payload serving callback. */
+const uint8_t *ob_serve(const char *uri, ec_mt_t mt, size_t *p_sz)
+{
+    return NULL;
+}
+
 ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
 {
     ec_mt_t mta[16];
@@ -437,12 +443,15 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
         /* See if the client asked for Observing the resource. */
         if (ec_request_get_observe(srv) == 0)
         {
+            uint16_t o_cnt;
+
             /* Add a NON notifier attached to ob_serve callback. */
-            if (!ec_add_observer(srv, NULL, NULL, rep->max_age, 
+            if (!ec_add_observer(srv, ob_serve, NULL, rep->max_age, 
                         rep->media_type, EC_NON, rep->etag, sizeof rep->etag))
             {
                 /* TODO get counter from time */
-                (void) ec_response_add_observe(srv, 0);
+                (void) ec_get_observe_counter(&o_cnt);
+                (void) ec_response_add_observe(srv, o_cnt);
             }
             else
                 u_dbg("could not add requested observation");

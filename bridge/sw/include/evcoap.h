@@ -95,6 +95,8 @@ int ec_response_add_observe(ec_server_t *srv, uint16_t o);
 int ec_update_representation(const char *uri, const uint8_t *rep,
         size_t rep_len, ec_mt_t media_type);
 
+int ec_get_observe_counter(uint16_t *cnt);
+
 #ifdef __cplusplus
 }
 #endif  /* __cplusplus */

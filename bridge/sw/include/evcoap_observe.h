@@ -13,7 +13,7 @@ extern "C" {
 
 /* Callback to be invoked to produce the resource representation(s) associated 
  * to the observed resource. */
-typedef uint8_t *(*ec_observe_cb_t)(const char *, ec_mt_t, size_t *);
+typedef const uint8_t *(*ec_observe_cb_t)(const char *, ec_mt_t, size_t *);
 
 struct ec_observer_s
 {

@@ -110,14 +110,11 @@ int main(int ac, char *av[])
         }
     }
 
+    /* Set up the client transaction. */
     con_err_if (client_init());
 
-    /* Keep on running until all blocks are exhausted. */
-    do
-    {
-        con_err_if (client_run());
-    }
-    while (g_ctx.bopt.more);
+    /* Run, and keep on doing it until all blocks are exhausted. */
+    do { con_err_if (client_run()); } while (g_ctx.bopt.more);
 
     client_term();
     return EXIT_SUCCESS;
@@ -169,15 +166,19 @@ void cb(ec_client_t *cli)
 
         /* See if we've been added to the notification list for the
          * requested resource. */
-        if (g_ctx.observe &&
-                ec_response_get_observe(cli, &o_serial) == 0)
+        if (g_ctx.observe)
         {
-            dbg_err_if (ec_response_get_max_age(cli, &max_age));
-            CHAT("waiting next notification in %u seconds", max_age);
+            if (ec_response_get_observe(cli, &o_serial) == 0)
+            {
+                dbg_err_if (ec_response_get_max_age(cli, &max_age));
+                CHAT("waiting next notification in %u seconds", max_age);
 
-            /* Return here, without breaking the event loop since we
-             * need to be called back again on next notification. */
-            return;
+                /* Return here, without breaking the event loop since we
+                 * need to be called back again on next notification. */
+                return;
+            }
+            
+            CHAT("Observation could not be established");
         }
     }
 

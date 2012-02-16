@@ -9,7 +9,6 @@ static int ec_observer_add(ec_observation_t *obs, const uint8_t *token,
         ec_msg_model_t mm, const ec_conn_t *conn);
 static ec_observer_t *ec_observer_search(ec_observation_t *obs, ec_conn_t *cn);
 static void ec_observer_free(ec_observer_t *ovr);
-static int ec_observer_push(ec_observation_t *obs, ec_observer_t *ovr);
 static ec_observation_t *ec_observation_search(ec_t *coap, const char *uri);
 static ec_observation_t *ec_observation_add(ec_t *coap, const char *uri, 
         ec_observe_cb_t cb, void *cb_args, uint32_t max_age);
@@ -18,6 +17,7 @@ ec_observation_t *ec_observation_new(const char *uri, ec_observe_cb_t cb,
 static bool ec_source_match(const ec_conn_t *req_src, const ec_conn_t *obs_src);
 static int ec_source_copy(const ec_conn_t *src, ec_conn_t *dst);
 
+/* Create new observer. */
 static ec_observer_t *ec_observer_new(const uint8_t *token, size_t token_sz, 
         const uint8_t *etag, size_t etag_sz, ec_mt_t media_type, 
         ec_msg_model_t msg_model, const ec_conn_t *conn)
@@ -49,25 +49,26 @@ err:
     return NULL;
 }
 
+/* Attach observer to the parent observation. */
 static int ec_observer_add(ec_observation_t *obs, const uint8_t *token,
         size_t token_sz, const uint8_t *etag, size_t etag_sz, ec_mt_t mt, 
         ec_msg_model_t mm, const ec_conn_t *conn)
 {
-    ec_observer_t *ovr = NULL;
+    ec_observer_t *ovr;
 
+    dbg_return_if (obs == NULL, -1);
+
+    /* Create a new observer given the supplied parameters. */
     ovr = ec_observer_new(token, token_sz, etag, etag_sz, mt, mm, conn);
-    dbg_err_ifm (ovr == NULL, "observer creation failed");
+    dbg_return_ifm (ovr == NULL, -1, "observer creation failed");
 
-    dbg_err_if (ec_observer_push(obs, ovr));
-    ovr = NULL;
+    /* Add the observer to the parent observation. */
+    TAILQ_INSERT_TAIL(&obs->observers, ovr, next);
 
     return 0;
-err:
-    if (ovr)
-        ec_observer_free(ovr);
-    return -1;
 }
 
+/* Duplicate the bits needed to identify the observer. */
 static int ec_source_copy(const ec_conn_t *src, ec_conn_t *dst)
 {
     dbg_return_if (src == NULL, -1);
@@ -80,6 +81,7 @@ static int ec_source_copy(const ec_conn_t *src, ec_conn_t *dst)
     return 0;
 }
 
+/* See if the supplied requester matches an already active observer. */
 static bool ec_source_match(const ec_conn_t *req_src, const ec_conn_t *obs_src)
 {
     uint8_t peer_len;
@@ -102,6 +104,7 @@ err:
     return false;
 }
 
+/* Try to find an observer matching the given address/security context. */
 static ec_observer_t *ec_observer_search(ec_observation_t *obs, ec_conn_t *conn)
 {
     ec_observer_t *ovr;
@@ -118,6 +121,7 @@ static ec_observer_t *ec_observer_search(ec_observation_t *obs, ec_conn_t *conn)
     return NULL;
 }
 
+/* Release resources allocated to the observer. */
 static void ec_observer_free(ec_observer_t *ovr)
 {
     if (ovr)
@@ -126,16 +130,7 @@ static void ec_observer_free(ec_observer_t *ovr)
     return;
 }
 
-static int ec_observer_push(ec_observation_t *obs, ec_observer_t *ovr)
-{
-    dbg_return_if (obs == NULL, -1);
-    dbg_return_if (ovr == NULL, -1);
-
-    TAILQ_INSERT_TAIL(&obs->observers, ovr, next);
-
-    return 0;
-}
-
+/* Search an observation matching the supplied URI. */
 static ec_observation_t *ec_observation_search(ec_t *coap, const char *uri)
 {
     ec_observation_t *obs;
@@ -149,6 +144,7 @@ static ec_observation_t *ec_observation_search(ec_t *coap, const char *uri)
     return NULL;
 }
 
+/* Create a new parent observation. */
 ec_observation_t *ec_observation_new(const char *uri, ec_observe_cb_t cb, 
         void *cb_args, uint32_t max_age)
 {
@@ -169,13 +165,24 @@ err:
     return NULL;
 }
 
+/* Add a new observation to the base. */
 static ec_observation_t *ec_observation_add(ec_t *coap, const char *uri, 
         ec_observe_cb_t cb, void *cb_args, uint32_t max_age)
 {
-    u_con("TODO");
-    return 0;
+    ec_observation_t *obs;
+
+    /* Let the creation interface check its own parameters. */
+    dbg_return_if (coap == NULL, NULL);
+ 
+    obs = ec_observation_new(uri, cb, cb_args, max_age);
+    dbg_return_ifm (obs == NULL, NULL, "observation creation failure");
+
+    TAILQ_INSERT_TAIL(&coap->observing, obs, next);
+
+    return obs;
 }
 
+/* Free resources allocated to the supplied observation and related observers */
 static void ec_observation_free(ec_observation_t *obs)
 {
     ec_observer_t *ovr;
@@ -248,8 +255,16 @@ int ec_rem_observer(ec_server_t *srv)
     dbg_return_if (!(obs = ec_observation_search(coap, flow->urlstr)), 0);
     dbg_return_if (!(ovr = ec_observer_search(obs, &flow->conn)), 0);
 
+    /* Remove the observer and free memory. */
     TAILQ_REMOVE(&obs->observers, ovr, next);
     ec_observer_free(ovr);
+
+    /* Also remove the observation in case there are no observers left. */
+    if (TAILQ_EMPTY(&obs->observers))
+    {
+        TAILQ_REMOVE(&coap->observing, obs, next)
+        ec_observation_free(obs);
+    }
 
     return 0;
 }
@@ -272,6 +287,4 @@ int ec_observation_run(void)
     u_con("Execute a flush on the supplied observe queue");
     return 0;
 }
-
-
 

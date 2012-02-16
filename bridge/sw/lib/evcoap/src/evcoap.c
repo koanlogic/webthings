@@ -23,6 +23,7 @@ ec_t *ec_init(struct event_base *base, struct evdns_base *dns)
 
     TAILQ_INIT(&coap->clients);
     TAILQ_INIT(&coap->servers);
+    TAILQ_INIT(&coap->observing);
     TAILQ_INIT(&coap->listeners);
     TAILQ_INIT(&coap->resources);
 
@@ -687,6 +688,21 @@ int ec_get_block_size(ec_t *coap, size_t *val)
     dbg_err_if (ec_cfg_get_block_info(&coap->cfg, &is_stateless, &szx));
 
     *val = is_stateless ? 0 : 1 << (szx + 4);
+
+    return 0;
+err:
+    return -1;
+}
+
+int ec_get_observe_counter(uint16_t *cnt)
+{
+    time_t t;
+
+    dbg_return_if (cnt == NULL, -1);
+
+    dbg_err_if ((t = time(NULL)) == (time_t) -1);
+
+    *cnt = (uint16_t) t;
 
     return 0;
 err:
