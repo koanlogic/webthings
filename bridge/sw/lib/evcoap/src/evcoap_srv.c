@@ -108,7 +108,7 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         case 1:
             /* Duplicate, possible resending of the paired message is handled 
              * by ec_dups_handle_incoming_climsg(). */
-            return EC_NET_CBRC_SUCCESS;
+            goto cleanup;
         default:
             /* Internal error. */
             u_dbg("Duplicate handling machinery failed !");
@@ -193,10 +193,18 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
 end:
     return EC_NET_CBRC_SUCCESS;
 
+cleanup:
+    ec_pdu_free(req);
+
+    return EC_NET_CBRC_SUCCESS;
+
 err:
     /* Send the selected error (defaulting to 5.00 Internal Server Error.) */
     dbg_if (ec_server_reply(srv, rc ? rc : EC_INTERNAL_SERVER_ERROR, NULL, 0));
     ec_server_set_state(srv, EC_SRV_STATE_INTERNAL_ERR);
+
+    if (req)
+        ec_pdu_free(req);
 
     return EC_NET_CBRC_ERROR;
 }
