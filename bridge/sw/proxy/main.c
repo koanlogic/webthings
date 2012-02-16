@@ -4,25 +4,35 @@
 
 int facility = LOG_LOCAL0;
 
-struct event_base *base;
-struct evhttp *http;
-struct evdns_base *dns;
-ec_t *coap;
+typedef struct
+{
+    ec_t *coap;
+    struct event_base *base;
+    struct evdns_base *dns;
+    struct evhttp *http;
+} ctx_t;
+
+ctx_t g_ctx = {
+    .coap = NULL,
+    .base = NULL,
+    .dns = NULL,
+    .http = NULL
+};
 
 void process_http_request(struct evhttp_request *req, void *arg);
 void process_coap_response(ec_client_t *cli);
 
 int main(void)
 {
-    con_err_if ((base = event_base_new()) == NULL);
-    con_err_if ((dns = evdns_base_new(base, 1)) == NULL);
-    con_err_if ((coap = ec_init(base, dns)) == NULL);
-    con_err_if ((http = evhttp_new(base)) == NULL);
+    con_err_if ((g_ctx.base = event_base_new()) == NULL);
+    con_err_if ((g_ctx.dns = evdns_base_new(g_ctx.base, 1)) == NULL);
+    con_err_if ((g_ctx.coap = ec_init(g_ctx.base, g_ctx.dns)) == NULL);
+    con_err_if ((g_ctx.http = evhttp_new(g_ctx.base)) == NULL);
 
-    con_err_if (evhttp_bind_socket(http, "0.0.0.0", 5683));
+    con_err_if (evhttp_bind_socket(g_ctx.http, "0.0.0.0", 5683));
 
-    evhttp_set_gencb(http, process_http_request, NULL);
-    event_base_dispatch(base);
+    evhttp_set_gencb(g_ctx.http, process_http_request, NULL);
+    event_base_dispatch(g_ctx.base);
 
     return EXIT_SUCCESS;
 err:
@@ -55,7 +65,7 @@ void process_http_request(struct evhttp_request *req, void *arg)
 
     u_con("mapped URI: %s", curi);
 
-    con_err_if ((ccli = ec_request_new(coap, EC_GET, curi, EC_CON)) == NULL);
+    con_err_if ((ccli = ec_request_new(g_ctx.coap, EC_GET, curi, EC_CON)) == NULL);
     con_err_if (ec_request_send(ccli, process_coap_response, req, &tout));
 
     u_uri_free(u);
