@@ -652,7 +652,8 @@ int ec_client_unregister(ec_client_t *cli)
     if (conn->ev_input)
         event_free(conn->ev_input);
 
-    TAILQ_REMOVE(&coap->clients, cli, next);
+    if (coap)
+        TAILQ_REMOVE(&coap->clients, cli, next);
 
     return 0;
 }
