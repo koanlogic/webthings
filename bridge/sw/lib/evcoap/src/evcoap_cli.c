@@ -830,6 +830,9 @@ static int ec_client_check_req_token(ec_client_t *cli)
  
     return 0;
 err:
+    /* Since failure is critical remove all added opts. */
+    ec_opts_clear(&req->opts);
+
     return -1;
 }
 
