@@ -177,7 +177,7 @@ static int ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         }
     }
 
-    /* Fall back to catch-all function, if set, and fall through. */
+    /* Fall back to catch-all function, if set, then fall through. */
     if (coap->fb)
     {
         dbg_err_if (ec_server_userfn(srv, coap->fb, coap->fb_args, &tv, false));

@@ -22,26 +22,56 @@ static int ec_observation_start(ec_observation_t *obs);
 static bool ec_source_match(const ec_conn_t *req_src, const ec_conn_t *obs_src);
 static int ec_source_copy(const ec_conn_t *src, ec_conn_t *dst);
 
+/* 
+ * TODO: The callback should produce all the requested representations in one 
+ *       shot;
+ *       Fix 'p' const'ness;
+ *
+ */
 static void ec_ob_cb(evutil_socket_t u0, short u1, void *c)
 {
     const uint8_t *p;
     size_t p_sz;
     uint16_t o_cnt;
     ec_observer_t *ovr;
+    ec_pdu_t *nfy = NULL;
     ec_observation_t *obs = (ec_observation_t *) c;
 
     dbg_err_if (ec_get_observe_counter(&o_cnt));
 
     TAILQ_FOREACH(ovr, &obs->observers, next)
     {
+        ec_flow_t flow;
+
+        memset(&flow, 0, sizeof flow);
+
         /* Ask the user to produce the new resouce representation payload. */
         p = ovr->reps_cb(obs->uri, ovr->media_type, &p_sz, ovr->reps_cb_args);
 
+        /* Assume that a NULL payload signals the deletion of the corresponding
+         * resource => "the server SHOULD notify the client by sending a 
+         * notification with an appropriate error response code (4.xx/5.xx) 
+         * and MUST empty the list of observers of the resource." */
+
         /* Create new ad-hoc PDU */
+        dbg_err_sif ((nfy = ec_pdu_new_empty()) == NULL);
 
-        /* Fill PDU with needed bits. */
+        /* Fill PDU with needed bits (TODO fix 'p' const'ness). */
+        dbg_err_if (ec_pdu_set_flow(nfy, &flow));
+        dbg_err_if (p && ec_pdu_set_payload(nfy, p, p_sz));
+        dbg_err_if (ec_flow_set_resp_code(&flow, p ? EC_CONTENT : EC_DELETED));
 
-        /* Send PDU depending on ovr->msg_model. */
+        /* Stick the token sent by the client on the original request. */
+        dbg_err_if (ec_opts_add_token(&nfy->opts, ovr->token, ovr->token_sz));
+
+        /* Encode PDU. */
+        dbg_err_if (ec_source_copy(&ovr->conn, &flow.conn));
+        dbg_err_if (ec_net_set_confirmable(&flow.conn, false));
+        dbg_err_if (ec_pdu_encode_response_separate(nfy));
+
+        /* Send PDU (ignore ovr->msg_model for now, go NON all the way.)
+         * 'NULL' means, don't go through the duplicate handling machinery. */
+        dbg_err_if (ec_pdu_send(nfy, NULL));
     }
 
 err:
@@ -63,10 +93,16 @@ static ec_observer_t *ec_observer_new(const uint8_t *token, size_t token_sz,
     dbg_err_sif ((ovr = u_zalloc(sizeof *ovr)) == NULL);
 
     if (token && token_sz)
+    {
         memcpy(ovr->token, token, token_sz);
+        ovr->token_sz = token_sz;
+    }
 
     if (etag && etag_sz)
+    {
         memcpy(ovr->etag, etag, etag_sz);
+        ovr->etag_sz = etag_sz;
+    }
 
     ovr->media_type = media_type;
     ovr->msg_model = msg_model;
@@ -112,6 +148,7 @@ static int ec_source_copy(const ec_conn_t *src, ec_conn_t *dst)
     dbg_return_if (src == NULL, -1);
     dbg_return_if (dst == NULL, -1);
 
+    dst->socket = src->socket;
     memcpy(&dst->peer, &src->peer, sizeof dst->peer);
 
     /* TODO copy in security context. */
