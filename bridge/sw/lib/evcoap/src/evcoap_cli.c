@@ -11,7 +11,7 @@
 
 static int ec_client_check_transition(ec_cli_state_t cur, ec_cli_state_t next);
 static bool ec_client_state_is_final(ec_cli_state_t state);
-static int ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
+static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         struct sockaddr_storage *peer, void *arg);
 static void ec_cli_app_timeout(evutil_socket_t u0, short u1, void *c);
 static void ec_cli_coap_timeout(evutil_socket_t u0, short u1, void *c);
@@ -677,7 +677,7 @@ ec_cli_state_t ec_client_get_state(ec_client_t *cli)
     return cli->state;
 }
 
-static int ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
+static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         struct sockaddr_storage *peer, void *arg)
 {
     ec_opt_t *t;
@@ -685,7 +685,7 @@ static int ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     size_t olen = 0, plen;
     ec_pdu_t *res = NULL;
 
-    dbg_return_if ((cli = (ec_client_t *) arg) == NULL, -1);
+    dbg_return_if ((cli = (ec_client_t *) arg) == NULL, EC_NET_CBRC_ERROR);
 
     /* Make room for the new PDU. */
     dbg_err_sif ((res = ec_pdu_new_empty()) == NULL);

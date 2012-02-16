@@ -4,7 +4,7 @@
 #include "evcoap_base.h"
 #include "evcoap_flow.h"
 
-static int ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
+static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         struct sockaddr_storage *peer, void *arg);
 static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args, 
         struct timeval *interval, bool resched);
@@ -62,7 +62,7 @@ void ec_server_input(evutil_socket_t sd, short u, void *arg)
 
 /* TODO factor out common code with ec_client_handle_pdu, namely the PDU 
  *      decoding */
-static int ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
+static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         struct sockaddr_storage *peer, void *arg)
 {
     ec_rescb_t *r;
@@ -74,11 +74,11 @@ static int ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     bool nosec = true;
     ec_rc_t rc = EC_RC_UNSET;
 
-    dbg_return_if ((coap = (ec_t *) arg) == NULL, -1);
-    dbg_return_if (raw == NULL, -1);
-    dbg_return_if (!raw_sz, -1);
-    dbg_return_if (sd == -1, -1);
-    dbg_return_if (peer == NULL, -1);
+    dbg_return_if ((coap = (ec_t *) arg) == NULL, EC_NET_CBRC_ERROR);
+    dbg_return_if (raw == NULL, EC_NET_CBRC_ERROR);
+    dbg_return_if (!raw_sz, EC_NET_CBRC_ERROR);
+    dbg_return_if (sd == -1, EC_NET_CBRC_ERROR);
+    dbg_return_if (peer == NULL, EC_NET_CBRC_ERROR);
 
     /* Make room for the new PDU. */
     dbg_err_sif ((req = ec_pdu_new_empty()) == NULL);
@@ -108,7 +108,7 @@ static int ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         case 1:
             /* Duplicate, possible resending of the paired message is handled 
              * by ec_dups_handle_incoming_climsg(). */
-            return 0;
+            return EC_NET_CBRC_SUCCESS;
         default:
             /* Internal error. */
             u_dbg("Duplicate handling machinery failed !");
@@ -191,14 +191,14 @@ static int ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     /* TODO check temp resources de-allocation */
 
 end:
-    return 0;
+    return EC_NET_CBRC_SUCCESS;
 
 err:
     /* Send the selected error (defaulting to 5.00 Internal Server Error.) */
     dbg_if (ec_server_reply(srv, rc ? rc : EC_INTERNAL_SERVER_ERROR, NULL, 0));
     ec_server_set_state(srv, EC_SRV_STATE_INTERNAL_ERR);
 
-    return -1;
+    return EC_NET_CBRC_ERROR;
 }
 
 #ifdef TODO_BLOCK
