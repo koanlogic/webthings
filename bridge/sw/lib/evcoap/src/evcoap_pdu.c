@@ -32,17 +32,34 @@ int ec_pdu_set_flow(ec_pdu_t *pdu, ec_flow_t *flow)
 int ec_pdu_set_peer(ec_pdu_t *pdu, const struct sockaddr_storage *peer)
 {
     uint8_t peer_len;
+    struct sockaddr_storage *loc;
 
     dbg_return_if (pdu == NULL, -1);
     dbg_return_if (peer == NULL, -1);
 
+    ec_flow_t *flow = pdu->flow;
+    ec_conn_t *conn = &flow->conn;
+
     dbg_err_if (ec_net_socklen(peer, &peer_len));
 
-    memcpy(&pdu->peer, peer, peer_len);
+    /* If the peer responded to a multicast request, it is saved in the
+     * supplied PDU, otherwise it is set in attached (global) conn. */
+    loc = conn->is_multicast ? &pdu->peer : &conn->peer;
+    memcpy(loc, peer, peer_len);
 
     return 0;
 err:
     return -1;
+}
+
+struct sockaddr_storage *ec_pdu_get_peer(ec_pdu_t *pdu)
+{
+    /* Trust the caller. */
+
+    ec_flow_t *flow = pdu->flow;
+    ec_conn_t *conn = &flow->conn;
+
+    return conn->is_multicast ? &pdu->peer : &conn->peer;
 }
 
 int ec_pdu_set_sibling(ec_pdu_t *pdu, ec_pdu_t *sibling)
@@ -76,7 +93,7 @@ int ec_pdu_send(ec_pdu_t *pdu, struct ec_dups_s *dups)
 
     /* Send PDU to destination. */
     rc = ec_net_send(pdu->hdr, opts->enc, opts->enc_sz, pdu->payload,
-            pdu->payload_sz, conn->socket, &pdu->peer);
+            pdu->payload_sz, conn->socket, ec_pdu_get_peer(pdu));
 
     /* Independently of success of previous operations, save the
      * PDU into the duplicate handling mechanism, if appropriate and
@@ -88,7 +105,7 @@ int ec_pdu_send(ec_pdu_t *pdu, struct ec_dups_s *dups)
     {
         /* Retrieve cache entry. */
         dbg_err_ifm ((rpdu = ec_dups_search(dups, EC_PDU_MID(pdu->sibling),
-                        &pdu->peer)) == NULL, 
+                        ec_pdu_get_peer(pdu))) == NULL, 
                 "could not find received PDU with MID %u", 
                 EC_PDU_MID(pdu->sibling));
     

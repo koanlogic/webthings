@@ -108,6 +108,8 @@ int ec_opts_add_if_match(ec_opts_t *opts, const uint8_t *im, size_t im_len);
 int ec_opts_add_uri_query(ec_opts_t *opts, const char *uq);
 int ec_opts_add_if_none_match(ec_opts_t *opts);
 int ec_opts_add_observe(ec_opts_t *opts, uint16_t o);
+int ec_opts_add_block(ec_opts_t *opts, ec_opt_sym_t which, uint32_t num, 
+        bool more, uint8_t szx);
 int ec_opts_add_block1(ec_opts_t *opts, uint32_t num, bool more,
         uint8_t szx);
 int ec_opts_add_block2(ec_opts_t *opts, uint32_t num, bool more,
@@ -127,6 +129,7 @@ int ec_opts_get_block1(ec_opts_t *opts, uint32_t *num, bool *more,
         uint8_t *szx);
 int ec_opts_get_block2(ec_opts_t *opts, uint32_t *num, bool *more,
         uint8_t *szx);
+int ec_opts_get_observe(ec_opts_t *opts, uint16_t *obs);
 
 int ec_opt_decode_uint(const uint8_t *v, size_t l, uint64_t *ui);
 int ec_opt_encode_uint(uint64_t ui, uint8_t *e, size_t *elen);

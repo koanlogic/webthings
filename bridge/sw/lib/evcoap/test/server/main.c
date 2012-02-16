@@ -5,6 +5,7 @@
 #include <u/libu.h>
 
 #include "evcoap_filesys.h"
+#include "evcoap_observe.h"
 
 int facility = LOG_LOCAL0;
 
@@ -399,20 +400,20 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
     ec_mt_t mta[16];
     size_t mta_sz = sizeof mta / sizeof(ec_mt_t);
     ec_rep_t *rep;
-    const char *url;
 
     u_unused_args(u0, u1, u2);
 
-    /* Get the requested URI and method (GET only at present.) */
-    con_err_ifm (!(url = ec_server_get_url(srv)), "no URL (!)");
+    /* Get the requested URI and method. */
+    const char *url = ec_server_get_url(srv);
 
+    CHAT("GET %s", url);
+
+    /* Do not accept verbs different from GET (this may obviously change.) */
     if (ec_server_get_method(srv) != EC_GET)
     {
         (void) ec_response_set_code(srv, EC_NOT_IMPLEMENTED); 
         goto end;
     }
-
-    CHAT("requested resource is '%s'", url);
     
     /* Get Accept'able media types. */
     con_err_if (ec_request_get_acceptable_media_types(srv, mta, &mta_sz));
@@ -420,6 +421,7 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
     /* Try to retrieve a representation that fits client request. */
     rep = ec_filesys_get_suitable_rep(g_ctx.fs, url, mta, mta_sz, NULL);
 
+    /* If found, craft the response. */
     if (rep)
     {
         /* Set response code, payload, etag and content-type. */
@@ -427,6 +429,24 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
         (void) ec_response_set_payload(srv, rep->data, rep->data_sz);
         (void) ec_response_add_etag(srv, rep->etag, sizeof rep->etag);
         (void) ec_response_add_content_type(srv, rep->media_type);
+
+        /* Add max-age if != from default. */
+        if (rep->max_age != EC_COAP_DEFAULT_MAX_AGE)
+            (void) ec_response_add_max_age(srv, rep->max_age);
+
+        /* See if the client asked for Observing the resource. */
+        if (ec_request_get_observe(srv) == 0)
+        {
+            /* Add a NON notifier attached to ob_serve callback. */
+            if (!ec_add_observer(srv, NULL, NULL, rep->max_age, 
+                        rep->media_type, EC_NON, rep->etag, sizeof rep->etag))
+            {
+                /* TODO get counter from time */
+                (void) ec_response_add_observe(srv, 0);
+            }
+            else
+                u_dbg("could not add requested observation");
+        }
     }
     else
         (void) ec_response_set_code(srv, EC_NOT_FOUND);
@@ -436,4 +456,6 @@ end:
 err:
     return EC_CBRC_ERROR;
 }
+
+
 

@@ -27,6 +27,7 @@ struct ec_pdu_s
 
     struct ec_opts_s opts;
 
+    /* Per-PDU peer: it is set in case flow->conn.is_multicast == true. */
     struct sockaddr_storage peer;
 
     /* Set in reply PDU to refer to the message that initiated the exchange. */
@@ -43,6 +44,7 @@ int ec_pdu_set_payload(ec_pdu_t *pdu, uint8_t *payload, size_t sz);
 int ec_pdu_set_flow(ec_pdu_t *pdu, ec_flow_t *flow);
 int ec_pdu_set_peer(ec_pdu_t *pdu, const struct sockaddr_storage *peer);
 int ec_pdu_set_sibling(ec_pdu_t *pdu, ec_pdu_t *sibling);
+struct sockaddr_storage *ec_pdu_get_peer(ec_pdu_t *pdu);
 int ec_pdu_get_type(ec_pdu_t *pdu, uint8_t *t);
 int ec_pdu_get_mid(ec_pdu_t *pdu, uint16_t *mid);
 int ec_pdu_init_options(ec_pdu_t *pdu);

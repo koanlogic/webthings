@@ -10,6 +10,7 @@ typedef struct
     evutil_socket_t socket;
     struct event *ev_input;
     struct sockaddr_storage us;
+    struct sockaddr_storage peer;
     bool is_multicast;
     char is_confirmable;    /* 0: unset, 1: CON, 2: NON */
     bool use_proxy;

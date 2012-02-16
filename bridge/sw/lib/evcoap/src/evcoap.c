@@ -146,11 +146,8 @@ int ec_register_fb(ec_t *coap, ec_server_cb_t fb, void *fb_args)
     return 0;
 }
 
-/**
- *  \brief  TODO
- */
-int ec_request_set_block1(ec_client_t *cli, uint32_t bnum, bool more,
-        size_t bsz)
+static int ec_request_set_block(ec_client_t *cli, ec_opt_sym_t which, 
+        uint32_t bnum, bool more, size_t bsz)
 {
     ec_opts_t *opts;
     size_t sz;
@@ -158,13 +155,14 @@ int ec_request_set_block1(ec_client_t *cli, uint32_t bnum, bool more,
     uint64_t tmp;
 
     dbg_err_if (cli == NULL);
+    dbg_return_if (which != EC_OPT_BLOCK1 && which != EC_OPT_BLOCK2, -1);
     dbg_err_if (more != true && more != false);
     dbg_err_if (bsz < EC_COAP_BLOCK_MIN || bsz > EC_COAP_BLOCK_MAX);
     dbg_err_if ((bsz & (~bsz + 1)) != bsz);  /* not a power of 2 */
 
     dbg_err_if ((opts = ec_client_get_request_options(cli)) == NULL);
 
-    dbg_err_ifm (ec_opts_get_uint(opts, EC_OPT_BLOCK1, &tmp) == 0,
+    dbg_err_ifm (ec_opts_get_uint(opts, which, &tmp) == 0,
             "Block Option MUST NOT occur more than once");
 
     for (i = 0, sz = EC_COAP_BLOCK_MIN; sz <= EC_COAP_BLOCK_MAX; i++, sz <<= 1)
@@ -175,7 +173,7 @@ int ec_request_set_block1(ec_client_t *cli, uint32_t bnum, bool more,
         }
     dbg_err_if (sz > EC_COAP_BLOCK_MAX);
 
-    dbg_err_if (ec_opts_add_block1(opts, bnum, more, szx));
+    dbg_err_if (ec_opts_add_block(opts, which, bnum, more, szx));
 
     return 1;
 err:
@@ -185,37 +183,19 @@ err:
 /**
  *  \brief  TODO
  */
+int ec_request_set_block1(ec_client_t *cli, uint32_t bnum, bool more,
+        size_t bsz)
+{
+    return ec_request_set_block(cli, EC_OPT_BLOCK1, bnum, more, bsz);
+}
+
+/**
+ *  \brief  TODO
+ */
 int ec_request_set_block2(ec_client_t *cli, uint32_t bnum, bool more,
         size_t bsz)
 {
-    ec_opts_t *opts;
-    size_t sz;
-    uint8_t i, szx;
-    uint64_t tmp;
-
-    dbg_err_if (cli == NULL);
-    dbg_err_if (more != true && more != false);
-    dbg_err_if (bsz < EC_COAP_BLOCK_MIN || bsz > EC_COAP_BLOCK_MAX);
-    dbg_err_if ((bsz & (~bsz + 1)) != bsz);  /* not a power of 2 */
-
-    dbg_err_if ((opts = ec_client_get_request_options(cli)) == NULL);
-
-    dbg_err_ifm (ec_opts_get_uint(opts, EC_OPT_BLOCK2, &tmp) == 0,
-            "Block Option MUST NOT occur more than once");
-
-    for (i = 0, sz = EC_COAP_BLOCK_MIN; sz <= EC_COAP_BLOCK_MAX; i++, sz <<= 1)
-        if (bsz == sz)
-        {
-            szx = i;
-            break;
-        }
-    dbg_err_if (sz > EC_COAP_BLOCK_MAX);
-
-    dbg_err_if (ec_opts_add_block2(opts, bnum, more, szx));
-
-    return 1;
-err:
-    return -1;
+    return ec_request_set_block(cli, EC_OPT_BLOCK2, bnum, more, bsz);
 }
 
 /**
@@ -258,6 +238,18 @@ int ec_request_get_acceptable_media_types(ec_server_t *srv, ec_mt_t *mta,
     ec_opts_t *opts = &req->opts;
 
     return ec_opts_get_accept_all(opts, mta, mta_sz);
+}
+
+int ec_request_get_observe(ec_server_t *srv)
+{
+    ec_pdu_t *req;
+
+    dbg_return_if (srv == NULL, -1);
+    dbg_return_if ((req = srv->req) == NULL, -1);
+
+    ec_opts_t *opts = &req->opts;
+
+    return ec_opts_get_observe(opts, NULL);
 }
 
 /**
@@ -540,6 +532,36 @@ int ec_response_set_payload(ec_server_t *srv, uint8_t *payload, size_t sz)
     ec_pdu_t *res = srv->res;
 
     return ec_pdu_set_payload(res, payload, sz);
+}
+
+/**
+ *  \brief  TODO
+ */
+int ec_response_add_max_age(ec_server_t *srv, uint32_t max_age)
+{
+    ec_pdu_t *res;
+
+    dbg_return_if (srv == NULL, -1);
+    dbg_return_if ((res = srv->res) == NULL, -1);
+
+    ec_opts_t *opts = &res->opts;
+
+    return ec_opts_add_max_age(opts, max_age);
+}
+
+/**
+ *  \brief  TODO
+ */
+int ec_response_add_observe(ec_server_t *srv, uint16_t o)
+{
+    ec_pdu_t *res;
+
+    dbg_return_if (srv == NULL, -1);
+    dbg_return_if ((res = srv->res) == NULL, -1);
+
+    ec_opts_t *opts = &res->opts;
+
+    return ec_opts_add_observe(opts, o);
 }
 
 /**

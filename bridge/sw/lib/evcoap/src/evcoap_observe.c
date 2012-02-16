@@ -7,6 +7,7 @@ static ec_observer_t *ec_observer_new(const uint8_t *token, size_t token_sz,
 static int ec_observer_add(ec_observation_t *obs, const uint8_t *token,
         size_t token_sz, const uint8_t *etag, size_t etag_sz, ec_mt_t mt, 
         ec_msg_model_t mm, const ec_conn_t *conn);
+static ec_observer_t *ec_observer_search(ec_observation_t *obs, ec_conn_t *cn);
 static void ec_observer_free(ec_observer_t *ovr);
 static int ec_observer_push(ec_observation_t *obs, ec_observer_t *ovr);
 static ec_observation_t *ec_observation_search(ec_t *coap, const char *uri);
@@ -14,6 +15,8 @@ static ec_observation_t *ec_observation_add(ec_t *coap, const char *uri,
         ec_observe_cb_t cb, void *cb_args, uint32_t max_age);
 ec_observation_t *ec_observation_new(const char *uri, ec_observe_cb_t cb, 
         void *cb_args, uint32_t max_age);
+static bool ec_source_match(const ec_conn_t *req_src, const ec_conn_t *obs_src);
+static int ec_source_copy(const ec_conn_t *src, ec_conn_t *dst);
 
 static ec_observer_t *ec_observer_new(const uint8_t *token, size_t token_sz, 
         const uint8_t *etag, size_t etag_sz, ec_mt_t media_type, 
@@ -36,9 +39,8 @@ static ec_observer_t *ec_observer_new(const uint8_t *token, size_t token_sz,
     ovr->media_type = media_type;
     ovr->msg_model = msg_model;
 
-    /* TODO 
-     * TODO copy-in the connection object (deep or shallow ?)
-     * TODO */
+    /* Copy-in the needed bits from the connection object. */
+    dbg_err_if (ec_source_copy(conn, &ovr->conn));
 
     return ovr;
 err:
@@ -61,7 +63,59 @@ static int ec_observer_add(ec_observation_t *obs, const uint8_t *token,
 
     return 0;
 err:
+    if (ovr)
+        ec_observer_free(ovr);
     return -1;
+}
+
+static int ec_source_copy(const ec_conn_t *src, ec_conn_t *dst)
+{
+    dbg_return_if (src == NULL, -1);
+    dbg_return_if (dst == NULL, -1);
+
+    memcpy(&dst->peer, &src->peer, sizeof dst->peer);
+
+    /* TODO copy in security context. */
+
+    return 0;
+}
+
+static bool ec_source_match(const ec_conn_t *req_src, const ec_conn_t *obs_src)
+{
+    uint8_t peer_len;
+
+    dbg_return_if (req_src == NULL, false);
+    dbg_return_if (obs_src == NULL, false);
+
+    dbg_err_if (ec_net_socklen(&req_src->peer, &peer_len));
+
+    /* The source of a request is determined by the security mode used: with 
+     * NoSec, it is determined by the source IP address and UDP port number. */
+    if (!memcmp(&req_src->peer, &obs_src->peer, peer_len))
+        return true;
+
+    /* With other security modes, the source is also determined by the security
+     * context. (TODO) */
+
+    /* Fall through. */
+err:
+    return false;
+}
+
+static ec_observer_t *ec_observer_search(ec_observation_t *obs, ec_conn_t *conn)
+{
+    ec_observer_t *ovr;
+
+    dbg_return_if (obs == NULL, NULL);
+    dbg_return_if (conn == NULL, NULL);
+
+    TAILQ_FOREACH(ovr, &obs->observers, next)
+    {
+        if (ec_source_match(conn, &ovr->conn))
+            return ovr;
+    }
+
+    return NULL;
 }
 
 static void ec_observer_free(ec_observer_t *ovr)
@@ -151,16 +205,14 @@ int ec_add_observer(ec_server_t *srv, ec_observe_cb_t cb, void *cb_args,
         uint32_t max_age, ec_mt_t mt, ec_msg_model_t mm, const uint8_t *etag, 
         size_t etag_sz)
 {
-    ec_t *coap;
-    ec_flow_t *flow;
-    ec_observation_t *obs = NULL, *new = NULL;
+    ec_observation_t *obs, *new = NULL;
 
     dbg_return_if (srv == NULL, -1);
     dbg_return_if (cb == NULL, -1);
 
-    /* Shortcuts (assert included.) */
-    dbg_err_if ((coap = srv->base) == NULL);
-    dbg_err_if ((flow = &srv->flow) == NULL);
+    /* Shortcuts (should they be assert'd?) */
+    ec_t *coap = srv->base;
+    ec_flow_t *flow = &srv->flow;
 
     /* Check whether this resource is already observed. */
     if ((obs = ec_observation_search(coap, flow->urlstr)) == NULL)
@@ -183,8 +235,22 @@ err:
 
 int ec_rem_observer(ec_server_t *srv)
 {
+    ec_observer_t *ovr;
+    ec_observation_t *obs;
+
     dbg_return_if (srv == NULL, -1);
-    u_con("TODO delete an observer for the given resource");
+
+    ec_flow_t *flow = &srv->flow;   /* shortcut */
+    ec_t *coap = srv->base;         /* ditto */
+
+    /* It's fine if the requested observation is not active, or there is no
+     * such observer.  Just leave a trace in the (debug) log. */
+    dbg_return_if (!(obs = ec_observation_search(coap, flow->urlstr)), 0);
+    dbg_return_if (!(ovr = ec_observer_search(obs, &flow->conn)), 0);
+
+    TAILQ_REMOVE(&obs->observers, ovr, next);
+    ec_observer_free(ovr);
+
     return 0;
 }
 

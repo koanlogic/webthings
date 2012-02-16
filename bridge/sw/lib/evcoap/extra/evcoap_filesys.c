@@ -77,17 +77,10 @@ int ec_filesys_del_resource(ec_filesys_t *filesys, const char *uri)
 ec_rep_t *ec_filesys_get_rep(ec_filesys_t *fs, const char *uri, 
         ec_mt_t media_type, const ev_uint8_t *etag)
 {
-    ec_res_t *res;
     ec_mt_t mta[1] = { [0] = media_type };
     size_t mta_sz = sizeof mta / sizeof(ec_mt_t);
 
-    dbg_return_if (fs == NULL, NULL);
-    dbg_return_if (uri == NULL || *uri == '\0', NULL);
-
-    /* Lookup resource. */
-    dbg_return_if ((res = u_hmap_easy_get(fs->map, uri)) == NULL, NULL);
-
-    return ec_resource_get_suitable_rep(res, uri, mta, mta_sz, etag);
+    return ec_filesys_get_suitable_rep(fs, uri, mta, mta_sz, etag);
 }
 
 ec_rep_t *ec_filesys_get_suitable_rep(ec_filesys_t *fs, const char *uri,

@@ -13,7 +13,7 @@ ec_res_t *ec_resource_new(const char *uri, uint32_t max_age)
 
     dbg_err_sif ((res = u_zalloc(sizeof *res)) == NULL);
     dbg_err_if (u_strlcpy(res->uri, uri, sizeof res->uri));
-    res->max_age = max_age ? max_age : 60;
+    res->max_age = max_age ? max_age : EC_COAP_DEFAULT_MAX_AGE;
     TAILQ_INIT(&res->reps);
 
     return res;
@@ -54,6 +54,9 @@ int ec_resource_add_rep(ec_res_t *res, const uint8_t *data, size_t data_sz,
     /* Return the ETag to the caller. */
     if (etag)
         memcpy(etag, rep->etag, EC_ETAG_SZ);
+
+    /* Clone the max_age attribute from the parent resource. */
+    rep->max_age = res->max_age;
 
     /* Stick the created representation to its parent resource. */
     TAILQ_INSERT_TAIL(&res->reps, rep, next);

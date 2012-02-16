@@ -23,6 +23,9 @@ extern "C" {
 #define EC_COAP_MAX_OPTIONS 15
 #define EC_COAP_HDR_SIZE    4
 
+/* Max-age default. */
+#define EC_COAP_DEFAULT_MAX_AGE 60
+
 /* Block Options size range. */
 #define EC_COAP_BLOCK_MIN   (1 << 4)
 #define EC_COAP_BLOCK_MAX   (1 << 10)

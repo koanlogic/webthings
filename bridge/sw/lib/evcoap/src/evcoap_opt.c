@@ -12,8 +12,6 @@ static int compose_uri(ec_opts_t *opts, struct sockaddr_storage *us,
 static size_t fenceposts_encsz(size_t cur, size_t last);
 static uint8_t *add_fenceposts(ec_opts_t *opts, uint8_t *p, size_t cur, 
         size_t *delta);
-static int ec_opts_add_block(ec_opts_t *opts, ec_opt_sym_t which,
-        uint32_t num, bool more, uint8_t szx);
 static int ec_opts_get_block(ec_opts_t *opts, uint32_t *num, bool *more,
         uint8_t *szx, ec_opt_sym_t which);
 
@@ -838,6 +836,27 @@ int ec_opts_get_if_none_match(ec_opts_t *opts)
     return ec_opts_get(opts, EC_OPT_IF_NONE_MATCH) ? 0 : -1;
 }
 
+/* "The Observe Option MUST NOT occur more than once in a request or 
+ * response." (be liberal when receiving) */
+int ec_opts_get_observe(ec_opts_t *opts, uint16_t *obs)
+{
+    uint64_t tmp;
+
+    dbg_return_if (opts == NULL, -1);
+
+    if (ec_opts_get_uint(opts, EC_OPT_OBSERVE, &tmp))
+        return -1;
+
+    dbg_err_ifm (tmp > EV_UINT16_MAX, "Observe encoding overflow");
+
+    if (obs)
+        *obs = (uint16_t) tmp;
+
+    return 0;
+err:
+    return -1;
+}
+
 /* It MUST NOT occur more than once in a response, and MAY occur one or more 
  * times in a request. 
  * TODO rephrase this routine to resemble ec_opts_get_accept_all(). */
@@ -1085,8 +1104,8 @@ static size_t fenceposts_encsz(size_t cur, size_t last)
     return fpsz;
 }
 
-static int ec_opts_add_block(ec_opts_t *opts, ec_opt_sym_t which,
-        uint32_t num, bool more, uint8_t szx)
+int ec_opts_add_block(ec_opts_t *opts, ec_opt_sym_t which, uint32_t num, 
+        bool more, uint8_t szx)
 {
     uint32_t b = 0;
 

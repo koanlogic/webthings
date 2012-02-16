@@ -12,9 +12,10 @@
 typedef struct ec_rep_s
 {
     ec_mt_t media_type;
-    uint8_t etag[EC_ETAG_SZ]; /* Automatically computed at insert time. */
+    uint8_t etag[EC_ETAG_SZ];   /* Automatically computed at insert time. */
     uint8_t *data;
     size_t data_sz;
+    uint32_t max_age;           /* Cloned from the parent resource. */
     TAILQ_ENTRY(ec_rep_s) next;
 } ec_rep_t;
 
