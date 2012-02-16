@@ -388,7 +388,7 @@ int ec_opts_get_uri_port(ec_opts_t *opts, uint16_t *port)
     if (ec_opts_get_uint(opts, EC_OPT_URI_PORT, &tmp))
         return -1;
 
-    dbg_err_ifm (tmp > EV_UINT16_MAX, "Uri-Port encoding overflow");
+    dbg_err_ifm (tmp > UINT16_MAX, "Uri-Port encoding overflow");
 
     *port = (uint16_t) tmp;
 
@@ -806,7 +806,7 @@ int ec_opts_get_content_type(ec_opts_t *opts, uint16_t *ct)
     if (ec_opts_get_uint(opts, EC_OPT_CONTENT_TYPE, &tmp))
         return -1;
 
-    dbg_err_ifm (tmp > EV_UINT16_MAX, "Content-Type encoding overflow");
+    dbg_err_ifm (tmp > UINT16_MAX, "Content-Type encoding overflow");
 
     *ct = (uint16_t) tmp;
 
@@ -837,7 +837,7 @@ int ec_opts_get_if_none_match(ec_opts_t *opts)
 }
 
 /* "The Observe Option MUST NOT occur more than once in a request or 
- * response." (be liberal when receiving) */
+ * response." (we are liberal on receiving) */
 int ec_opts_get_observe(ec_opts_t *opts, uint16_t *obs)
 {
     uint64_t tmp;
@@ -847,10 +847,29 @@ int ec_opts_get_observe(ec_opts_t *opts, uint16_t *obs)
     if (ec_opts_get_uint(opts, EC_OPT_OBSERVE, &tmp))
         return -1;
 
-    dbg_err_ifm (tmp > EV_UINT16_MAX, "Observe encoding overflow");
+    dbg_err_ifm (tmp > UINT16_MAX, "Observe encoding overflow");
 
     if (obs)
         *obs = (uint16_t) tmp;
+
+    return 0;
+err:
+    return -1;
+}
+
+int ec_opts_get_max_age(ec_opts_t *opts, uint32_t *max_age)
+{
+    uint64_t tmp;
+
+    dbg_return_if (opts == NULL, -1);
+    dbg_return_if (max_age == NULL, -1);
+
+    if (ec_opts_get_uint(opts, EC_OPT_MAX_AGE, &tmp))
+        return -1;
+
+    dbg_err_ifm (tmp > UINT32_MAX, "Max-age encoding overflow");
+
+    *max_age = (uint32_t) tmp;
 
     return 0;
 err:

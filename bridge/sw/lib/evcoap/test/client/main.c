@@ -145,7 +145,8 @@ void cb(ec_client_t *cli)
     if (rc == EC_CONTENT)
     {
         uint8_t *pl;
-        uint32_t bnum;
+        uint16_t o_serial;
+        uint32_t bnum, max_age;
         size_t pl_sz;
 
         /* Get response payload. */
@@ -165,6 +166,19 @@ void cb(ec_client_t *cli)
         /* Save payload to file. */
         con_err_sifm (client_save_to_file(pl, pl_sz),
                 "payload could not be saved");
+
+        /* See if we've been added to the notification list for the
+         * requested resource. */
+        if (g_ctx.observe &&
+                ec_response_get_observe(cli, &o_serial) == 0)
+        {
+            dbg_err_if (ec_response_get_max_age(cli, &max_age));
+            CHAT("waiting next notification in %u seconds", max_age);
+
+            /* Return here, without breaking the event loop since we
+             * need to be called back again on next notification. */
+            return;
+        }
     }
 
     /* Fall through. */

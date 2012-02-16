@@ -130,6 +130,7 @@ int ec_opts_get_block1(ec_opts_t *opts, uint32_t *num, bool *more,
 int ec_opts_get_block2(ec_opts_t *opts, uint32_t *num, bool *more,
         uint8_t *szx);
 int ec_opts_get_observe(ec_opts_t *opts, uint16_t *obs);
+int ec_opts_get_max_age(ec_opts_t *opts, uint32_t *max_age);
 
 int ec_opt_decode_uint(const uint8_t *v, size_t l, uint64_t *ui);
 int ec_opt_encode_uint(uint64_t ui, uint8_t *e, size_t *elen);

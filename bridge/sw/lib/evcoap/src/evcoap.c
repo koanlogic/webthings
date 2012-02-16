@@ -307,6 +307,32 @@ err:
     return -1;
 }
 
+int ec_response_get_observe(ec_client_t *cli, uint16_t *o)
+{
+    ec_opts_t *opts;
+
+    dbg_return_if (cli == NULL, -1);
+
+    nop_err_if ((opts = ec_client_get_response_options(cli)) == NULL);
+
+    return ec_opts_get_observe(opts, o);
+err:
+    return  -1;
+}
+
+int ec_response_get_max_age(ec_client_t *cli, uint32_t *max_age)
+{
+    ec_opts_t *opts;
+
+    dbg_return_if (cli == NULL, -1);
+
+    nop_err_if ((opts = ec_client_get_response_options(cli)) == NULL);
+
+    return ec_opts_get_max_age(opts, max_age);
+err:
+    return  -1;
+}
+
 int ec_response_get_block1(ec_client_t *cli, uint32_t *bnum, bool *more,
         size_t *bsz)
 {
