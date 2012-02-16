@@ -41,7 +41,7 @@ void process_http_request(struct evhttp_request *req, void *arg)
     (void) u_snprintf(huri, sizeof huri, "http://%s%s", 
             evhttp_find_header(req->input_headers, "Host"), hpath);
 
-u_con("requested URI: %s", huri);
+    u_con("requested URI: %s", huri);
 
     con_err_if (u_uri_crumble(huri, 0, &u));
 
@@ -56,8 +56,12 @@ u_con("requested URI: %s", huri);
     con_err_if ((ccli = ec_request_new(coap, EC_GET, curi, EC_CON)) == NULL);
     con_err_if (ec_request_send(ccli, process_coap_response, req, &tout));
 
+    u_uri_free(u);
+
     return;
 err:
+    if (u)
+        u_uri_free(u);
     if (ccli)
         ec_client_free(ccli);
     return;
