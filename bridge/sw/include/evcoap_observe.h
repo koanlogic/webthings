@@ -13,7 +13,8 @@ extern "C" {
 
 /* Callback to be invoked to produce the resource representation(s) associated 
  * to the observed resource. */
-typedef const uint8_t *(*ec_observe_cb_t)(const char *, ec_mt_t, size_t *);
+typedef const uint8_t *(*ec_observe_cb_t)(const char *, ec_mt_t, size_t *, 
+        void *);
 
 struct ec_observer_s
 {
@@ -34,6 +35,9 @@ struct ec_observer_s
     /* Peer/end-point identification. */
     ec_conn_t conn;
 
+    ec_observe_cb_t reps_cb;    /* Callback used for resource creation. */
+    void *reps_cb_args;
+
     /* Next observer for this resource. */
     TAILQ_ENTRY(ec_observer_s) next;
 };
@@ -43,11 +47,9 @@ typedef struct ec_observer_s ec_observer_t;
 struct ec_observation_s
 {
     char uri[EC_URI_MAX];       /* Observed resource identifier. */
-    ec_observe_cb_t reps_cb;    /* Callback used for resource creation. */
-    void *reps_cb_args;
     ec_res_t *cached_res;       /* Cached resource (with representations.) */
     uint32_t max_age;           /* Resource reload+notification timeout. */
-                                /* TODO timer */
+    struct event *notify;       /* Notification timer. */
 
     TAILQ_HEAD(, ec_observer_s) observers;  /* Peers observing this resource. */
     TAILQ_ENTRY(ec_observation_s) next;         /* Next observed resource. */

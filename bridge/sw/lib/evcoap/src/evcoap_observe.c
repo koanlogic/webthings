@@ -1,26 +1,58 @@
+#include "evcoap.h"
 #include "evcoap_base.h"
 #include "evcoap_observe.h"
 
 static ec_observer_t *ec_observer_new(const uint8_t *token, size_t token_sz, 
         const uint8_t *etag, size_t etag_sz, ec_mt_t media_type, 
-        ec_msg_model_t msg_model, const ec_conn_t *conn);
-static int ec_observer_add(ec_observation_t *obs, const uint8_t *token,
-        size_t token_sz, const uint8_t *etag, size_t etag_sz, ec_mt_t mt, 
-        ec_msg_model_t mm, const ec_conn_t *conn);
+        ec_msg_model_t msg_model, const ec_conn_t *conn, ec_observe_cb_t cb, 
+        void *args);
+static int ec_observer_add(ec_observation_t *obs, const uint8_t *tok,
+        size_t tok_sz, const uint8_t *etag, size_t etag_sz, ec_mt_t mt, 
+        ec_msg_model_t mm, const ec_conn_t *conn, ec_observe_cb_t cb, 
+        void *args);
 static ec_observer_t *ec_observer_search(ec_observation_t *obs, ec_conn_t *cn);
 static void ec_observer_free(ec_observer_t *ovr);
 static ec_observation_t *ec_observation_search(ec_t *coap, const char *uri);
 static ec_observation_t *ec_observation_add(ec_t *coap, const char *uri, 
-        ec_observe_cb_t cb, void *cb_args, uint32_t max_age);
-ec_observation_t *ec_observation_new(const char *uri, ec_observe_cb_t cb, 
-        void *cb_args, uint32_t max_age);
+        uint32_t max_age);
+static ec_observation_t *ec_observation_new(ec_t *coap, const char *uri, 
+        uint32_t max_age);
+static void ec_observation_free(ec_observation_t *obs);
+static int ec_observation_start(ec_observation_t *obs);
 static bool ec_source_match(const ec_conn_t *req_src, const ec_conn_t *obs_src);
 static int ec_source_copy(const ec_conn_t *src, ec_conn_t *dst);
+
+static void ec_ob_cb(evutil_socket_t u0, short u1, void *c)
+{
+    const uint8_t *p;
+    size_t p_sz;
+    uint16_t o_cnt;
+    ec_observer_t *ovr;
+    ec_observation_t *obs = (ec_observation_t *) c;
+
+    dbg_err_if (ec_get_observe_counter(&o_cnt));
+
+    TAILQ_FOREACH(ovr, &obs->observers, next)
+    {
+        /* Ask the user to produce the new resouce representation payload. */
+        p = ovr->reps_cb(obs->uri, ovr->media_type, &p_sz, ovr->reps_cb_args);
+
+        /* Create new ad-hoc PDU */
+
+        /* Fill PDU with needed bits. */
+
+        /* Send PDU depending on ovr->msg_model. */
+    }
+
+err:
+    return;
+}
 
 /* Create new observer. */
 static ec_observer_t *ec_observer_new(const uint8_t *token, size_t token_sz, 
         const uint8_t *etag, size_t etag_sz, ec_mt_t media_type, 
-        ec_msg_model_t msg_model, const ec_conn_t *conn)
+        ec_msg_model_t msg_model, const ec_conn_t *conn, ec_observe_cb_t cb, 
+        void *cb_args)
 {
     ec_observer_t *ovr = NULL;
 
@@ -42,6 +74,11 @@ static ec_observer_t *ec_observer_new(const uint8_t *token, size_t token_sz,
     /* Copy-in the needed bits from the connection object. */
     dbg_err_if (ec_source_copy(conn, &ovr->conn));
 
+    /* Attach user provided callback that will create the updated resource
+     * representation. */
+    ovr->reps_cb = cb;
+    ovr->reps_cb_args = cb_args;
+
     return ovr;
 err:
     if (ovr)
@@ -50,16 +87,17 @@ err:
 }
 
 /* Attach observer to the parent observation. */
-static int ec_observer_add(ec_observation_t *obs, const uint8_t *token,
-        size_t token_sz, const uint8_t *etag, size_t etag_sz, ec_mt_t mt, 
-        ec_msg_model_t mm, const ec_conn_t *conn)
+static int ec_observer_add(ec_observation_t *obs, const uint8_t *tok,
+        size_t tok_sz, const uint8_t *etag, size_t etag_sz, ec_mt_t mt, 
+        ec_msg_model_t mm, const ec_conn_t *conn, ec_observe_cb_t cb, 
+        void *args)
 {
     ec_observer_t *ovr;
 
     dbg_return_if (obs == NULL, -1);
 
     /* Create a new observer given the supplied parameters. */
-    ovr = ec_observer_new(token, token_sz, etag, etag_sz, mt, mm, conn);
+    ovr = ec_observer_new(tok, tok_sz, etag, etag_sz, mt, mm, conn, cb, args);
     dbg_return_ifm (ovr == NULL, -1, "observer creation failed");
 
     /* Add the observer to the parent observation. */
@@ -145,18 +183,17 @@ static ec_observation_t *ec_observation_search(ec_t *coap, const char *uri)
 }
 
 /* Create a new parent observation. */
-ec_observation_t *ec_observation_new(const char *uri, ec_observe_cb_t cb, 
-        void *cb_args, uint32_t max_age)
+static ec_observation_t *ec_observation_new(ec_t *coap, const char *uri,
+        uint32_t max_age)
 {
     ec_observation_t *obs = NULL;
 
-    dbg_return_if (cb == NULL, NULL);
-
     dbg_err_if ((obs = u_zalloc(sizeof *obs)) == NULL);
     dbg_err_if (u_strlcpy(obs->uri, uri, sizeof obs->uri));
-    obs->reps_cb = cb;
-    obs->reps_cb_args = cb_args;
-    obs->max_age = max_age; /* TODO set a default max_age in case == 0 */
+    obs->max_age = max_age ? max_age : EC_COAP_DEFAULT_MAX_AGE;
+
+    /* Add timer. */
+    dbg_err_if ((obs->notify = evtimer_new(coap->base, ec_ob_cb, obs)) == NULL);
 
     TAILQ_INIT(&obs->observers);
 
@@ -167,19 +204,38 @@ err:
 
 /* Add a new observation to the base. */
 static ec_observation_t *ec_observation_add(ec_t *coap, const char *uri, 
-        ec_observe_cb_t cb, void *cb_args, uint32_t max_age)
+        uint32_t max_age)
 {
     ec_observation_t *obs;
 
     /* Let the creation interface check its own parameters. */
     dbg_return_if (coap == NULL, NULL);
  
-    obs = ec_observation_new(uri, cb, cb_args, max_age);
-    dbg_return_ifm (obs == NULL, NULL, "observation creation failure");
+    obs = ec_observation_new(coap, uri, max_age);
+    dbg_err_ifm (obs == NULL, "observation creation failure");
+
+    /* Start the countdown based on supplied resource max-age. */
+    dbg_err_if (ec_observation_start(obs));
 
     TAILQ_INSERT_TAIL(&coap->observing, obs, next);
 
     return obs;
+err:
+    if (obs)
+        ec_observation_free(obs);
+    return NULL;
+}
+
+/* Fire the observation countdown. */
+static int ec_observation_start(ec_observation_t *obs)
+{
+    dbg_return_if (obs == NULL, -1);
+
+    struct timeval tout = { .tv_sec = obs->max_age, .tv_usec = 0 };
+
+    dbg_return_if (evtimer_add(obs->notify, &tout), -1);
+
+    return 0;
 }
 
 /* Free resources allocated to the supplied observation and related observers */
@@ -225,13 +281,13 @@ int ec_add_observer(ec_server_t *srv, ec_observe_cb_t cb, void *cb_args,
     if ((obs = ec_observation_search(coap, flow->urlstr)) == NULL)
     {
         /* Create a new observe record and stick it to the base. */
-        new = ec_observation_add(coap, flow->urlstr, cb, cb_args, max_age);
+        new = ec_observation_add(coap, flow->urlstr, max_age);
         dbg_err_ifm (new == NULL, "could not observe %s", flow->urlstr);
     }
 
     /* Push the newly created observer to base. */
     dbg_err_if (ec_observer_add(obs ? obs : new, flow->token, flow->token_sz, 
-                etag, etag_sz, mt, mm, &flow->conn));
+                etag, etag_sz, mt, mm, &flow->conn, cb, cb_args));
 
     return 0;
 err:
