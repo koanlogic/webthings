@@ -750,7 +750,7 @@ static int ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     dbg_err_if (ec_res_set_add(&cli->res_set, res));
 
     /* Just before invoking the client callback, set state to DONE. */
-    if (ec_client_set_state(cli, EC_CLI_STATE_REQ_DONE) == 1);
+    if (ec_client_set_state(cli, EC_CLI_STATE_REQ_DONE) == 1)
         return EC_NET_CBRC_DEAD;
 
     return EC_NET_CBRC_SUCCESS;
