@@ -5,6 +5,8 @@
 <!ENTITY RFC2629 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2629.xml">
 <!ENTITY RFC3552 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.3552.xml">
 <!ENTITY I-D.narten-iana-considerations-rfc2434bis SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.narten-iana-considerations-rfc2434bis.xml">
+<!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-coap-08.xml">
+<!ENTITY I-D.ietf-core-observe SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-observe-04.xml">
 ]>
 <?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
 <?rfc strict="yes" ?>
@@ -55,11 +57,11 @@
     <keyword>CoAP, Monitor option, Update option, sleepy sensor</keyword>
 
     <abstract>
-      <t>This memo defines two additional options for the Constrained Application Protocol (CoAP): Monitor and Update.</t> 
+      <t>This memo defines two additional options for the Constrained Application Protocol (CoAP) especially targeted at sleepy sensors: Monitor and Update.</t>
       
-      <t>The first enables monitoring of a node sleeping most of the time without requiring the client pulling all the time.</t>
+      <t>The Monitor option enables the tracking of a resource hosted by a node sleeping most of the time, without requiring the client to constantly poll.</t>
 
-      <t>The latter enables opportunistic updates, driven by sleepy nodes, which actually MAY never need to listen.</t>
+      <t>The Update option enables opportunistic updates of a given resource state, driven by its (sleepy) origin, which may actually never need to listen.</t>
     </abstract>
   </front>
 
@@ -68,7 +70,7 @@
 
       <t>The proposal described in this memo covers the following use case: a node N, which is sleeping most of the time, depends one or more resources hosted at another sleepy node M. In cases as such, the probability of an empty intersection between their respective wake periods is very high, making it hard for the two to synchronize.</t>
 
-      <t>In this scenario, using the basic proxy functionality is not enough. In fact, if a cached resource at M becomes stale while M is sleeping, request from N could result in a 5.04 (Gateway Timeout) response code. Further, the basic observe pattern could lead to lost state updates in case N is offline while M pushes its notifications.</t>
+      <t>In this scenario, using the basic proxy functionality is not enough. In fact, if a cached resource at M becomes stale while M is sleeping, request from N could result in a 5.04 (Gateway Timeout) response code. Further, the basic observe pattern could lead to lost state updates in case N is offline while M pushes its notifications; further, the observation through a proxy may never start because its bootstrapping needs both client and origin awake at the same time.</t>
 
       <t>This memo introduces two extensions to the Proxy caching functionality that give the Proxy the ability to keep the freshest copy of a resource while its origin and clients may be offline. Conversely, clients and origins are provided the ability to both read and write the resource copy while the other party may be offline.</t>
 
@@ -83,7 +85,7 @@
 +-----+----------+---------+--------+--------+---------+
 | No. | C/E      | Name    | Format | Length | Default |
 +-----+----------+---------+--------+--------+---------+
-|  XX | Critical | Monitor | (none) | 0-1 B  |      0  |
+|  XX | Critical | Monitor | (none) | 0 B    | (none)  |
 |  YY | Critical | Update  | uint   | 0-8 B  | (none)  |
 +-----+----------+---------+--------+--------+---------+
         ]]></artwork>
@@ -91,44 +93,38 @@
 
       <section title="Monitor Option">
         <t>The Monitor option is used to ask a Proxy to keep a given resource fresh by continuously observing (polling, at worst) it, while the requesting node is sleeping. Thus the sleepy sensor can get the latest representation published by the monitored resource when it wakes up, even if the origin is sleeping.</t>
-  
+
+        <t>The Monitor option is a variant of the Observe option aimed at solving some problematic scenario that may occur when sleepy sensors are involved.  Imagine that the resource of interest is not in cache, and a sleepy endpoint wants to Observe it through the proxy.  If the origin of the requested resource is sleeping at the.</t>
+
         <t>The Monitor option is critical. If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the client.</t>
 	
-	<t>The Monitor option has a meaning on the request only.</t>
+      	<t>The Monitor option MUST be present in the request only.</t>
         
         <section title="Public Monitor Registration">
           <figure align="center" anchor="monitor_registration">
             <artwork align="left"><![CDATA[
 P        C
 |   PUT  | Proxy-URI: coap://sleepy.example.org/res
-|<-------+ Monitor: 0
+|<-------+ Monitor: <empty>
 |        | Max-Age: 86400
 |        | Content-type: application/json
 |  2.01  |
 +------->| Location-Path: temp
 |        | Location-Path: res
-|        | Etag: 420e420e
 |        |
             ]]></artwork>
           </figure>
-          <t>The client PUT's the resource to be monitored, identified by the Proxy-URI. The request message contains a Monitor option with no value or with value 0, and possibly specifies a TTL (i.e. an implicit de-registration indication) for the monitor through Max-Age. One or more content types for the acceptable representations of the resource are optionally specified via the Accept option.</t>
+          <t>The client PUT's the resource to be monitored, identified by the Proxy-URI. The request message contains an empty Monitor option, and possibly specifies a TTL (i.e. an explicit de-registration indication) for the monitor through Max-Age.  One or more content types for the acceptable representations of the resource are optionally specified via the Accept option.  In case no TTL is supplied, a default value of 3600 seconds is assumed.</t>
   
-          <t>If such a resource is not yet monitored publicly the operation creates a public monitor resource at the Proxy, that MUST be a carbon copy of one or more representations of the monitored resource.</t>
+          <t>If the resource for which the monitor creation is requested is not yet monitored (possibly by another endpoint), the operation creates a monitor resource at the Proxy, that MUST maintain a fresh carbon copy of one or more representations of the requested resource.</t>
 	  	  
-	  <t>Upon a successfull request the client MUST be returned a 2.01 response and one Etag. The Etag SHALL be unique per object.</t>
-	  
-	  <t>The proxy returns one or more location-path and/or location-query options to identify the new monitored resource instance.</t>
+        <t>If the monitor resource is successfully created, the server MUST return a 2.01 response containing one or more Location-Path and/or Location-Query options to identify the monitored resource instance.</t>
   
-	  <t>The Etag option value is stored and SHALL be used by the client to perform monitor de-registration.</t>
-  
-          <t>There may be multiple clients requesting a monitor on a same resource, with the same content-type, and those are coalesced into the same object.</t>
-	  
-	  <t>Different data representations, namely different content-type, are dealt by the proxy as different resources, but the proxy MAY even coalesce requests to the same resource with different content-types, provided it is able to perform application data conversion.</t>
-	  
-	  <t>For a given coalesced object a references list, containing Etags and (updated) Max-Ages, is kept.</t>
+    <t>Multiple monitor requests on a same resource are coalesced into the same monitor object.  For a given "coalesced" monitor object, a list containing client identities, their expiry and preferred media types is kept.  When reference count reaches 0 (because clients have explicitly deregistered the monitor, or monitor instance has expired), the corresponding monitor object is deleted.  Note that an underlying cache entry MAY still be kept in case the cached representation(s) are still fresh.</t>
 	  
         </section>
 
+<!--
         <section title="Private Monitor Registration">
           <figure align="center" anchor="private_monitor_registration">
             <artwork align="left"><![CDATA[
@@ -157,21 +153,20 @@ P        C
 	  <t>The location pointed by location-paths and/or location-query options MUST be unique.</t>
   
         </section>
-  
+ --> 
 
   
         <section title="Monitor De-registration">
-          <t>The monitor MUST be actually deleted at the Proxy when its associated references list is empty.</t>
+          <t>The monitor MUST be deleted at the Proxy when its associated references list is empty.</t>
   
-          <t>In order to save storage, a Proxy MAY decide to delete a monitor resource in case it has not been requested for a sufficiently long time.</t>
+          <t>In order to save storage, a Proxy MAY decide to delete a monitor resource in case it has not been requested for a sufficiently long time, or for any other reason.   Note that the proxy may also reboot and lose its state including the state associated to any monitored resource.</t>
   
           <section title="Explicit De-registration">
             <figure align="center" anchor="explicit_monitor_deregistration">
               <artwork align="left"><![CDATA[
 P        C
-| DELETE | Proxy-URI: coap://proxy.example.org/temp/res
-|<-------+ Monitor: <empty>
-|        | If-Match: 420e420e
+| DELETE | Path: temp
+|<-------+ Path: res
 |        |
 |  2.02  |
 +------->|
@@ -179,18 +174,18 @@ P        C
               ]]></artwork>
             </figure>
 	    
-	    <t>Explicit de-registration is performed by a client, with a DELETE carrying as options Monitor and If-Match, with the value got upon registration. If any, the entry in the references list with the matching Etag will be deleted.</t>
+	    <t>Explicit de-registration is performed by a client, with a DELETE on the URI returned by the proxy on the correspoding registration.</t>
 	    
           </section>
   
           <section title="Implicit De-registration">
-           <t>Implicit de-registration SHALL occur when the monitoring period specified by the client via Max-Age expires. If no Max-Age was supplied on registration, the client instance of the monitor MUST be de-registered explicitly.</t>
+           <t>Implicit de-registration MUST occur when the monitoring period specified by the client via Max-Age expires. If no Max-Age was supplied on registration.  If no Max-Age was supplied at registration time, a default of 3600 seconds MUST be assumed.</t>
           </section>
   
         </section>
   
         <section title="Resource Refresh">
-          <t>In order to minimize the number of messages used by the monitoring process, the Proxy SHOULD try to install an observation on the requested resource first. In case this attempt fails, the Proxy will fall back to repeated poll possibly driven by the Max-Age value indicated by the origin server. Usual cache validation MUST be applied to the cached copy of the monitored resource (CHECK THIS).</t>
+          <t>In order to minimize the number of messages used by the monitoring process, the Proxy SHOULD try to install an observation on the requested resource first. In case this attempt fails, the Proxy will fall back to repeated poll possibly driven by the Max-Age value indicated by the origin server. Usual cache validation MUST be applied to the cached copy of the monitored resource.</t>
         </section>
       </section>
   
@@ -200,18 +195,20 @@ P        C
         <figure align="center" anchor="gratuitous_update_option">
           <artwork align="left"><![CDATA[
 P        S
-|   PUT  |    Proxy-URI: coap://proxy.example.org/temp/res
-|<-------+       Update: 123456789
+|   PUT  | Proxy-URI: coap://thing.example.org/res
+|<-------+ Update: 123456789
 |    r   | Content-Type: ...
+|        | ETag: 0xabcd
+|        | Max-Age: 1200
 |        |
 |  2.01  | (or 2.04)
 +------->| 
 |        |
           ]]></artwork>
         </figure>
-        <t>The Origin Server publish one of its hosted resources, specified by the enclosed Proxy-URI, by PUT'ing it to the proxy. The Update option value is a monotonically increasing counter which hints the Proxy about the more recent version of the resource.</t>
-  
-        <t>[TODO PUT and ETags]</t>
+        <t>The Origin Server publish one of its hosted resources, specified by the enclosed Proxy-URI, by PUT'ing it to the proxy.</t>
+        
+        <t>The Update option value is a monotonically increasing counter which hints the Proxy about the more recent version of the resource.  ETag and Max-Age options MAY be supplied to hint the underlying cache.  If no Max-age is given, a default of 3600 seconds MUST be assumed.</t>
       </section>
   
     </section>
@@ -220,7 +217,7 @@ P        S
     <?rfc needLines="8" ?>
 
     <section anchor="Acknowledgements" title="Acknowledgements">
-      <t>.</t>
+      <t>[TBD]</t>
     </section>
 
     <section anchor="IANA" title="IANA Considerations">
@@ -272,7 +269,7 @@ P        S
     <t>
       <list style="hanging" hangIndent="6">
         <t hangText="Threat:">DoS on remote constrained resource via unneeded monitoring.</t>
-        <t hangText="Countermeasure:">...</t>
+        <t hangText="Countermeasure:">[TBD]</t>
       </list>
     </t>
 
@@ -284,6 +281,10 @@ P        S
   <back>
     <references title="Normative References">
       &RFC2119;
+      &I-D.ietf-core-coap;
+    </references>
+    <references title="Informative References">
+      &I-D.ietf-core-observe;
     </references>
   </back>
 </rfc>
