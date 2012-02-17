@@ -137,8 +137,9 @@ typedef enum
     EC_CLI_STATE_COAP_TIMEOUT,      /* F */
     EC_CLI_STATE_REQ_DONE,          /* F */
     EC_CLI_STATE_REQ_RST,           /* F */
+    EC_CLI_STATE_WAIT_NFY,
 
-    EC_CLI_STATE_MAX = EC_CLI_STATE_REQ_RST
+    EC_CLI_STATE_MAX = EC_CLI_STATE_WAIT_NFY
 } ec_cli_state_t;
 
 const char *ec_cli_state_str(ec_cli_state_t s);

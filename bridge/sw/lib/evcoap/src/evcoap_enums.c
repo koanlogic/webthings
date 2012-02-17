@@ -15,7 +15,8 @@ static const char *g_client_states[] =
     [EC_CLI_STATE_COAP_RETRY]   = "COAP RETRY",
     [EC_CLI_STATE_COAP_TIMEOUT] = "COAP TIMEOUT (FINAL)",
     [EC_CLI_STATE_REQ_DONE]     = "REQ DONE (FINAL)",
-    [EC_CLI_STATE_REQ_RST]      = "REQ RST (FINAL)"
+    [EC_CLI_STATE_REQ_RST]      = "REQ RST (FINAL)",
+    [EC_CLI_STATE_WAIT_NFY]     = "WAIT NOTIFICATION"
 };
 
 const char *ec_cli_state_str(ec_cli_state_t s)
