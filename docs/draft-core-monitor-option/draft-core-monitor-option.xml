@@ -54,14 +54,14 @@
     <area>General</area>
     <workgroup>Internet Engineering Task Force</workgroup>
 
-    <keyword>CoAP, Monitor option, Update option, sleepy sensor</keyword>
+    <keyword>CoAP, Monitor option, Publish option, sleepy sensor</keyword>
 
     <abstract>
-      <t>This memo defines two additional options for the Constrained Application Protocol (CoAP) especially targeted at sleepy sensors: Monitor and Update.</t>
+      <t>This memo defines two additional options for the Constrained Application Protocol (CoAP) especially targeted at sleepy sensors: Monitor and Publish.</t>
       
       <t>The Monitor option enables the tracking of a resource hosted by a node sleeping most of the time, without requiring the client to constantly poll.</t>
 
-      <t>The Update option enables opportunistic updates of a given resource state, driven by its (sleepy) origin, which may actually never need to listen.</t>
+      <t>The Publish option enables opportunistic updates of a given resource state, driven by its (sleepy) origin, which may actually never need to listen.</t>
     </abstract>
   </front>
 
@@ -86,7 +86,7 @@
 | No. | C/E      | Name    | Format | Length | Default |
 +-----+----------+---------+--------+--------+---------+
 |  XX | Critical | Monitor | (none) | 0 B    | (none)  |
-|  YY | Critical | Update  | uint   | 0-8 B  | (none)  |
+|  YY | Critical | Publish  | uint  | 0-8 B  | (none)  |
 +-----+----------+---------+--------+--------+---------+
         ]]></artwork>
       </figure>
@@ -189,14 +189,14 @@ P        C
         </section>
       </section>
   
-      <section title="Gratuitous Update Option">
+      <section title="Gratuitous Publish Option">
         <t>A new gratuitous response message to a Proxy is introduced to allow a sleepy sensor to use the Proxy as the rendez-vous point for sleepy node to sleepy node signalling.</t>
   
         <figure align="center" anchor="gratuitous_update_option">
           <artwork align="left"><![CDATA[
 P        S
 |   PUT  | Proxy-URI: coap://thing.example.org/res
-|<-------+ Update: 123456789
+|<-------+ Publish: 123456789
 |    r   | Content-Type: ...
 |        | ETag: 0xabcd
 |        | Max-Age: 1200
@@ -208,7 +208,7 @@ P        S
         </figure>
         <t>The Origin Server publish one of its hosted resources, specified by the enclosed Proxy-URI, by PUT'ing it to the proxy.</t>
         
-        <t>The Update option value is a monotonically increasing counter which hints the Proxy about the more recent version of the resource.  ETag and Max-Age options MAY be supplied to hint the underlying cache.  If no Max-age is given, a default of 3600 seconds MUST be assumed.</t>
+        <t>The Publish option value is a monotonically increasing counter which hints the Proxy about the more recent version of the resource.  ETag and Max-Age options MAY be supplied to hint the underlying cache.  If no Max-age is given, a default of 3600 seconds MUST be assumed.</t>
       </section>
   
     </section>
@@ -227,7 +227,7 @@ P        S
 .------------------------------.
 | Number | Name    | Reference |
 :--------:---------:-----------:
-|  2n+1  | Update  | RFC XXXX  |
+|  2n+1  | Publish | RFC XXXX  |
 +--------+---------+-----------+
 |  2m+1  | Monitor | RFC XXXX  |
 `------------------------------'
