@@ -94,7 +94,7 @@
       <section title="Monitor Option">
         <t>The Monitor option is used to ask a Proxy to keep a given resource fresh by continuously observing (polling, at worst) it, while the requesting node is sleeping. Thus the sleepy sensor can get the latest representation published by the monitored resource when it wakes up, even if the origin is sleeping.</t>
 
-        <t>The Monitor option is a variant of the Observe option aimed at solving some problematic scenario that may occur when sleepy sensors are involved.  Imagine that the resource of interest is not in cache, and a sleepy endpoint wants to Observe it through the proxy.  If the origin of the requested resource is sleeping at the.</t>
+        <t>The Monitor option is a variant of the Observe option aimed at solving some problematic scenario that may occur when sleepy sensors are involved. Imagine that the resource of interest is not in cache, and a sleepy endpoint wants to Observe it through the proxy.  If the origin of the requested resource is sleeping at the.</t>
 
         <t>The Monitor option is critical. If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the client.</t>
 	
@@ -208,7 +208,14 @@ P        S
         </figure>
         <t>The Origin Server publish one of its hosted resources, specified by the enclosed Proxy-URI, by PUT'ing it to the proxy.</t>
         
-        <t>The Publish option value is a monotonically increasing counter which hints the Proxy about the more recent version of the resource.  ETag and Max-Age options MAY be supplied to hint the underlying cache.  If no Max-age is given, a default of 3600 seconds MUST be assumed.</t>
+        <t>The Publish option value is a monotonically increasing counter which hints the Proxy about the more recent version of the resource. 
+	This counter, if present, MAY be used to discren out of order publish messages and be stored. 
+	If this counter is not present, the received content will be stored with no associated counter. 
+	When a further PUT request will arrive it will replace the previous content, regardless of the presence of the counter as an argument for the  Publish option.
+	If the counter is present the proxy MAY implement a strategy to handle the special case of the counter overflowing. 
+	An empty counter MAY be used to to implement a strategy to handle the special case of the counter overflowing.
+	ETag and Max-Age options MAY be supplied to hint the underlying cache. If no Max-age is given, a default of 3600 seconds MUST be assumed.</t>
+
       </section>
   
     </section>
