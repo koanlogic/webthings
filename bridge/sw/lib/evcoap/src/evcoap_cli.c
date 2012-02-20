@@ -261,19 +261,19 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
      * the callback has been shortcircuited), or the it's not yet started. */
     return 0;
 err:
-    ec_client_set_state(cli, EC_CLI_STATE_INTERNAL_ERR);
+    (void) ec_client_set_state(cli, EC_CLI_STATE_INTERNAL_ERR);
     return -1;
 }
 
 static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
 {
-#define EC_CLI_ASSERT(e, state)                 \
-    do {                                        \
-        if ((e))                                \
-        {                                       \
-            ec_client_set_state(cli, state);    \
-            goto err;                           \
-        }                                       \
+#define EC_CLI_ASSERT(e, state)                     \
+    do {                                            \
+        if ((e))                                    \
+        {                                           \
+            (void) ec_client_set_state(cli, state); \
+            goto err;                               \
+        }                                           \
     } while (0)
 
     struct evutil_addrinfo *ai = NULL;
@@ -288,7 +288,7 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
 
     EC_CLI_ASSERT(result != DNS_ERR_NONE, EC_CLI_STATE_DNS_FAILED);
 
-    ec_client_set_state(cli, EC_CLI_STATE_DNS_OK);
+    (void) ec_client_set_state(cli, EC_CLI_STATE_DNS_OK);
 
     /* Encode options and header. */
     EC_CLI_ASSERT(ec_pdu_encode_request(req), EC_CLI_STATE_INTERNAL_ERR);
@@ -314,7 +314,7 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
         EC_CLI_ASSERT(evutil_make_socket_nonblocking(conn->socket),
                 EC_CLI_STATE_INTERNAL_ERR);
 
-        ec_client_set_state(cli, EC_CLI_STATE_REQ_SENT);
+        (void) ec_client_set_state(cli, EC_CLI_STATE_REQ_SENT);
         break;
     }
 
@@ -367,6 +367,7 @@ static int ec_client_check_transition(ec_cli_state_t cur, ec_cli_state_t next)
         case EC_CLI_STATE_APP_TIMEOUT:
         case EC_CLI_STATE_REQ_DONE:
         case EC_CLI_STATE_REQ_RST:
+        case EC_CLI_STATE_WAIT_NFY:
             dbg_err_if (cur != EC_CLI_STATE_REQ_SENT
                     && cur != EC_CLI_STATE_REQ_ACKD);
             break;
@@ -400,6 +401,7 @@ static bool ec_client_state_is_final(ec_cli_state_t state)
         case EC_CLI_STATE_REQ_SENT:
         case EC_CLI_STATE_REQ_ACKD:
         case EC_CLI_STATE_COAP_RETRY:
+        case EC_CLI_STATE_WAIT_NFY:
             return false;
         default:
             die(EXIT_FAILURE, "%s: no such state %u", __func__, state);
@@ -416,17 +418,17 @@ static void ec_cli_coap_timeout(evutil_socket_t u0, short u1, void *c)
      * depleted. */
     if (t->nretry == EC_COAP_MAX_RETRANSMIT)
     {
-        ec_client_set_state(cli, EC_CLI_STATE_COAP_TIMEOUT);
+        (void) ec_client_set_state(cli, EC_CLI_STATE_COAP_TIMEOUT);
     }
     else
     {
         /* Enter the RETRY state and try to send the PDU again. */
-        ec_client_set_state(cli, EC_CLI_STATE_COAP_RETRY);
+        (void) ec_client_set_state(cli, EC_CLI_STATE_COAP_RETRY);
 
         if (ec_pdu_send(&cli->req, dups) == 0)
-            ec_client_set_state(cli, EC_CLI_STATE_REQ_SENT);
+            (void) ec_client_set_state(cli, EC_CLI_STATE_REQ_SENT);
         else
-            ec_client_set_state(cli, EC_CLI_STATE_SEND_FAILED);
+            (void) ec_client_set_state(cli, EC_CLI_STATE_SEND_FAILED);
     }
 
     return;
@@ -486,7 +488,7 @@ static void ec_cli_app_timeout(evutil_socket_t u0, short u1, void *c)
     ec_client_t *cli = (ec_client_t *) c;
 
     /* Set state to APP_TIMEOUT. */
-    ec_client_set_state(cli, EC_CLI_STATE_APP_TIMEOUT);
+    (void) ec_client_set_state(cli, EC_CLI_STATE_APP_TIMEOUT);
 
     return;
 }
@@ -547,8 +549,9 @@ int ec_cli_stop_app_timer(ec_client_t *cli)
     return 0;
 }
 
-/* Returns 0 on success, -1 on failure, 1 on dead client  */
-int ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
+/* Returns true on a final state, false otherwise.
+ * Failure is not an option :-) */
+bool ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
 {
     ec_cli_state_t cur = cli->state;
     bool is_con = false, is_final_state = false;
@@ -598,15 +601,12 @@ int ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
 
         /* We can now finish off with this client. */
         ec_client_free(cli);
-
-        return 1;
     }
 
-    return 0;
+    return is_final_state;
 err:
     /* Should never happen ! */
     die(EXIT_FAILURE, "%s failed (see logs)", __func__);
-    return -1;
 }
 
 int ec_client_register(ec_client_t *cli)
@@ -655,8 +655,6 @@ int ec_client_unregister(ec_client_t *cli)
     TAILQ_REMOVE(&coap->clients, cli, next);
 
     return 0;
-err:
-    return -1;
 }
 
 /* XXX bad function name, could lead to confusion. */
@@ -752,8 +750,10 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     /* Add response PDU to the client response set. */
     dbg_err_if (ec_res_set_add(&cli->res_set, res));
 
-    /* Just before invoking the client callback, set state to DONE. */
-    if (ec_client_set_state(cli, EC_CLI_STATE_REQ_DONE) == 1)
+    /* Just before invoking the client callback, set state to DONE.
+     * If state is final, make the caller aware through EC_NET_CBRC_DEAD
+     * which signals that the client context is not available anymore. */
+    if (ec_client_set_state(cli, EC_CLI_STATE_REQ_DONE) == true)
         return EC_NET_CBRC_DEAD;
 
     return EC_NET_CBRC_SUCCESS;
@@ -881,8 +881,6 @@ ec_pdu_t *ec_client_get_request_pdu(ec_client_t *cli)
     dbg_return_if (cli == NULL, NULL);
 
     return &cli->req;
-err:
-    return NULL;
 }
 
 ec_opts_t *ec_client_get_request_options(ec_client_t *cli)
