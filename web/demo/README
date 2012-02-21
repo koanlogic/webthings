@@ -1,0 +1,20 @@
+Installation for apache 2:
+
+Copy minimal-apache-conf.conf file to /etc/apache2/sites-available/
+Create a symbolic link to /etc/apache2/sites-available/minimal-apache-conf.conf
+in /etc/apache2/sites-enabled/
+
+Change the following values (lines 45-46 of /accel/index.html) accordingly:
+
+- var ACCEL_RESOURCE = "http://demo_webthings.local/accel/accel_values.php";
+  Indicates the URI of the ajax request. By default points to accel_values.php,
+  a placeholder accelerometer "emulator" that returns random values.
+
+- var INTERVAL = 1000;
+  Indicates the amount of time between every ajax call
+
+Open a webgl enabled browser to the location http://demo_webthings.local/accel/
+
+TBD (??): Replace the figure with a Z1-like textured mesh
+
+
