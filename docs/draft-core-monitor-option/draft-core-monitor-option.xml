@@ -70,12 +70,12 @@
 
       <t>The proposal described in this memo covers the following use case: a node N, which is sleeping most of the time, depends one or more resources hosted at another sleepy node M. In cases as such, the probability of an empty intersection between their respective wake periods is very high, making it hard for the two to synchronize.</t>
 
-      <t>In this scenario, using the basic proxy functionality is not enough. In fact, if a cached resource at M becomes stale while M is sleeping, request from N could result in a 5.04 (Gateway Timeout) response code. Further, the basic observe pattern could lead to lost state updates in case N is offline while M pushes its notifications; further, the observation through a proxy may never start because its bootstrapping needs both client and origin awake at the same time.</t>
+      <t>In this scenario, using the basic observe <xref target="I-D.ietf-core-observe" /> functionality is not enough. as it could lead to lost state updates in case N is offline while M pushes its notifications; further, the observation may never bootstrap since its initialization needs both client and origin awake at the same time.</t>
 
-      <t>This memo introduces two extensions to the Proxy caching functionality that give the Proxy the ability to keep the freshest copy of a resource while its origin and clients may be offline. Conversely, clients and origins are provided the ability to both read and write the resource copy while the other party may be offline.</t>
+      <t>This memo introduces two extensions to the Proxy caching functionality that give the Proxy the ability to keep the freshest copy of a resource while its origin and clients may be offline. Conversely, clients and origins are provided the ability to respectively read and write a copy of the resource while the other party may be offline.</t>
 
       <section title="Requirements Language">
-        <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119">RFC 2119</xref>.</t>
+        <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
       </section>
     </section>
 
@@ -86,15 +86,16 @@
 | No. | C/E      | Name    | Format | Length | Default |
 +-----+----------+---------+--------+--------+---------+
 |  XX | Critical | Monitor | (none) | 0 B    | (none)  |
-|  YY | Critical | Publish  | uint  | 0-8 B  | (none)  |
+|  YY | Critical | Publish | (none) | 0 B    | (none)  |
 +-----+----------+---------+--------+--------+---------+
         ]]></artwork>
       </figure>
 
       <section title="Monitor Option">
-        <t>The Monitor option is used to ask a Proxy to keep a given resource fresh by continuously observing (polling, at worst) it, while the requesting node is sleeping. Thus the sleepy sensor can get the latest representation published by the monitored resource when it wakes up, even if the origin is sleeping.</t>
 
-        <t>The Monitor option is a variant of the Observe option aimed at solving some problematic scenario that may occur when sleepy sensors are involved. Imagine that the resource of interest is not in cache, and a sleepy endpoint wants to Observe it through the proxy.  If the origin of the requested resource is sleeping at the.</t>
+        <t>The Monitor option is a variant of the Observe option that is aimed at solving some problematic scenario that may occur when sleepy sensors are involved.  Imagine that the resource of interest is not in cache, and a sleepy endpoint wants to Observe it through the proxy.  If the origin of the requested resource is sleeping at the time the observation is requested, the requesting node gets an error, and may need to stay awake and retry until the target node gets ready -- which is clearly not an option in case the sensor has a very small duty cycle.</t>
+
+        <t>The Monitor option is used to ask a Proxy to keep a given resource fresh by continuously observing it, while the requesting node is sleeping. Thus the sleepy sensor can possibly get the latest representation published by the monitored resource when it wakes up, even if the origin is sleeping.</t>
 
         <t>The Monitor option is critical. If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the client.</t>
 	
@@ -190,13 +191,13 @@ P        C
       </section>
   
       <section title="Gratuitous Publish Option">
-        <t>A new gratuitous response message to a Proxy is introduced to allow a sleepy sensor to use the Proxy as the rendez-vous point for sleepy node to sleepy node signalling.</t>
+        <t>A new gratuitous response message to a Proxy is introduced to allow a sleepy sensor to use the Proxy as the rendez-vous point for one-way sleepy to sleepy signalling.</t>
   
         <figure align="center" anchor="gratuitous_update_option">
           <artwork align="left"><![CDATA[
 P        S
 |   PUT  | Proxy-URI: coap://thing.example.org/res
-|<-------+ Publish: 123456789
+|<-------+ Publish
 |    r   | Content-Type: ...
 |        | ETag: 0xabcd
 |        | Max-Age: 1200
@@ -206,15 +207,9 @@ P        S
 |        |
           ]]></artwork>
         </figure>
-        <t>The Origin Server publish one of its hosted resources, specified by the enclosed Proxy-URI, by PUT'ing it to the proxy.</t>
-        
-        <t>The Publish option value is a monotonically increasing counter which hints the Proxy about the more recent version of the resource. 
-	This counter, if present, MAY be used to discren out of order publish messages and be stored. 
-	If this counter is not present, the received content will be stored with no associated counter. 
-	When a further PUT request will arrive it will replace the previous content, regardless of the presence of the counter as an argument for the  Publish option.
-	If the counter is present the proxy MAY implement a strategy to handle the special case of the counter overflowing. 
-	An empty counter MAY be used to to implement a strategy to handle the special case of the counter overflowing.
-	ETag and Max-Age options MAY be supplied to hint the underlying cache. If no Max-age is given, a default of 3600 seconds MUST be assumed.</t>
+        <t>The Origin Server publish one of its hosted resources, specified by the enclosed Proxy-URI, by PUT'ing it to the proxy with a Publish option attached.</t>
+
+        <t>ETag and Max-Age options MAY be supplied to hint the underlying cache. If no Max-age is given, a default of 3600 seconds MUST be assumed.</t>
 
       </section>
   
