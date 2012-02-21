@@ -151,8 +151,8 @@ void cb(ec_client_t *cli)
                     "empty payload");
 
         /* If fragmented will set g_ctx.bopt. */
-        if (ec_response_get_block2(cli, &bnum, &g_ctx.bopt.more,
-                    &g_ctx.bopt.block_sz) && g_ctx.bopt.more)
+        if ((ec_response_get_block2(cli, &bnum, &g_ctx.bopt.more,
+                    &g_ctx.bopt.block_sz) == 0) && g_ctx.bopt.more)
         {
             /* Blockwise transfer - make sure requested block was returned. */
             dbg_err_if (bnum != g_ctx.bopt.block_no);
