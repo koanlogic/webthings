@@ -147,6 +147,8 @@ void process_coap_response(ec_client_t *cli)
 
     evhttp_add_header(evhttp_request_get_output_headers(req),
             "Content-Type", "text/plain; charset=UTF-8");
+    evhttp_add_header(evhttp_request_get_output_headers(req),
+            "Access-Control-Allow-Origin", "*");
 
     evbuffer_add_printf(g_ctx.buf, "%s", payload);
 
