@@ -9,18 +9,24 @@ Prerequisites
 - MaKL must be installed. Download the latest release or clone the repo:
   $ git clone git@github.com:koanlogic/makl.git
   See INSTALL for instructions.
-- client browser must be webgl-enabled. Test activation:
+- client browser must be webgl-enabled. Try it out:
   [http://www.khronos.org/webgl/wiki/Demo_Repository]
 - client browser must be CORS enabled (most modern browsers support it by
   default: Firefox 3.5+, Safari 4+, IE 8+);
 - HTTP/CoAP proxy must be CORS enabled [http://www.w3.org/wiki/CORS_Enabled]
   (KINK is).
 
+((full mote demo only))
+- setup the mote environment (border router + CoAP server)
+  and connect to the border router via tunslip [webthings/wsn/README.Contiki].
+- compile and install the bridge sotfware [webthings/bridge/sw/INSTALL];
+
 Running the Demo
 ================
 
-* Configure and make 
+* Configure and make the webapp:
 
+$ cd webthings/web/demo
 $ maklconf [ --enable_debug] [ --enable_warns]
 $ makl
 
@@ -35,10 +41,14 @@ accordingly:
 - var INTERVAL = 500;
   Indicates the amount of time in milliseconds between every ajax call.
 
-* Rebuild changes into emmbedded filesystem and run klone in foreground.
+* Rebuild changes into the embedded filesystem and run klone in foreground.
 
 $ makl
 $ ./kloned/kloned -F
+
+((full mote demo only))
+- run the HTTP/CoAP proxy:
+  $ ${IDIR}/bin/kink
 
 Open the browser at location http://wtdemo:8080.
 
