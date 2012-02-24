@@ -1,0 +1,4 @@
+- full HTTP <-> CoAP mapping 
+  [http://tools.ietf.org/html/draft-castellani-core-http-mapping-02]
+- configure allowed origin servers for CORS
+- ...
