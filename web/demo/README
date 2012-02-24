@@ -1,20 +1,54 @@
-Installation for apache 2:
+**********
+* WTDEMO *
+**********
 
-Copy minimal-apache-conf.conf file to /etc/apache2/sites-available/
-Create a symbolic link to /etc/apache2/sites-available/minimal-apache-conf.conf
-in /etc/apache2/sites-enabled/
+Demos Webthings functionality via a webapp.
 
-Change the following values (lines 45-46 of /accel/index.html) accordingly:
+Prerequisites
+=============
+- MaKL must be installed. Download the latest release or clone the repo:
+  $ git clone git@github.com:koanlogic/makl.git
+  See INSTALL for instructions.
+- client browser must be webgl-enabled. Test activation:
+  [http://www.khronos.org/webgl/wiki/Demo_Repository]
+- client browser must be CORS enabled (most modern browsers support it by
+  default: Firefox 3.5+, Safari 4+, IE 8+);
+- HTTP/CoAP proxy must be CORS enabled [http://www.w3.org/wiki/CORS_Enabled]
+  (KINK is).
 
-- var ACCEL_RESOURCE = "http://demo_webthings.local/accel/accel_values.php";
-  Indicates the URI of the ajax request. By default points to accel_values.php,
-  a placeholder accelerometer "emulator" that returns random values.
+Running the Demo
+================
 
-- var INTERVAL = 1000;
-  Indicates the amount of time between every ajax call
+* Configure and make 
 
-Open a webgl enabled browser to the location http://demo_webthings.local/accel/
+$ maklconf [ --enable_debug] [ --enable_warns]
+$ makl
 
-TBD (??): Replace the figure with a Z1-like textured mesh
+* Change the following values paremeters in kloned/webapp/www/index.html
+accordingly:
 
+- var ACCEL_RESOURCE = "http://wtdemo:8080/acc.kl1";
+  Indicates the URI of the ajax request. By default points to acc.kl1, a
+  placeholder accelerometer "emulator" that simply returns random values.
+  For real motes, it should point to the KINK proxy "http://wtdemo:5683/acc".
 
+- var INTERVAL = 500;
+  Indicates the amount of time in milliseconds between every ajax call.
+
+* Rebuild changes into emmbedded filesystem and run klone in foreground.
+
+$ makl
+$ ./kloned/kloned -F
+
+Open the browser at location http://wtdemo:8080.
+
+TODO
+====
+- replace the figure with a textured mesh;
+- handle "preflighted" CORS requests for methods other than GET and POST or
+  special Content-Types.
+
+FUTURE
+======
+- a curl-based reverse proxy could provide a fallback to firewalling
+  enforcements and NAT problems introduced by CORS usage.

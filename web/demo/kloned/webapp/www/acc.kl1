@@ -1,0 +1,9 @@
+<% 
+#define RAND_ACC    ((int) (((double)rand() / RAND_MAX) * 250))
+#define RAND_SIGN   ((rand() % 2 == 0) ? "" : "-")
+
+io_printf(out, "%s%d,%s%d,%s%d",
+        RAND_SIGN, RAND_ACC,
+        RAND_SIGN, RAND_ACC,
+        RAND_SIGN, RAND_ACC);
+%>

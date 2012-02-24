@@ -1,0 +1,17 @@
+server_list    wtdemo
+
+allow_root yes
+
+log
+{
+    type                syslog
+    syslog.facility     ${{LF_WTDEMO}}
+}
+
+wtdemo
+{
+    type            http
+
+    addr            tcp4://*:8080
+    dir_root        /www
+}
