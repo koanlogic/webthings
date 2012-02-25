@@ -20,8 +20,14 @@ platform:
 
 $ export TARGET=z1
 
-For convenience you may want to export both variables in your shell
-configuration file (e.g. ~/.bash_profile).
+For convenience you may want to export both TARGET and PATH variables in your
+shell configuration file (e.g. ~/.bash_profile).
+
+(*) Insert the two motes into the USB ports so that the border router mote is
+    attached to device /dev/ttyUSB0 and the sensor node is on /dev/ttyUSB1.
+    The assignments can be verified by running 'make motelist'.
+    (*note*: the order IS important because tunslip will later run on
+     /dev/ttyUSB0).
 
 (*) ONLY ONCE: you need to set the identifiers, and corresponding MAC addresses
     and IPv6 addresses of your motes (the identifier can be found by using the
@@ -34,30 +40,30 @@ $ make clean && make burn-nodeid.upload nodeid=${ID} nodemac=${ID} && \
     ${ID1} = border router
     ${ID2} = rest server
 
-(*) CoAP server setup (first mote)
-examples/z1/rest$
-    make rest-z1.upload [MOTE=..]
-    
-, where MOTE specifies the index into 'make motelist'.
-
-(*) Border router setup (second mote)
+(*) Border router setup (first mote) on /dev/ttyUSB0
 examples/ipv6/rpl-border-router$
-    make border-router.upload [MOTE=...]
+    make border-router.upload MOTE=1
+
+(*) CoAP server setup (second mote) on /dev/ttyUSB1
+examples/z1/rest$
+    make rest-z1.upload MOTE=2
 
 Now as root run:
 # make connect-router
 
-When you login to your motes (make login [MOTE=...]) you should come up with
-settings such as:
+to connect to the border router via tunslip.
 
-    host            zbr
+When you login to your motes (make login [MOTE=...]), and press the reset
+button, you should come up with settings such as:
+
+    hostname        zbr
     ID              ${ID1}
     MAC             c1:0c:00:00:00:00:xx:xx
     IPv6 addr       fe80:0000:0000:0000:c30c:0000:0000:xxxx
     CSMA            ContikiMAC
     ch check rt     8hz
 
-    host            zrs
+    hostname        zrs
     ID              ${ID2}
     MAC             c1:0c:00:00:00:00:yy:yy
     IPv6 addr       fe80:0000:0000:0000:c30c:0000:0000:yyyy

@@ -32,3 +32,12 @@ Troubleshooting - TinyOS
 
 Add to Makefile:
     CFLAGS += -DPRINTFUART_ENABLED
+
+(*) CoAP not working
+
+- disconnect router
+- log in to each mote separately, restart button, and check output is ok
+- close all serial connections
+- restart router
+- retry coap
+- if all fails, try reloading usb module or rebooting VM
