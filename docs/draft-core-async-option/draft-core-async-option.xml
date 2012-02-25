@@ -8,6 +8,7 @@
 <!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-coap-08.xml">
 <!ENTITY I-D.ietf-core-observe SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-observe-04.xml">
 <!ENTITY I-D.ietf-core-block SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-block-08.xml">
+<!ENTITY I-D.ietf-core-link-format SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-link-format-11.xml">
 ]>
 <?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
 <?rfc strict="yes" ?>
@@ -246,7 +247,7 @@
  0               1               2               3
  0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|       LEFT        |         SLEEP         |       DUTY        |
+|       LEFT        |         SLEEP         |       WAKE        |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         ]]></artwork>
       </figure>
@@ -255,13 +256,36 @@
         <list>
           <t>LEFT: 10-bit subfield encoding the number of seconds that the sending node is left before going off-duty.  The maximum allowed value is 0x3FF, which allows for approx. 17 minutes.</t>
           <t>SLEEP: 12-bit subfield encoding the number of seconds that the sending node is off-duty.  The maximum allowed value is 0xFFF, which allows for approx. 68 minutes.</t>
-          <t>DUTY: 10-bit subfield encoding the number of seconds that the sending node is on-duty.  The maximum allowed value is 0x3FF, which allows for approx. 17 minutes.</t>
+          <t>WAKE: 10-bit subfield encoding the number of seconds that the sending node is on-duty.  The maximum allowed value is 0x3FF, which allows for approx. 17 minutes.</t>
         </list>
       </t>
 
       </section>
   
     </section>
+
+    <section title="Limiting Network Congestion">
+      <t>The retransmit function at the Proxy is conflicting with the overall requirement of congestion avoidance on the constrained network.</t>
+      <t>Therefore the proxy SHOULD try to learn as much as possible about the on/off-duty behavior of the nodes that it is trying to reach, and keep the gained knowledge to inform future message exchanges with these endpoints.</t>
+      <t>Missing an explicit signaling at the network/transport layer, endpoints that have a predictable sleep/awake pattern SHOULD try to inform the other entities in the network by piggybacking, whenever possible, the Sleepy Option in the messages (both requests and responses) they are exchanging with other peers.</t>
+      <t>A further possibility is to distribute the information regarding the sleep/awake pattern by extending the resource attributes available through the Resource Directory with a link-format <xref target="I-D.ietf-core-link-format" /> version of the Sleepy option (see <xref target="new_linkformat_attrs" />).</t>
+      <t></t>
+    </section>
+
+    <section title="New Link-Format Attributes" anchor="new_linkformat_attrs">
+
+      <t>This specification defines the following new attributes for use in the CoRE Link Format:</t>
+      <figure align="center">
+        <artwork align="left"><![CDATA[
+link-extension = ( "sleep" "=" 1*DIGIT )
+link-extension = ( "wake" "=" 1*DIGIT )
+link-extension = ( "start" "=" 1*DIGIT ) ; in seconds since Epoch
+        ]]></artwork>
+      </figure>
+
+      <t>The sleep and wake attributes have the same semantics and format as the SLEEP and WAKE subfields of the Sleepy Option respectively (<xref target="sleepy_option" />).  The start attribute sets the base time from which the offsets indicated by sleep and wake must be computed.</t>
+    </section>
+
 
     <!-- This PI places the pagebreak correctly (before the section title) in the text output. -->
     <?rfc needLines="8" ?>
@@ -296,6 +320,7 @@
     <references title="Normative References">
       &RFC2119;
       &I-D.ietf-core-coap;
+      &I-D.ietf-core-link-format;
     </references>
     <references title="Informative References">
       &I-D.ietf-core-block;
