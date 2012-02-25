@@ -20,7 +20,7 @@
 <rfc category="info" docName="draft-core-async-option-00" ipr="trust200902">
   <front>
     <title>
-      Monitor Option for CoAP
+      Async Option for CoAP
     </title>
     <author
       fullname="Thomas Fossati"
@@ -239,7 +239,7 @@
       </section>
 
       <section title="Sleepy Option" anchor="sleepy_option">
-        <t>This option is discretionarily piggybacked by a sleepy node on response messages to indicate: the remaining time before sleep, the expected sleep interval, and the on-duty interval.</t>
+        <t>This option is discretionarily piggybacked by a sleepy node on response messages to indicate: the remaining time before sleep, the expected sleep interval, and the on-duty interval. To save bandwith, a node with the intention of advertising its duty cycle, SHOULD include the Sleepy option only in its first message exchange with each requesting agent. The node MAY include the Sleepy option in later responses in case its duty cycle is subjected to changes. </t>
 
       <figure align="center">
         <artwork align="left"><![CDATA[
