@@ -95,13 +95,64 @@
     </section>
 
     <section title="Basic Message Flow">
-      <t>A typical flow of communication involving the said options is shown in <xref target="base_msg_flow" />.  Please note that the framework is completely agnostic as to the transported COAP message type and method.</t>
+      <t>A typical flow of communication involving the said options is shown in <xref target="con_msg_flow" /> and in  <xref target="non_msg_flow" />.  Please note that the framework is completely agnostic as to the transported COAP message type and method.</t>
 
-      <figure align="center" anchor="base_msg_flow">
+      <figure align="center" anchor="con_msg_flow">
         <artwork align="left"><![CDATA[
     A                        P                         B
     .                        |                         .
     .                        |                         .
+    |    CON [0x7a10]        |                         .
+    |        Method          |                         .
+(1) +----------------------->|                         .
+    |    Proxy-Uri: B/res    |                         .
+    |      GetBack: 60       |                         .
+    |                        |                         .
+    |    ACK [0x7a10]        |                         .
+(2) |<-----------------------+                         .
+    |                        |                         .
+    |                        |                         .
+    .                        |      Method             .
+(3) .                        +------------------X      .
+    .                        |   Uri-Path: /res        .
+    .                        |                         .
+    .                        |      Method             .
+(4) .                        +------------------X      .
+    .                        |   Uri-Path: /res        .
+    .                        |                         .
+    .                        |        Method           |
+(5) .                        +------------------------>|
+    .                        |     Uri-Path: /res      |
+    .                        |                         |
+    .                        |     Response Code       |
+(6) .                        |<------------------------+
+    .                        |       [Content]         |
+    .                        |                         |
+    .                        |                         |
+    .                        |                         .
+    .                        |                         .
+    .                        |                         .
+    .                        |                         .
+    |    CON [0x4a10]        |                         .
+    |   Response Code        |                         .
+(7) +<-----------------------|                         .
+    |     [ontent]           |                         .
+    |                        |                         .
+    |                        |                         .
+    |    ACK [0x4a10]        |                         .
+(8) |----------------------->+                         .
+    |                        |                         .
+    .                        |                         .
+    .                        |                         .
+        ]]></artwork>
+      </figure>
+
+      <figure align="center" anchor="non_msg_flow">
+        <artwork align="left"><![CDATA[
+    A                        P                         B
+    .                        |                         .
+    .                        |                         .
+    |    NON [0x7a10]        |                         .
     |        Method          |                         .
 (1) +----------------------->|                         .
     |    Proxy-Uri: B/res    |                         .
@@ -129,10 +180,12 @@
     .                        |                         .
     .                        |                         .
     .                        |                         .
+    |    NON [0x4a10]        |                         .
+    |   Response Code        |                         .
+(6) +<-----------------------|                         .
+    |     [ontent]           |                         .
     |                        |                         .
-    |     Response Code      |                         .
-(6) |<-----------------------+                         .
-    |       [Content]        |                         .
+    |                        |                         .
     .                        |                         .
     .                        |                         .
         ]]></artwork>
@@ -302,7 +355,7 @@ link-extension = ( "start" "=" 1*DIGIT ) ; in seconds since Epoch
     </section>
 
     <section anchor="Security" title="Security Considerations">
-      <t>The same considerations as those highlighted in Section 10.3.2 and 10.3.3 of <xref target="I-D.ietf-core-coap" /> apply, and are somewhat amplified by the possible congestion induced by the tentative setup of communication with the target node (messages 3-5 in <xref target="base_msg_flow" />).  The Proxy SHOULD try to send as little messages as possibile in order to contact the requested endpoint and MUST make use of the wake/sleep indication in case they have been previously made available by the target node through the Sleepy Option. </t> 
+      <t>The same considerations as those highlighted in Section 10.3.2 and 10.3.3 of <xref target="I-D.ietf-core-coap" /> apply, and are somewhat amplified by the possible congestion induced by the tentative setup of communication with the target node (messages 3-5 in <xref target="con_msg_flow" />).  The Proxy SHOULD try to send as little messages as possibile in order to contact the requested endpoint and MUST make use of the wake/sleep indication in case they have been previously made available by the target node through the Sleepy Option. </t> 
     </section>
   </middle>
 
