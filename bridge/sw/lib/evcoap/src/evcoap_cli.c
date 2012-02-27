@@ -18,6 +18,10 @@ static void ec_cli_coap_timeout(evutil_socket_t u0, short u1, void *c);
 static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a);
 static int ec_client_check_req_token(ec_client_t *cli);
 static int ec_client_invoke_user_callback(ec_client_t *cli);
+static int ec_cli_timer_start(ec_client_t *cli, ec_cli_timer_t *ti, 
+        struct timeval *tout, size_t max_retry, 
+        void (*cb)(evutil_socket_t, short, void *));
+static int ec_cli_timer_stop(ec_cli_timer_t *ti);
 
 int ec_client_set_method(ec_client_t *cli, ec_method_t m)
 {
@@ -238,7 +242,7 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
     cli->cb_args = cb_args;
 
     /* Set application timeout. */
-    timers->app_tout = tout ? *tout : app_tout_dflt;
+    timers->app.tout = tout ? *tout : app_tout_dflt;
 
     /* Set up hints needed by evdns_getaddrinfo(). */
     memset(&hints, 0, sizeof hints);
@@ -412,11 +416,11 @@ static void ec_cli_coap_timeout(evutil_socket_t u0, short u1, void *c)
 {
     ec_client_t *cli = (ec_client_t *) c;
     ec_dups_t *dups = &cli->base->dups;
-    ec_cli_timers_t *t = &cli->timers;
+    ec_cli_timer_t *ti = &cli->timers.coap;
 
     /* First off: check if we've got here with all retransmit attempts 
      * depleted. */
-    if (t->nretry == EC_COAP_MAX_RETRANSMIT)
+    if (ti->retries_left == 0)
     {
         (void) ec_client_set_state(cli, EC_CLI_STATE_COAP_TIMEOUT);
     }
@@ -439,48 +443,84 @@ int ec_cli_restart_coap_timer(ec_client_t *cli)
     dbg_return_if (cli == NULL, -1);
 
     ec_t *coap = cli->base;
-    ec_cli_timers_t *t = &cli->timers;
+
+    ec_cli_timer_t *ti = &cli->timers.coap;
 
     /* Double timeout value. */
-    t->coap_tout.tv_sec *= 2;
+    ti->tout.tv_sec *= 2;
 
-    u_dbg("timeout = %d", t->coap_tout.tv_sec);
+    u_dbg("exp timeout to = %d", ti->tout.tv_sec);
 
     /* Add timeout to the base. */
-    dbg_err_if (evtimer_add(t->coap, &t->coap_tout));
+    dbg_err_if (evtimer_add(ti->evti, &ti->tout));
 
-    /* Increment number of retries. */
-    ++t->nretry;
+    /* Decrement the retries left.  Check for underflows. */
+    dbg_return_ifm (ti->retries_left-- == 0, -1,
+            "asked to restart an already exhausted CoAP timer");
 
     return 0;
 err:
     (void) ec_cli_stop_coap_timer(cli);
     return -1;
+}
 
+static int ec_cli_timer_start(ec_client_t *cli, ec_cli_timer_t *ti, 
+        struct timeval *tout, size_t max_retry, 
+        void (*cb)(evutil_socket_t, short, void *))
+{
+    ec_t *coap;
+
+    dbg_return_if (cli == NULL, -1);
+    dbg_return_if (ti == NULL, -1);
+    dbg_return_if (cb == NULL, -1);
+
+    dbg_return_ifm (ti->evti != NULL, -1,
+            "timer %p already initialized !", ti->evti);
+
+    coap = cli->base;   /* Shortcut. */
+
+    if (tout)
+        ti->tout = *tout;
+    ti->retries_left = max_retry;
+
+    /* Create and start timer. */
+    dbg_err_if ((ti->evti = evtimer_new(coap->base, cb, cli)) == NULL);
+    dbg_err_if (evtimer_add(ti->evti, &ti->tout));
+
+    return 0;
+err:
+    if (ti->evti)
+        event_free(ti->evti);
+    return -1;
+}
+
+static int ec_cli_timer_stop(ec_cli_timer_t *ti)
+{
+    dbg_return_if (ti == NULL, -1);
+
+    if (ti->evti)
+    {
+        event_free(ti->evti);
+        ti->evti = NULL;
+        ti->retries_left = 0;
+        /* Don't cleanup .tout which may be reused. */
+    }
+
+    return 0;
 }
 
 int ec_cli_start_coap_timer(ec_client_t *cli)
 {
+    /* TODO randomize this. */
+    struct timeval tout = { .tv_sec = EC_COAP_RESPONSE_TIMEOUT, .tv_usec = 0 }; 
+
     dbg_return_if (cli == NULL, -1);
 
-    ec_t *coap = cli->base;
-    ec_cli_timers_t *t = &cli->timers;
+    ec_cli_timers_t *ti = &cli->timers;
 
-    /* Set initial timeout value (TODO randomization.) */
-    t->coap_tout.tv_sec = EC_COAP_RESPONSE_TIMEOUT;
-
-    /* Create new CoAP (non persisten) timeout event for this client. */
-    t->coap = evtimer_new(coap->base, ec_cli_coap_timeout, cli);
-
-    /* Add timeout to the base. */
-    dbg_err_if (t->coap == NULL || evtimer_add(t->coap, &t->coap_tout));
-
-    t->nretry = 1;
-
-    return 0;
-err:
-    (void) ec_cli_stop_coap_timer(cli);
-    return -1;
+    /* Create new CoAP (non persistent) timeout event for this client. */
+    return ec_cli_timer_start(cli, &ti->coap, &tout, EC_COAP_MAX_RETRANSMIT, 
+            ec_cli_coap_timeout);
 }
 
 static void ec_cli_app_timeout(evutil_socket_t u0, short u1, void *c)
@@ -495,58 +535,41 @@ static void ec_cli_app_timeout(evutil_socket_t u0, short u1, void *c)
 
 int ec_cli_stop_coap_timer(ec_client_t *cli)
 {
-    ec_cli_timers_t *t;
-
     dbg_return_if (cli == NULL, -1);
 
-    t = &cli->timers;
+    ec_cli_timers_t *ti = &cli->timers;
 
-    if (t->coap)
-    {
-        event_free(t->coap);
-        t->coap = NULL;
-        /* TODO clean nretry and coap_tout ? */
-    }
-
-    return 0;
+    return ec_cli_timer_stop(&ti->coap);
 }
 
 int ec_cli_start_app_timer(ec_client_t *cli)
 {
     dbg_return_if (cli == NULL, -1);
 
-    ec_t *coap = cli->base;
-    ec_cli_timers_t *t = &cli->timers;
+    ec_cli_timers_t *ti = &cli->timers;
 
-    /* It is expected that the application timeout is set only once for each
-     * client. */
-    dbg_err_if (t->app != NULL);
+    /* One-shot timer.  The timeout value has been already set, hence use
+     * NULL here. */
+    return ec_cli_timer_start(cli, &ti->app, NULL, 1, ec_cli_app_timeout);
+}
 
-    u_dbg("application timeout is %d seconds", t->app_tout.tv_sec);
-
-    t->app = evtimer_new(coap->base, ec_cli_app_timeout, cli);
-    dbg_err_if (t->app == NULL || evtimer_add(t->app, &t->app_tout));
-
+int ec_cli_stop_obs_timer(ec_client_t *cli)
+{
     return 0;
-err:
-    if (t->app)
-        event_free(t->app);
-    return -1;
+}
+
+int ec_cli_start_obs_timer(ec_client_t *cli)
+{
+    return 0;
 }
 
 int ec_cli_stop_app_timer(ec_client_t *cli)
 {
     dbg_return_if (cli == NULL, -1);
 
-    ec_cli_timers_t *t = &cli->timers;
+    ec_cli_timers_t *ti = &cli->timers;
 
-    if (t->app)
-    {
-        event_free(t->app);
-        t->app = NULL;
-    }
-
-    return 0;
+    return ec_cli_timer_stop(&ti->app);
 }
 
 /* Returns true on a final state, false otherwise.
@@ -582,6 +605,11 @@ bool ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
             dbg_if (ec_cli_restart_coap_timer(cli));
         }
     }
+    else if (state == EC_CLI_STATE_WAIT_NFY)
+    {
+        /* Start timeout counter based on requested resource's max-age. */
+        dbg_err_if (ec_cli_start_obs_timer(cli));
+    }
     else if ((is_final_state = ec_client_state_is_final(state)))
     {
         /* Any final state MUST destroy all pending timers. */
@@ -589,6 +617,9 @@ bool ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
 
         /* If CON also stop the retransmission timer. */
         dbg_if (is_con && ec_cli_stop_coap_timer(cli));
+
+        /* Tear down any observe timeout. */
+        dbg_if (ec_cli_stop_obs_timer(cli));
     }
 
     /* Finally set state and, in case the state we've entered is final, 

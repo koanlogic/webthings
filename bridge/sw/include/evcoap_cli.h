@@ -19,18 +19,20 @@ typedef struct ec_res_set_s
     TAILQ_HEAD(, ec_pdu_s) bundle;
 } ec_res_set_t;
 
+struct ec_cli_timer_s
+{
+    size_t retries_left;
+    struct event *evti;
+    struct timeval tout;
+};
+typedef struct ec_cli_timer_s ec_cli_timer_t;
+
 struct ec_cli_timers_s
 {
-    /* User defined application timeout (how much await for resposes.) */
-    struct event *app;
-    struct timeval app_tout;
 #define EC_TIMERS_APP_TOUT  60  /* Default is one minute. */
-
-    /* CoAP internal retransmission timers (see evcoap_enum.h for CON timeout
-     * protocol constants.) */
-    size_t nretry;
-    struct event *coap;
-    struct timeval coap_tout;
+    ec_cli_timer_t app;
+    ec_cli_timer_t coap;        /* CoAP internal retransmission timers. */
+    ec_cli_timer_t obs;
 };
 typedef struct ec_cli_timers_s ec_cli_timers_t;
 
