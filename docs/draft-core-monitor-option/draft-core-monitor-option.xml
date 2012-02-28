@@ -17,7 +17,7 @@
 <?rfc sortrefs="yes" ?>
 <?rfc compact="yes" ?>
 <?rfc subcompact="no" ?>
-<rfc category="info" docName="draft-fossati-core-publish-monitor-option-00" ipr="trust200902">
+<rfc category="info" docName="draft-fossati-core-publish-monitor-options-00" ipr="trust200902">
   <front>
     <title>
       Publish and Monitor Options for CoAP
