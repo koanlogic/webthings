@@ -100,13 +100,22 @@
   <middle>
     <section title="Introduction">
 
-      <t>The proposal described in this memo covers the following use case: <list style="empty"><t>a node A, displaying a very short duty-cycle, needs to interact with one or more resources hosted at another sleepy node B.  The probability of an empty intersection between their respective wake periods is quite high, making it hard for the two to synchronize.</t></list></t>
+      <t>The proposal described in this memo covers the following use case: <list style="empty"><t>a node A, displaying a very short duty-cycle, needs to interact 
+         with one or more resources hosted at another sleepy node B.  The probability of an empty intersection between their respective wake periods is quite high, 
+         making it hard for the two to synchronize.</t></list></t>
 
       <t>The proposal is to arm the Proxy with the ability to act as a store-and-forward agent mediating the request/response exchange between "A" and "B".</t>  
 
-      <t>"A" declares the will to act onto a given resource hosted at "B" to the Proxy, and gives a "get back" indication that tells the Proxy the time at which it is going to be on duty again, and willing to retrieve the response from "B".</t>
+      <t>"A" declares the will to act onto a given resource hosted at "B" to the Proxy, and gives a "get back" indication that tells the Proxy the time 
+          at which it is going to be on duty again, and willing to retrieve the response from "B".</t>
 
-     <t>The Proxy is in charge of making the request on behalf of "A", using an appropriate poll interval for a time span upper bounded by the "get back" value, and to buffer the response from "B" until "A" wakes up again.</t>
+     <t>The Proxy is in charge of making the request on behalf of "A", using an appropriate poll interval for a time span upper bounded by the "get back" value, 
+         and to buffer the response from "B" until "A" wakes up again.</t>
+
+     <t>This draft defines a new CoAP elective option, Sleepy, targeted specifically at proxies and used to signal a Proxy the will to initiate an asynchronous request/response exchange. 
+        The Sleepy option is partitioned in three subfields indicating: the remaining time before sleep, the expected sleep interval, and (optionally) the on-duty interval.</t>
+
+
 
       <section title="Requirements Language">
         <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
@@ -159,6 +168,8 @@ REQ3:   The ability to deal with sleeping nodes.  Devices may be
     .                        |   Response Code         |
 (6) .                        |<------------------------+
     .                        |   [Content]             |
+    .                        |                         .
+    .                        |                         .
     .    CON (0xfa10)        |                         .
 (7) |<-----------------------+                         .
     |    Response Code       |                         .
@@ -170,13 +181,16 @@ REQ3:   The ability to deal with sleeping nodes.  Devices may be
         ]]></artwork>
       </figure>
 
-      <t>In message (1) a sleepy node, A, asks the Proxy to act upon the resource identified by the Proxy-Uri Option in a possibly asynchronous way by supplying the Sleepy Option indicating a time at which A thinks it may be ready (i.e. awake) to retrieve the response message. The Sleepy Option in the message (1) tell to the Proxy that A will go off-duty in 2 milliseconds, and it will be off-duty for 58 milliseconds.</t> 
+      <t>In message (1) a sleepy node, A, asks the Proxy to act upon the resource identified by the Proxy-Uri Option in a possibly asynchronous 
+         way by supplying the Sleepy Option indicating a time at which A thinks it may be ready (i.e. awake) to retrieve the response message. 
+         The Sleepy Option in the message (1) tell to the Proxy that A will go off-duty in 2 milliseconds, and it will be off-duty for 58 milliseconds,
+         but it does not provide any information about the optional on-duty interval.</t> 
 
       <t>In case the Proxy understands the Sleepy Option, it replies (2) with a separate ACK.</t>
 
-      <t>From now on A can get back to sleep while the Proxy sends the request to the target node, B -- messages (3-5) -- and eventually get a response back (6).</t>
+      <t>From now on A can get back to sleep while the Proxy sends periodically the request to the target node, B -- messages (3-5) -- and eventually get a response back (6).</t>
 
-      <t>The stored response is kept by the Proxy until A is on duty again. (The seeming on-duty time is computed using the quantities previously supplied by A through the Sleepy Option.)  The Proxy sends the separate response back, operating with the usual rules of CON retransmission, until an ACK from A is heard, or the transmission retries are exhausted.</t>
+      <t>The stored response is kept by the Proxy until A is on duty again. (The seeming on-duty time is computed using the quantities previously supplied by A through the Sleepy Option.)  The Proxy sends the separate response back, operating with the usual rules of CON retransmission, until an ACK from A is received, or the transmission retries are exhausted.</t>
 
       <t>Please note that, generally speaking, the framework is completely agnostic as to the transported message type and method.  Further, the Proxy may rearrange any implied block-wise transfer <xref target="I-D.ietf-core-block" /> in an optimal way.</t>
 
@@ -190,7 +204,7 @@ REQ3:   The ability to deal with sleeping nodes.  Devices may be
 
     <section title="Optimized Message Flow">
         <t>The Proxy/Cache, in charge of making the request on behalf of "A", MUST try to immediately satisfy a request by searching the Cache.</t>
-        <t><xref target="opt_msg_flow1" /> shows a request from A which can satisfied from the cache (i.e. cache hit) without interrogating B.</t>
+        <t><xref target="opt_msg_flow1" /> shows a request from A which can be satisfied from the cache (i.e. cache hit) without interrogating B.</t>
 
         <figure align="center" anchor="opt_msg_flow1">
           <artwork align="left"><![CDATA[
@@ -214,10 +228,13 @@ REQ3:   The ability to deal with sleeping nodes.  Devices may be
           ]]></artwork>
         </figure>
 
-	<t>In case a request from A which can not be satisfied from the Cache (i.e. cache miss); the Proxy, in charge of making 
-        the request on behalf of "A", sends the request to the target node and eventually get a response back.</t>
+	<t>In case a request from A can not be satisfied from the Cache (i.e. cache miss), the Proxy, in charge of making 
+        the request on behalf of "A", sends periodically the request to the target node and eventually get a response back.</t>
         
-        <t>The Proxy MAY decide to forward the request to the target node right away (<xref target="opt_msg_flow2" />) in case the "time left before sleeping" indication supplied by A is deemed enough to try and forward the request to B (because perhaps the Proxy knows that B is awake.)  The latter exchange SHALL concurrently arm a timeout for sending the ACK message to A before it goes to sleep (in case CON is in use).</t>
+        <t><xref target="opt_msg_flow2" /> shows a cache miss scenario where the Proxy, knowing that the target node is awake,
+            forwards the request to B (5) and sends the response to A (7) within the "time left before sleeping" indication supplied by A
+            with the request (1). The latter exchange SHALL concurrently arm a timeout for sending the ACK message to A before it goes 
+            to sleep (in case CON is in use).</t>
 
         <figure align="center" anchor="opt_msg_flow2">
           <artwork align="left"><![CDATA[
@@ -264,7 +281,7 @@ REQ3:   The ability to deal with sleeping nodes.  Devices may be
       <section title="Sleepy Option" anchor="sleepy_option">
         <t>The Sleepy Option in a request is used to signal a Proxy the will to initiate an asynchronous request/response exchange.</t>
 
-        <t>The Sleepy option is elective.  If the Proxy does not recognize it, it will try to serve a fresh representation of the requested resource, or forward the request to the intended origin; depending on the availability of the endpoints at the time the Proxy tries to contact them, the usual proxyed transaction may succeed, partially fail, or completely fail.</t>
+        <t>The Sleepy option is elective.  If the Proxy does not recognize it, it will try to serve a fresh representation of the requested resource, or forward the request to the intended origin; depending on the availability of the endpoints at the time the Proxy tries to contact them, the usual proxied transaction may succeed, partially fail, or completely fail.</t>
 	
       	<t>The Sleepy Option MAY be discretionarily piggybacked by a sleepy node on response messages to inform the network about the sleepy pattern in use at the endpoint.  This knowledge MAY be used by sleepy-friendly Proxies to reduce the overall network congestion that is implied by resorting to blind polling in order to maximize the chance to get a response from the target.</t>
 
