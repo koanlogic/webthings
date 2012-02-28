@@ -9,6 +9,7 @@
 <!ENTITY I-D.ietf-core-observe SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-observe-04.xml">
 <!ENTITY I-D.ietf-core-block SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-block-08.xml">
 <!ENTITY I-D.ietf-core-link-format SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-link-format-11.xml">
+<!ENTITY I-D.shelby-core-coap-req SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-shelby-core-coap-req-02.xml">
 ]>
 <?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
 <?rfc strict="yes" ?>
@@ -52,6 +53,17 @@
     </author>
 
     <author
+      fullname="Salvatore Loreto"
+      initials="S.L."
+      surname="Loreto"
+    >
+      <organization>Ericsson</organization>
+      <address>
+        <email>salvatore.loreto@ericsson.com</email>
+      </address>
+    </author>
+
+    <author
       fullname="Mirko Rossini"
       initials="M.R."
       surname="Rossini"
@@ -67,15 +79,11 @@
     <area>General</area>
     <workgroup>Internet Engineering Task Force</workgroup>
 
-    <keyword>CoAP, Async option, Sleepy option, GetBack option, sleepy sensor</keyword>
+    <keyword>CoAP, Sleepy option, sleepy sensor</keyword>
 
     <abstract>
 
-      <t>This memo defines a framework for allowing asynchronous communication between sleepy sensors which is mediated by a supporting Proxy node.</t>
-
-      <t>The Proxy acts as a store-and-forward agent that handles requests on behalf of a sleepy client, and buffers responses coming from the target origin until the requesting client wakes up and get the computation results.</t>
-
-      <t>Three new CoAP options are defined to control the asynchronous exchange: Async, Sleepy and GetBack.</t>
+      <t>This memo defines a framework for allowing asynchronous communication between sleepy sensors which is mediated by a supporting Proxy node.  The Proxy acts as a store-and-forward agent that handles requests on behalf of a sleepy client, and buffers responses coming from the target origin until the requesting client wakes up and get the computation results.  A new CoAP option, Sleepy, is defined to initiate and control the asynchronous exchange.</t>
 
     </abstract>
   </front>
@@ -83,95 +91,104 @@
   <middle>
     <section title="Introduction">
 
-      <t>The proposal described in this memo covers the following use case: a node A, displaying a very short duty-cycle, needs to interact with one or more resources hosted at another sleepy node B.
-      <!-- that has a longer duty-cycle than A -->
-      The probability of an empty intersection between their respective wake periods is quite high, making it hard for the two to synchronize.</t>
+      <t>The proposal described in this memo covers the following use case: a node A, displaying a very short duty-cycle, needs to interact with one or more resources hosted at another sleepy node B.  The probability of an empty intersection between their respective wake periods is quite high, making it hard for the two to synchronize.</t>
 
-      <t>We want to arm the Proxy with the ability to act as a store-and-forward agent mediating the request/response exchange between A and B.  A declares the will to act onto a given resource hosted at B to the Proxy, and gives a "getback" indication that tells the Proxy the time at which it is going to be on duty again, and willing to retrieve the response from B.  The proxy is in charge of making the request on behalf of A, using an appropriate poll interval for a time span upper bounded by the "getback" value, and to buffer the potential response from B until A wakes up again.</t>
+      <t>We want to arm the Proxy with the ability to act as a store-and-forward agent mediating the request/response exchange between A and B.  A declares the will to act onto a given resource hosted at B to the Proxy, and gives a "getback" indication that tells the Proxy the time at which it is going to be on duty again, and willing to retrieve the response from B.  The proxy is in charge of making the request on behalf of A, using an appropriate poll interval for a time span upper bounded by the "getback" value, and to buffer the response from B until A wakes up again.</t>
 
       <section title="Requirements Language">
         <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
       </section>
     </section>
 
-    <section title="Basic Message Flow">
-      <t>A typical flow of communication involving the said options is shown in <xref target="base_msg_flow" />.  Please note that the framework is completely agnostic as to the transported message type and method.</t>
+    <section title="Motivation">
+      <t>This memo focuses on the requirement REQ3 of <xref target="I-D.shelby-core-coap-req" />:</t>
 
-      <figure align="center" anchor="base_msg_flow">
+      <figure align="center">
+        <artwork align="left"><![CDATA[
+REQ3:   The ability to deal with sleeping nodes.  Devices may be
+        powered off at any point in time but periodically "wake up"
+        for brief periods of time.
+        ]]></artwork>
+      </figure>
+
+    </section>
+
+    <section title="Basic Message Flow with CON Semantics">
+      <t>A typical flow of communication involving the Sleepy option using CON messaging is shown in <xref target="base_con_msg_flow" />.  A and B are sleepy enpoints showing empty intersection as to their wake intervals.</t>
+
+      <figure align="center" anchor="base_con_msg_flow">
         <artwork align="left"><![CDATA[
     A                        P                         B
     .                        |                         .
     .                        |                         .
-    |        Method          |                         .
+    .    CON (0x7a10)        |                         .
 (1) +----------------------->|                         .
+    |    Method              |                         .
     |    Proxy-Uri: B/res    |                         .
-    |      GetBack: 60       |                         .
+    |    Sleepy: {2,58,0}    |                         .
     |                        |                         .
-    |                        |                         .
+    |    ACK (0x7a10)        |                         .
 (2) |<-----------------------+                         .
-    |  2.0X Taken in Charge  |                         .
-    |     Async: 123456      |                         .
-    .                        |      Method             .
+    .                        |   Method                .
 (3) .                        +------------------X      .
     .                        |   Uri-Path: /res        .
     .                        |                         .
-    .                        |      Method             .
+    .                        |   Method                .
 (4) .                        +------------------X      .
     .                        |   Uri-Path: /res        .
     .                        |                         .
-    .                        |        Method           |
+    .                        |   Method                |
 (5) .                        +------------------------>|
-    .                        |     Uri-Path: /res      |
+    .                        |   Uri-Path: /res        |
     .                        |                         |
-    .                        |     Response Code       |
+    .                        |   Response Code         |
 (6) .                        |<------------------------+
-    .                        |       [Content]         |
-    .                        |                         |
-    .                        |                         |
-    .                        |                         |
-    |        Method          |                         .
-(7) +----------------------->|                         .
-    |    Proxy-Uri: B/res    |                         .
-    |        Async: 123456   |                         .
+    .                        |   [Content]             |
+    .    CON (0xfa10)        |                         .
+(7) +<-----------------------|                         .
+    |    Response Code       |                         .
+    |    [Content]           |                         .
     |                        |                         .
-    |     Response Code      |                         .
-(8) |<-----------------------+                         .
-    |       [Content]        |                         .
+    |    ACK (0xfa10)        |                         .
+(8) |----------------------->+                         .
     .                        |                         .
     .                        |                         .
         ]]></artwork>
       </figure>
 
-      <t>In message (1) a sleepy node, A, asks the Proxy to act upon the resource identified by the Proxy-Uri Option in a possibly asynchronous way by supplying the GetBack Option indicating a time at which A thinks it will be ready (i.e. awake) to retrieve the response message.</t> 
+      <t>In message (1) a sleepy node, A, asks the Proxy to act upon the resource identified by the Proxy-Uri Option in a possibly asynchronous way by supplying the Sleepy Option indicating a time at which A thinks it may be ready (i.e. awake) to retrieve the response message.</t> 
 
-      <t>In case the Proxy understands the GetBack Option, it replies (2) with a [TBD] status code and an Async Option containing a ticket associated to the asynchronous transaction that it is willing to handle on behalf of the client.</t>
+      <t>In case the Proxy understands the Sleepy Option, it replies (2) with a separate ACK.</t>
 
-      <t>From now on A can get back to sleep while the Proxy sends the request to the target node, B -- messages (3-5) and eventually get a response back (6).</t>
+      <t>From now on A can get back to sleep while the Proxy sends the request to the target node, B -- messages (3-5) -- and eventually get a response back (6).</t>
 
-      <t>The stored response is kept by the Proxy until A is on duty again.  A reissues the original request attaching an Async Option carrying the previously given transaction ticket (7) and gets the corresponding response (8).</t>
+      <t>The stored response is kept by the Proxy until A is on duty again. (The seeming on-duty time is computed using the quantities previously supplied by A through the Sleepy Option.)  The Proxy sends the separate response back, operating with the usual rules of CON retransmission, until an ACK from A is heard, or the trasmission retries are exhausted.</t>
 
-      <!-- TODO reposition this -->
-      <t>An interesting feature here is that in case a CON exchange is requested by A, a separate ACK coming from B can be coalesced by the Proxy in a single piggybacked response to A.  Further, the Proxy may rearrange any implied block-wise transfer <xref target="I-D.ietf-core-block" /> in an optimal way.</t>
+      <t>Please note that, generally speaking, the framework is completely agnostic as to the transported message type and method.  Further, the Proxy may rearrange any implied block-wise transfer <xref target="I-D.ietf-core-block" /> in an optimal way.</t>
 
     </section>
 
     <section title="Optimized Message Flow">
       <section title="Allowing Short Circuit">
-        <t>The Proxy SHOULD try to immediately satisfy the request by searching the cache (<xref target="opt_msg_flow1" />), or MAY decide to forward the request to the target node right away (<xref target="opt_msg_flow2" />).  The latter exchange SHALL be armed with a very short timeout to be as friendly as possible to the short duty cycle of the requesting node.</t>
+        <t>The Proxy MUST try to immediately satisfy the request by searching the cache (<xref target="opt_msg_flow1" />), or MAY decide to forward the request to the target node right away (<xref target="opt_msg_flow2" />).  The latter exchange SHALL be armed with a very short timeout to be as friendly as possible to the short duty cycle of the requesting node.</t>
 
         <figure align="center" anchor="opt_msg_flow1">
           <artwork align="left"><![CDATA[
     A                        P                         B
     .                        |                         .
     .                        |                         .
-    |        Method          |                         .
+    .    CON (0x7a10)        |                         .
 (1) +----------------------->|                         .
+    |    Method              |                         .
     |    Proxy-Uri: B/res    |                         .
-    |      GetBack: 60       |                         .
-    |                    [cache hit]                   .
-    |     Response Code      |                         .
-(2) |<-----------------------+                         .
-    |       [Content]        |                         .
+    |    Sleepy: {2,58,0}    |                         .
+    |                        |                         .
+    |                   [cache hit]                    .
+    |                        |                         .
+    |    ACK (0x7a10)        |                         .
+(7) +<-----------------------|                         .
+    .    Response Code       |                         .
+    .    [Content]           |                         .
     .                        |                         .
     .                        |                         .
           ]]></artwork>
@@ -179,27 +196,8 @@
 
         <figure align="center" anchor="opt_msg_flow2">
           <artwork align="left"><![CDATA[
-    A                        P                         B
-    .                        |                         .
-    .                        |                         .
-    |        Method          |                         .
-(1) +----------------------->|                         .
-    |    Proxy-Uri: B/res    |                         .
-    |      GetBack: 60       |                         .
-    |                   [cache miss]                   .
-    |                        |                         .
-(2) |                        +------------------------>|
-    |                        |     Uri-Path: /res      |
-    |                        |                         |
-    |                        |     Response Code       |
-(3) |                        |<------------------------+
-    |                        |       [Content]         |
-    |                        |                         .
-    |     Response Code      |                         .
-(4) |<-----------------------+                         .
-    |       [Content]        |                         .
-    .                        |                         .
-    .     ]]></artwork>
+[TODO cache miss with enough LEFT to try the exchange]
+          ]]></artwork>
         </figure>
 
 </section>
@@ -209,54 +207,49 @@
       </section>
     </section>
 
-    <section title="Options">
+    <section title="Sleepy Option">
       <figure align="center">
         <artwork align="left"><![CDATA[
 +-----+----------+---------+--------+--------+---------+
 | No. | C/E      | Name    | Format | Length | Default |
 +-----+----------+---------+--------+--------+---------+
-|  XX | Elective | Sleepy  | uint   | 4 B    | (none)  |
-|  YY | Critical | Async   | uint   | 0-4 B  | (none)  |
-|  ZZ | Critical | GetBack | uint   | 0-4 B  | (none)  |
+|  XX | Elective | Sleepy  | uint   | 4-6 B  | (none)  |
 +-----+----------+---------+--------+--------+---------+
         ]]></artwork>
       </figure>
 
-      <section title="GetBack Option">
-        <t>The GetBack option is used to signal a Proxy the will to initiate an asynchronous request/response exchange.</t>
-
-        <t>The GetBack option is critical. If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the client.</t>
-	
-      	<t>The GetBack option MUST be present only in the message initiating the asynchronous request/response exchange.  No other message is expected to carry a GetBack option.</t>
-
-      	<t>The value of the GetBack option represents the number of seconds that the requester intends to sleep before being back on duty and ready to consume the potential response.  As such it also provides an upper bound for the time interval during which the Proxy can try to forward the stored request to the target origin.</t>
-      </section>
-  
-      <section title="Async Option">
-        <t>The Async option is an unsigned integer uniquely identifying a given asynchronous request/response transaction (i.e. it MUST be unique per requester, method, and target resource triple).</t>
-        <t>It is generated by the Proxy and mirrored by the requester on wake up, when it goes to the Proxy to consume the response.</t>
-        <t>The Async option is critical.  If the Proxy does not recognize it, a  4.02 (Bad Option) MUST be returned to the client..</t>
-        <t>If the Proxy receives an unknown value (i.e. one that is not currently bound to any asynchronous transaction for the requesting node), it MUST return a 4.00 Bad Request response code.</t>
-      </section>
-
       <section title="Sleepy Option" anchor="sleepy_option">
-        <t>This option is discretionarily piggybacked by a sleepy node on response messages to indicate: the remaining time before sleep, the expected sleep interval, and the on-duty interval. To save bandwith, a node with the intention of advertising its duty cycle, SHOULD include the Sleepy option only in its first message exchange with each requesting agent. The node MAY include the Sleepy option in later responses in case its duty cycle is subjected to changes. </t>
+        <t>The Sleepy Option in a request is used to signal a Proxy the will to initiate an asynchronous request/response exchange.</t>
 
-      <figure align="center">
+        <t>The Sleepy option is critical. If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the client.</t>
+	
+      	<t>The Sleepy Option MAY be discretionarily piggybacked by a sleepy node on response messages to inform the network about the sleepy pattern in use at the endpoint [[CHECK this as it implies Elective sema]] which in turn MAY be used by sleepy-friendly Proxies to reduce overall network congestion implied by the polling.</t>
+
+      	<t>The value of the Sleepy option is partitioned in three subfields indicating: the remaining time before sleep, the expected sleep interval, and (optionally) the on-duty interval.</t> 
+
+        <t>Two formats are available, a long format (<xref target="long_sleepy_fmt"/>), and a short one (<xref target="short_sleepy_fmt" />) which are easily distinguished from the Length field of the encoded option: 8 and 12 respectively.</t>
+
+      <figure align="center" anchor="long_sleepy_fmt">
         <artwork align="left"><![CDATA[
- 0               1               2               3
- 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|       LEFT        |         SLEEP         |       WAKE        |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
++---------------------------------------------------+
+|     LEFT       |     SLEEP    |       WAKE        |
++---------------------------------------------------+
+        ]]></artwork>
+      </figure>
+
+      <figure align="center" anchor="short_sleepy_fmt">
+        <artwork align="left"><![CDATA[
++-------------------------------+
+|     LEFT       |     SLEEP    |
++-------------------------------+
         ]]></artwork>
       </figure>
 
       <t>
         <list>
-          <t>LEFT: 10-bit subfield encoding the number of seconds that the sending node is left before going off-duty.  The maximum allowed value is 0x3FF, which allows for approx. 17 minutes.</t>
-          <t>SLEEP: 12-bit subfield encoding the number of seconds that the sending node is off-duty.  The maximum allowed value is 0xFFF, which allows for approx. 68 minutes.</t>
-          <t>WAKE: 10-bit subfield encoding the number of seconds that the sending node is on-duty.  The maximum allowed value is 0x3FF, which allows for approx. 17 minutes.</t>
+          <t>LEFT: 32-bit uint encoding the number of milliseconds that the sending node is left before going off-duty.  The maximum value is 0xFFFFFFFF, which allows for 71582 minutes (TODO shrink it).</t>
+          <t>SLEEP: 32-bit uint encoding the number of milliseconds that the sending node is off-duty.  The maximum value allows for 71582 minutes (i.e. approx. 50 days).</t>
+          <t>WAKE: optional 32-bit uint encoding the number of seconds that the sending node is on-duty (TODO shrink it).</t>
         </list>
       </t>
 
@@ -302,17 +295,16 @@ link-extension = ( "start" "=" 1*DIGIT ) ; in seconds since Epoch
 | Number | Name    | Reference |
 :--------:---------:-----------:
 |  2k    | Sleepy  | RFC XXXX  |
-+--------+---------+-----------+
-|  2n+1  | Async   | RFC XXXX  |
-+--------+---------+-----------+
-|  2m+1  | GetBack | RFC XXXX  |
 `------------------------------'
         ]]></artwork>
       </figure>
+
+   <t>The "start", "wake" and "sleep" attributes need to be registered when a future Web Linking attribute is created.</t>
+
     </section>
 
     <section anchor="Security" title="Security Considerations">
-      <t>The same considerations as those highlighted in Section 10.3.2 and 10.3.3 of <xref target="I-D.ietf-core-coap" /> apply, and are somewhat amplified by the possible congestion induced by the tentative setup of communication with the target node (messages 3-5 in <xref target="base_msg_flow" />).  The Proxy SHOULD try to send as little messages as possibile in order to contact the requested endpoint and MUST make use of the wake/sleep indication in case they have been previously made available by the target node through the Sleepy Option. </t> 
+      <t>The same considerations as those highlighted in Section 10.3.2 and 10.3.3 of <xref target="I-D.ietf-core-coap" /> apply, and are somewhat amplified by the possible congestion induced by the tentative setup of communication with the target node (messages 3-5 in <xref target="base_con_msg_flow" />).  The Proxy SHOULD try to send as little messages as possibile in order to contact the requested endpoint and MUST make use of the wake/sleep indication in case they have been previously made available by the target node through the Sleepy Option.</t> 
     </section>
   </middle>
 
@@ -321,6 +313,7 @@ link-extension = ( "start" "=" 1*DIGIT ) ; in seconds since Epoch
       &RFC2119;
       &I-D.ietf-core-coap;
       &I-D.ietf-core-link-format;
+      &I-D.shelby-core-coap-req;
     </references>
     <references title="Informative References">
       &I-D.ietf-core-block;
