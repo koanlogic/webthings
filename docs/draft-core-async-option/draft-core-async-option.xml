@@ -104,9 +104,9 @@
 
       <t>The proposal is to arm the Proxy with the ability to act as a store-and-forward agent mediating the request/response exchange between "A" and "B".</t>  
 
-      <t>"A" declares the will to act onto a given resource hosted at "B" to the Proxy, and gives a "getback" indication that tells the Proxy the time at which it is going to be on duty again, and willing to retrieve the response from "B".</t>
+      <t>"A" declares the will to act onto a given resource hosted at "B" to the Proxy, and gives a "get back" indication that tells the Proxy the time at which it is going to be on duty again, and willing to retrieve the response from "B".</t>
 
-     <t>The Proxy is in charge of making the request on behalf of "A", using an appropriate poll interval for a time span upper bounded by the "getback" value, and to buffer the response from "B" until "A" wakes up again.</t>
+     <t>The Proxy is in charge of making the request on behalf of "A", using an appropriate poll interval for a time span upper bounded by the "get back" value, and to buffer the response from "B" until "A" wakes up again.</t>
 
       <section title="Requirements Language">
         <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
@@ -176,7 +176,7 @@ REQ3:   The ability to deal with sleeping nodes.  Devices may be
 
       <t>From now on A can get back to sleep while the Proxy sends the request to the target node, B -- messages (3-5) -- and eventually get a response back (6).</t>
 
-      <t>The stored response is kept by the Proxy until A is on duty again. (The seeming on-duty time is computed using the quantities previously supplied by A through the Sleepy Option.)  The Proxy sends the separate response back, operating with the usual rules of CON retransmission, until an ACK from A is heard, or the trasmission retries are exhausted.</t>
+      <t>The stored response is kept by the Proxy until A is on duty again. (The seeming on-duty time is computed using the quantities previously supplied by A through the Sleepy Option.)  The Proxy sends the separate response back, operating with the usual rules of CON retransmission, until an ACK from A is heard, or the transmission retries are exhausted.</t>
 
       <t>Please note that, generally speaking, the framework is completely agnostic as to the transported message type and method.  Further, the Proxy may rearrange any implied block-wise transfer <xref target="I-D.ietf-core-block" /> in an optimal way.</t>
 
@@ -264,9 +264,9 @@ REQ3:   The ability to deal with sleeping nodes.  Devices may be
       <section title="Sleepy Option" anchor="sleepy_option">
         <t>The Sleepy Option in a request is used to signal a Proxy the will to initiate an asynchronous request/response exchange.</t>
 
-        <t>The Sleepy option is critical. If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the client.</t>
+        <t>The Sleepy option is elective.  If the Proxy does not recognize it, it will try to serve a fresh representation of the requested resource, or forward the request to the intended origin; depending on the availability of the endpoints at the time the Proxy tries to contact them, the usual proxyed transaction may succeed, partially fail, or completely fail.</t>
 	
-      	<t>The Sleepy Option MAY be discretionarily piggybacked by a sleepy node on response messages to inform the network about the sleepy pattern in use at the endpoint [[CHECK this as it implies Elective sema]] which in turn MAY be used by sleepy-friendly Proxies to reduce overall network congestion implied by the polling.</t>
+      	<t>The Sleepy Option MAY be discretionarily piggybacked by a sleepy node on response messages to inform the network about the sleepy pattern in use at the endpoint.  This knowledge MAY be used by sleepy-friendly Proxies to reduce the overall network congestion that is implied by resorting to blind polling in order to maximize the chance to get a response from the target.</t>
 
       	<t>The value of the Sleepy option is partitioned in three subfields indicating: the remaining time before sleep, the expected sleep interval, and (optionally) the on-duty interval.</t> 
 
