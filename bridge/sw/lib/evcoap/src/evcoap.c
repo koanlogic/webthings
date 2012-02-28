@@ -6,6 +6,9 @@
 #include "evcoap_net.h"
 #include "evcoap_opt.h"
 
+static ec_client_t *ec_observer_new(ec_t *coap, const char *uri, 
+        ec_msg_model_t mm, const char *p_host, uint16_t p_port);
+
 /**
  *  \brief  TODO
  */
@@ -82,6 +85,23 @@ ec_client_t *ec_proxy_request_new(ec_t *coap, ec_method_t m, const char *uri,
         ec_msg_model_t mm, const char *proxy_host, uint16_t proxy_port)
 {
     return ec_client_new(coap, m, uri, mm, proxy_host, proxy_port);
+}
+
+/**
+ *  \brief  TODO
+ */
+ec_client_t *ec_proxy_observe_new(ec_t *coap, const char *uri,
+        ec_msg_model_t mm, const char *proxy_host, uint16_t proxy_port)
+{
+    return ec_observer_new(coap, uri, mm, proxy_host, proxy_port);
+}
+
+/**
+ *  \brief  TODO
+ */
+ec_client_t *ec_observe_new(ec_t *coap, const char *uri, ec_msg_model_t mm)
+{
+    return ec_observer_new(coap, uri, mm, NULL, (uint16_t) 0);
 }
 
 /**
@@ -708,3 +728,21 @@ int ec_get_observe_counter(uint16_t *cnt)
 err:
     return -1;
 }
+
+static ec_client_t *ec_observer_new(ec_t *coap, const char *uri, 
+        ec_msg_model_t mm, const char *p_host, uint16_t p_port)
+{
+    /* Create new GET-er client. */
+    ec_client_t *cli = ec_client_new(coap, EC_GET, uri, mm, p_host, p_port);
+
+    dbg_return_if (cli == NULL, NULL);
+
+    /* Add Observe option. */
+    dbg_err_if (ec_request_add_observe(cli));
+
+    return cli;
+err:
+    ec_client_free(cli);
+    return NULL;
+}
+
