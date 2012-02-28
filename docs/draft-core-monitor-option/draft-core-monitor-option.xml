@@ -7,6 +7,7 @@
 <!ENTITY I-D.narten-iana-considerations-rfc2434bis SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.narten-iana-considerations-rfc2434bis.xml">
 <!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-coap-08.xml">
 <!ENTITY I-D.ietf-core-observe SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-observe-04.xml">
+<!ENTITY I-D.shelby-core-coap-req SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-shelby-core-coap-req-02.xml">
 ]>
 <?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
 <?rfc strict="yes" ?>
@@ -16,10 +17,10 @@
 <?rfc sortrefs="yes" ?>
 <?rfc compact="yes" ?>
 <?rfc subcompact="no" ?>
-<rfc category="info" docName="draft-core-monitor-option-00" ipr="trust200902">
+<rfc category="info" docName="draft-fossati-core-publish-monitor-option-00" ipr="trust200902">
   <front>
     <title>
-      Monitor Option for CoAP
+      Publish and Monitor Options for CoAP
     </title>
     <author
       fullname="Thomas Fossati"
@@ -49,7 +50,24 @@
       </address>
     </author>
 
-    <date month="December" year="2011" />
+    <author
+      fullname="Salvatore Loreto"
+      initials="S.L."
+      surname="Loreto"
+    >
+      <organization>Ericsson</organization>
+      <address>
+        <postal>
+          <street>Hirsalantie 11</street>
+          <city>Jorvas</city>
+          <code>02420</code>
+          <country>Finland</country>
+        </postal>
+        <email>salvatore.loreto@ericsson.com</email>
+      </address>
+    </author>
+
+    <date month="March" year="2012" />
 
     <area>General</area>
     <workgroup>Internet Engineering Task Force</workgroup>
@@ -82,6 +100,23 @@
       <section title="Requirements Language">
         <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
       </section>
+
+    <section title="Motivation">
+      <t>This memo focuses on the requirement REQ3 of <xref target="I-D.shelby-core-coap-req" />:</t>
+
+      <figure align="center">
+        <artwork align="left"><![CDATA[
+REQ3:   The ability to deal with sleeping nodes.  Devices may be
+        powered off at any point in time but periodically "wake up"
+        for brief periods of time.
+        ]]></artwork>
+      </figure>
+
+    </section>
+
+
+
+
     </section>
 
     <section title="Options">
@@ -115,7 +150,7 @@ P        S
         </figure>
         <t>The origin server publish one of its hosted resources, specified by the enclosed Proxy-URI, by PUT'ing it to the Proxy with a Publish option attached.  The Proxy, which is voluntarily given the authority by the origin of the resource for the "lease" time specified by Max-Age, replies with a 2.01 if the authority transfer has succeeded.  No Location-URI nor Location-Path are returned since the original resource URI has not changed: other clients can access it through its original handler, provided they go through the delegated Proxy.  If the Publish operation does not succeed, an appropriate [TBD] response code is returned.</t>
 
-        <t>ETag MAY be supplied to hint the underlying cache. If no Max-age is given, a default of 3600 seconds MUST be assumed.</t>
+        <t>ETag MAY be supplied to hint the underlying cache.  If no Max-Age is given, a default of 3600 seconds MUST be assumed.  The Max-Age value, both implicit or explicit, determines the lifetime of the implied origin delegation.  When the Max-Age value is elapsed, the Proxy MUST delete the Publish'ed resource value.</t>
 
         <t>The Publish option is critical and MUST be present in the request only. If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the client.</t>
   
@@ -321,9 +356,10 @@ P        C
     <references title="Normative References">
       &RFC2119;
       &I-D.ietf-core-coap;
+      &I-D.ietf-core-observe;
     </references>
     <references title="Informative References">
-      &I-D.ietf-core-observe;
+      &I-D.shelby-core-coap-req;
     </references>
   </back>
 </rfc>
