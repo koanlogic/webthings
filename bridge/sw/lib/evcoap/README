@@ -258,14 +258,26 @@ Contents
 
 4. Observe
 
-  An observable resource shall update its state using the following interface:
+  To create an observer, one of the following interfaces can be used, depending
+  on whether a proxy is used (or not) to access the target resource:
 
-       int ec_update_representation(const char *uri, const ev_uint8_t *rep, 
-               size_t rep_len, ec_mt_t media_type);
+      cli = ec_proxy_observe_new(coap, uri, EC_CON, proxy, port);
+  or
+      cli = ec_observe_new(coap, uri, EC_NON);
 
-  [[TODO]]
+  The Observe request is sent via the usual ec_request_send() interface, but
+  different from regular requests, CoAP Observe requests elicit one or more
+  responses, hence the user supplied callback can be invoked one or more times.
+
+  The user can return a special return code to signal its willingness to drop
+  the observation (TODO).
+
+  If the observed resource don't provide a notification within the associated
+  Max-Age, the observation timeouts at the client, in which case the callback
+  is invoked with a special status (TODO).
+
 
 5. PDUs Lifetime
 
-  [[TODO: use light ownership]]
+  Client and server objects are created by the user and disposed by evcoap.
 

@@ -31,9 +31,9 @@ extern "C" {
 #define EC_COAP_BLOCK_MAX   (1 << 10)
 
 /* CON retransmission parameters. */
-#define EC_COAP_RESPONSE_TIMEOUT        2
-#define EC_COAP_RESPONSE_RANDOM_FACTOR  1.5
-#define EC_COAP_MAX_RETRANSMIT          4
+#define EC_COAP_RESP_TIMEOUT        2
+#define EC_COAP_RESP_RANDOM_FACTOR  1.5
+#define EC_COAP_MAX_RETRANSMIT      4
 
 #ifndef EC_COAP_MAX_REQ_SIZE
   #define EC_COAP_MAX_REQ_SIZE 1500
