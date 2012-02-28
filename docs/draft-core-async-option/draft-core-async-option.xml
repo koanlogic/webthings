@@ -19,10 +19,12 @@
 <?rfc sortrefs="yes" ?>
 <?rfc compact="yes" ?>
 <?rfc subcompact="no" ?>
-<rfc category="info" docName="draft-core-async-option-00" ipr="trust200902">
+<?rfc comments="yes" ?>
+<?rfc inline="yes" ?>
+<rfc category="info" docName="draft-giacomin-core-sleepy-option-00" ipr="trust200902">
   <front>
     <title>
-      Async Option for CoAP
+      Sleepy Option for CoAP
     </title>
     <author
       fullname="Thomas Fossati"
@@ -59,6 +61,12 @@
     >
       <organization>Ericsson</organization>
       <address>
+        <postal>
+          <street>Hirsalantie 11</street>
+          <city>Jorvas</city>
+          <code>02420</code>
+          <country>Finland</country>
+        </postal>
         <email>salvatore.loreto@ericsson.com</email>
       </address>
     </author>
@@ -114,12 +122,11 @@ REQ3:   The ability to deal with sleeping nodes.  Devices may be
     </section>
 
     <section title="Basic Message Flow with CON Semantics">
-      <t>A typical flow of communication involving the Sleepy option using CON messaging is shown in <xref target="base_con_msg_flow" />.  A and B are sleepy enpoints showing empty intersection as to their wake intervals.</t>
+      <t>A typical flow of communication involving the Sleepy option using CON messaging is shown in <xref target="base_con_msg_flow" />.  A and B are sleepy endpoints showing empty intersection as to their wake intervals.</t>
 
       <figure align="center" anchor="base_con_msg_flow">
         <artwork align="left"><![CDATA[
     A                        P                         B
-    .                        |                         .
     .                        |                         .
     .    CON (0x7a10)        |                         .
 (1) +----------------------->|                         .
@@ -145,13 +152,12 @@ REQ3:   The ability to deal with sleeping nodes.  Devices may be
 (6) .                        |<------------------------+
     .                        |   [Content]             |
     .    CON (0xfa10)        |                         .
-(7) +<-----------------------|                         .
+(7) |<-----------------------+                         .
     |    Response Code       |                         .
     |    [Content]           |                         .
     |                        |                         .
     |    ACK (0xfa10)        |                         .
-(8) |----------------------->+                         .
-    .                        |                         .
+(8) +----------------------->+                         .
     .                        |                         .
         ]]></artwork>
       </figure>
@@ -166,11 +172,16 @@ REQ3:   The ability to deal with sleeping nodes.  Devices may be
 
       <t>Please note that, generally speaking, the framework is completely agnostic as to the transported message type and method.  Further, the Proxy may rearrange any implied block-wise transfer <xref target="I-D.ietf-core-block" /> in an optimal way.</t>
 
+      <t><cref anchor="LOST ACK" source="TF">What if message (2) is lost ?</cref></t>
+
+    </section>
+
+    <section title="Basic Message Flow with NON Semantics">
+      <t>In case the sleepy sensor uses NON semantics, the resulting exchange is the basically the same as the one depicted in <xref target="base_con_msg_flow" /> with messages (2) and (8) removed.</t>
     </section>
 
     <section title="Optimized Message Flow">
-      <section title="Allowing Short Circuit">
-        <t>The Proxy MUST try to immediately satisfy the request by searching the cache (<xref target="opt_msg_flow1" />), or MAY decide to forward the request to the target node right away (<xref target="opt_msg_flow2" />).  The latter exchange SHALL be armed with a very short timeout to be as friendly as possible to the short duty cycle of the requesting node.</t>
+        <t>The Proxy MUST try to immediately satisfy the request by searching the cache (<xref target="opt_msg_flow1" />).</t>
 
         <figure align="center" anchor="opt_msg_flow1">
           <artwork align="left"><![CDATA[
@@ -186,7 +197,7 @@ REQ3:   The ability to deal with sleeping nodes.  Devices may be
     |                   [cache hit]                    .
     |                        |                         .
     |    ACK (0x7a10)        |                         .
-(7) +<-----------------------|                         .
+(7) |<-----------------------+                         .
     .    Response Code       |                         .
     .    [Content]           |                         .
     .                        |                         .
@@ -194,17 +205,37 @@ REQ3:   The ability to deal with sleeping nodes.  Devices may be
           ]]></artwork>
         </figure>
 
+        <t>The Proxy  MAY decide to forward the request to the target node right away (<xref target="opt_msg_flow2" />) in case the "time left before sleeping" indication supplied by A is deemed enough to try and forward the request to B (because perhaps the Proxy knows that B is awake.)  The latter exchange SHALL concurrently arm a timeout for sending the ACK message to A before it goes to sleep (in case CON is in use).</t>
+
         <figure align="center" anchor="opt_msg_flow2">
           <artwork align="left"><![CDATA[
-[TODO cache miss with enough LEFT to try the exchange]
+    A                        P                         B
+    .                        |                         .
+    .                        |                         .
+    .    CON (0x7a10)        |                         .
+(1) +----------------------->|                         .
+    |    Method              |                         .
+    |    Proxy-Uri: B/res    |                         .
+    |    Sleepy: {5,58,5}    |                         .
+    |                        |                         .
+    |                   [cache miss]                   .
+    |                        |                         |
+(5) |                        +------------------------>|
+    |                        |   Uri-Path: /res        |
+    |                        |                         |
+    |                        |   Response Code         |
+(6) |                        |<------------------------+
+    |                        |   [Content]             |
+    |    ACK (0x7a10)        |                         .
+(7) |<-----------------------+                         .
+    .    Response Code       |                         .
+    .    [Content]           |                         .
+    .                        |                         .
+    .                        |                         .
           ]]></artwork>
         </figure>
 
-</section>
-
-      <section title="Steering the Poll Strategy at the Proxy">
-        <t>In case the Proxy has previously received an indication from the same target about its on/off-duty behaviour via the Sleepy Option (<xref target="sleepy_option" />), or by any other out-of-band means, it SHOULD use it to devise the most efficient poll strategy, thus avoiding unnecessary messaging which would just aggravate the constrained network congestion.</t>
-      </section>
+        <t>In any case, if the Proxy has previously received an indication from the same target about its on/off-duty behaviour via the Sleepy Option (<xref target="sleepy_option" />), or by any other means (e.g. <xref target="new_linkformat_attrs" />), it MUST use it to devise the most efficient poll strategy, thus avoiding unnecessary messaging which would just aggravate the constrained network congestion.</t>
     </section>
 
     <section title="Sleepy Option">
@@ -213,7 +244,7 @@ REQ3:   The ability to deal with sleeping nodes.  Devices may be
 +-----+----------+---------+--------+--------+---------+
 | No. | C/E      | Name    | Format | Length | Default |
 +-----+----------+---------+--------+--------+---------+
-|  XX | Elective | Sleepy  | uint   | 4-6 B  | (none)  |
+|  XX | Elective | Sleepy  | uint   | 8-12 B | (none)  |
 +-----+----------+---------+--------+--------+---------+
         ]]></artwork>
       </figure>
@@ -230,28 +261,30 @@ REQ3:   The ability to deal with sleeping nodes.  Devices may be
         <t>Two formats are available, a long format (<xref target="long_sleepy_fmt"/>), and a short one (<xref target="short_sleepy_fmt" />) which are easily distinguished from the Length field of the encoded option: 8 and 12 respectively.</t>
 
       <figure align="center" anchor="long_sleepy_fmt">
-        <artwork align="left"><![CDATA[
-+---------------------------------------------------+
-|     LEFT       |     SLEEP    |       WAKE        |
-+---------------------------------------------------+
+        <artwork align="center"><![CDATA[
++-------+-------+-------+
+| LEFT  | SLEEP | WAKE  |
++-------+-------+-------+
         ]]></artwork>
       </figure>
 
       <figure align="center" anchor="short_sleepy_fmt">
-        <artwork align="left"><![CDATA[
-+-------------------------------+
-|     LEFT       |     SLEEP    |
-+-------------------------------+
+        <artwork align="center"><![CDATA[
++-------+-------+
+| LEFT  | SLEEP |
++-------+-------+
         ]]></artwork>
       </figure>
 
       <t>
         <list>
-          <t>LEFT: 32-bit uint encoding the number of milliseconds that the sending node is left before going off-duty.  The maximum value is 0xFFFFFFFF, which allows for 71582 minutes (TODO shrink it).</t>
+          <t>LEFT: 32-bit uint encoding the number of milliseconds that the sending node is left before going off-duty.  The maximum value is 0xFFFFFFFF, which allows for 71582 minutes.</t>
           <t>SLEEP: 32-bit uint encoding the number of milliseconds that the sending node is off-duty.  The maximum value allows for 71582 minutes (i.e. approx. 50 days).</t>
-          <t>WAKE: optional 32-bit uint encoding the number of seconds that the sending node is on-duty (TODO shrink it).</t>
+          <t>WAKE: optional 32-bit uint encoding the number of milliseconds that the sending node is on-duty.</t>
         </list>
       </t>
+
+      <t><cref anchor="SHRINK" source="TF">use 24-bit uint for LEFT and WAKE (i.e. max ~4 hours)</cref></t>
 
       </section>
   
@@ -313,10 +346,10 @@ link-extension = ( "start" "=" 1*DIGIT ) ; in seconds since Epoch
       &RFC2119;
       &I-D.ietf-core-coap;
       &I-D.ietf-core-link-format;
-      &I-D.shelby-core-coap-req;
+      &I-D.ietf-core-block;
     </references>
     <references title="Informative References">
-      &I-D.ietf-core-block;
+      &I-D.shelby-core-coap-req;
     </references>
   </back>
 </rfc>
