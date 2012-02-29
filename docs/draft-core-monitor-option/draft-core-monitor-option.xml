@@ -17,6 +17,8 @@
 <?rfc sortrefs="yes" ?>
 <?rfc compact="yes" ?>
 <?rfc subcompact="no" ?>
+<?rfc comments="yes" ?>
+<?rfc inline="yes" ?>
 <rfc category="info" docName="draft-fossati-core-publish-monitor-options-00" ipr="trust200902">
   <front>
     <title>
@@ -67,7 +69,7 @@
       </address>
     </author>
 
-    <date month="March" year="2012" />
+    <date year="2012" />
 
     <area>General</area>
     <workgroup>Internet Engineering Task Force</workgroup>
@@ -75,11 +77,13 @@
     <keyword>CoAP, Monitor option, Publish option, sleepy sensor</keyword>
 
     <abstract>
-      <t>This memo defines two additional options for the Constrained Application Protocol (CoAP) especially targeted at sleepy sensors: Publish and Monitor.</t>
+      <t>This memo defines two additional Options for the Constrained Application Protocol (CoAP) especially targeted at sleepy sensors: Publish and Monitor.</t>
       
-      <t>The Publish option enables opportunistic updates of a given resource state, by temporarily delegating the authority of the Publish'ed resource to a Proxy node.  The whole process is driven by the (sleepy) origin -- which may actually never need to listen.</t>
+      <t>The Publish Option enables opportunistic updates of a given resource state, by temporarily delegating the authority of the Publish'ed resource to a Proxy node.  
+         The whole process is driven by the (sleepy) origin -- which may actually never need to be listening.</t>
 
-      <t>The Monitor option complements the typical Observe pattern, enabling the tracking of a resource hosted by a node sleeping most of the time, by taking care of establishing and maintaining an Observe relationship with the (sleepy) origin on behalf of the (sleepy) client.</t>
+      <t>The Monitor Option complements the typical Observe pattern, enabling the tracking of a resource hosted by a node sleeping most of the time, by taking care 
+         of establishing and maintaining an Observe relationship with the (sleepy) origin on behalf of the (sleepy) client.</t>
 
     </abstract>
   </front>
@@ -87,9 +91,9 @@
   <middle>
     <section title="Introduction">
 
-      <t>The proposal described in this memo covers the following use case: a node N, which is sleeping most of the time, depends one or more resources hosted at another sleepy node M. In cases as such, the probability of an empty intersection between their respective wake periods is very high, making it hard for the two to synchronize.</t>
+      <t>The proposal described in this memo covers the following use case: <list style="empty"><t>a node N, which is sleeping most of the time, depends one or more resources hosted at another sleepy node M. In cases as such, the probability of an empty intersection between their respective wake periods is very high, making it hard for the two to synchronize.</t></list></t>
 
-      <t>In this scenario, using the basic observe <xref target="I-D.ietf-core-observe" /> functionality is not enough. as it could lead to lost state updates in case N is offline while M pushes its notifications; further, the observation may never bootstrap since its initialization needs both client and origin awake at the same time.</t>
+      <t>In this scenario, using the basic observe <xref target="I-D.ietf-core-observe" /> functionality is not enough, as it could lead to lost state updates in case N is offline while M pushes its notifications; further, the observation may never bootstrap since its initialization needs both client and origin awake at the same time.</t>
 
       <t>This memo introduces two extensions to the Proxy caching functionality that give the Proxy an explicit mediation role in the sleepy-to-sleepy CoAP <xref target="I-D.ietf-core-coap" /> communication.</t>
       
@@ -99,6 +103,12 @@
 
       <section title="Requirements Language">
         <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
+
+     <t><list style="hanging">
+          <t hangText="Sleepy Device:">a sensor/actuator (usually battery operated) that switches off its radio beyond the normal radio duty cycle in order to save energy.</t>
+
+          <t hangText="Proxy mediation role:">TBD</t>
+      </list></t>
       </section>
 
     <section title="Motivation">
@@ -132,8 +142,13 @@ REQ3:   The ability to deal with sleeping nodes.  Devices may be
       </figure>
 
       <section title="Publish Option">
-        <t>The Publish Option allows a sleepy sensor to use the Proxy as the rendezvous point for one-way sleepy to sleepy signaling.</t>
-  
+
+        <t>The Publish Option enables the sleepy origin to temporarily (i.e. for a specified "lease" time) delegate the authority of one of its hosted resources to a Proxy node
+           that will start to behave as a Reverse Proxy for the Publish'ed resource.
+           It allows a sleepy sensor to use the Proxy as the rendezvous point for one-way sleepy to sleepy signaling.</t>
+
+
+      <section title="Publish a resource">   
         <figure align="center" anchor="gratuitous_update_option">
           <artwork align="left"><![CDATA[
 P        S
@@ -148,29 +163,39 @@ P        S
 |        |
           ]]></artwork>
         </figure>
-        <t>The origin server publish one of its hosted resources, specified by the enclosed Proxy-URI, by PUT'ing it to the Proxy with a Publish option attached.  The Proxy, which is voluntarily given the authority by the origin of the resource for the "lease" time specified by Max-Age, replies with a 2.01 if the authority transfer has succeeded.  No Location-URI nor Location-Path are returned since the original resource URI has not changed: other clients can access it through its original handler, provided they go through the delegated Proxy.  If the Publish operation does not succeed, an appropriate [TBD] response code is returned.</t>
+        <t>The origin server publish one of its hosted resources, specified by the enclosed Proxy-URI, by PUT'ing it to the Proxy with a Publish Option attached.  The Proxy, which is voluntarily given the authority by the origin of the resource for the "lease" time specified by Max-Age, replies with a 2.01 if the authority transfer has succeeded.  No Location-Query nor Location-Path are returned since the original resource URI has not changed: other clients can access it through its original handler, provided they go through the delegated Proxy.  If the Publish operation does not succeed, an appropriate [TBD] response code is returned.</t>
 
         <t>ETag MAY be supplied to hint the underlying cache.  If no Max-Age is given, a default of 3600 seconds MUST be assumed.  The Max-Age value, both implicit or explicit, determines the lifetime of the implied origin delegation.  When the Max-Age value is elapsed, the Proxy MUST delete the Publish'ed resource value.</t>
 
-        <t>The Publish option is critical and MUST be present in the request only. If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the client.</t>
+        <t>The Publish Option is critical and MUST be present in the request only. If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the client.</t>
   
-        <t>It is sufficient for any client wishing to access the resource to do so using the Proxy node.  An interesting outcome of this communication strategy is that the sleepy origin may really never need to listen on its radio interface.</t>
+        <t>It is sufficient for any client wishing to access the resource to do so using the Proxy node that thanks to the Publish will start to behave as a Reverse Proxy satisfying requests on behalf of
+           the asleep node.</t>  
+        <t>An interesting outcome of this communication strategy is that the sleepy origin may really never need to listen on its radio interface.</t>
 
+        <t><cref anchor="OPEN ISSUE 1">Do we need to define how to unpublish a resource?</cref></t>
+      </section>
       </section>
   
       <section title="Monitor Option">
 
-        <t>The Monitor option is a variant of the Observe option that is aimed at solving some issues that may occur when sleepy sensors are involved.  Suppose that the resource of interest is not in cache, and a sleepy endpoint wants to Observe it through the Proxy.  If the origin of the requested resource is sleeping at the time the observation is requested, the requesting node gets an error, and may need to stay awake and retry until the target node gets ready -- which is clearly not an option in case the sensor has a very small duty cycle.</t>
+        <t>The Monitor Option is a variant of the Observe Option that is aimed at solving some issues that may occur when sleepy sensors are involved.</t>  
 
-        <t>The Monitor option is used to ask a Proxy to keep a given resource fresh by observing it, while the requesting node is sleeping. Thus the sleepy sensor can possibly get the latest representation published by the monitored resource when it wakes up, even if the origin is sleeping -- and was sleeping at the time the Monitor has been requested.</t>
+	<t>Suppose that the resource of interest is not in cache, and a sleepy endpoint wants to Observe it through the Proxy. 
+          If the origin of the requested resource is sleeping at the time the observation is requested, the requesting node gets an error, 
+          and may need to stay awake and retry until the target node gets ready -- which is clearly not an option in case the sensor has a very small duty cycle.</t>
 
-        <t>The Monitor option is critical and MUST be present in the request only. If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the client.</t>
+        <t>The Monitor Option is used to ask a Proxy to keep a given resource fresh by observing it, while the requesting node is sleeping. Thus the sleepy sensor can possibly get the latest representation published by the monitored resource when it wakes up, even if the origin is sleeping -- and was sleeping at the time the Monitor has been requested.</t>
+
+       <t>How the Proxy actually implements the Monitor to keep a monitored resource fresh is out of the scope for this document.</t>
+
+        <t>The Monitor Option is critical and MUST be present in the request only. If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the client.</t>
   
         <section title="Public Monitor Registration">
           <figure align="center" anchor="monitor_registration">
             <artwork align="left"><![CDATA[
 P        C
-|   PUT  | Proxy-URI: coap://sleepy.example.org/res
+|  POST  | Proxy-URI: coap://sleepy.example.org/res
 |<-------+ Monitor: <empty>
 |        | Max-Age: 86400
 |        | Content-Type: application/json
@@ -180,7 +205,7 @@ P        C
 |        |
             ]]></artwork>
           </figure>
-          <t>The client PUT's the resource to be monitored, identified by the Proxy-URI. The request message contains an empty Monitor option, and possibly specifies a TTL (i.e. an implicit de-registration indication) for the monitor through Max-Age.  One or more content types for the acceptable representations of the resource are optionally specified via the Accept option.  In case no TTL is supplied, a default value of 3600 seconds is assumed.</t>
+          <t>The client Post's the resource to be monitored, identified by the Proxy-URI. The request message contains an empty Monitor Option, and possibly specifies a TTL (i.e. an implicit de-registration indication) for the monitor through Max-Age.  One or more content types for the acceptable representations of the resource are optionally specified via the Accept option.  In case no TTL is supplied, a default value of 3600 seconds is assumed.</t>
 
 <!--
 TODO: check the impact on cache
@@ -190,11 +215,11 @@ TODO: check the impact on cache
   fresh.
 -->
   
-          <t>The operation creates a "monitor" resource at the Proxy, that MUST maintain a fresh carbon copy of one or more representations of the requested resource depending on the supplied Content-Type's.  For convenience, multiple "monitor" resources corresponding to the same target resource, can be coalesced into the same monitor object at the Proxy -- possibly with the same URI.  In such case, a set containing one entry for each registered client is kept, which holds the client identities, their expiry and one or more preferred media types for their representation(s).  When all entries are deleted (either because clients have explicitly deregistered the monitor, or the monitor period has expired), the corresponding "monitor" object is deleted.  Note that an underlying cache entry MAY still be kept in case the cached representation(s) are still fresh (i.e. the Max-Age of the "monitor" resource and Max-Age of the target resource have completely different semantics.)</t>
+          <t>The operation creates a "monitor" resource at the Proxy, that MUST maintain a fresh carbon copy of one or more representations of the requested resource depending on the supplied Content-Type's.  For convenience, multiple "monitor" resources corresponding to the same target resource, can be coalesced into the same monitor object at the Proxy -- possibly with the same URI.  In such case, a set containing one entry for each registered client is kept, which holds the client identities, their expiry and one or more preferred media types for their representation(s).  When all entries are deleted (either because clients have explicitly deregistered the monitor, or the monitor period has expired), the corresponding "monitor" object is deleted. Note that an underlying cache entry MAY still be kept in case the cached representation(s) are still fresh (i.e. the Max-Age of the "monitor" resource and Max-Age of the target resource have completely different semantics.)</t>
         
-        <t>If the monitor resource is successfully created, the server MUST return a 2.01 response containing one or more Location-Path and/or Location-Query options to identify the monitored resource instance, which can be used from now on by the requestor as an alias to the target resource.</t>
+        <t>If the monitor resource is successfully created, the server MUST return a 2.01 response containing one or more Location-Path and/or Location-Query Options to identify the monitored resource instance, which can be used from now on by the requestor as an alias to the target resource.</t>
 
-        <t>At a later time, the client wakes up and wants to access the monitored resource.  It does so by requesting the Proxy the monitor resource that has been previously created.</t>
+        <t>At a later time, the client wakes up and wants to access the monitored resource.  It does so by requesting the Proxy monitor resource that has been previously created.</t>
 
           <figure align="center" anchor="monitor_usage">
             <artwork align="left"><![CDATA[
@@ -223,12 +248,12 @@ P        C
           <figure align="center" anchor="private_monitor_registration">
             <artwork align="left"><![CDATA[
 P        C
-|   PUT  | Proxy-URI: coap://sleepy.example.org/res
-|<-------+ Monitor: 1
+|  POST  | Proxy-URI: coap://sleepy.example.org/res
+|<- - - -+ Monitor: 1
 |        | Max-Age: 86400
 |        | Content-Type: application/json
 |  2.01  |
-+------->| Location-Path: private
++- - - ->| Location-Path: private
 |        | Location-Path: unique
 |        | Location-Path: res
 |        | Etag: 420e420e
@@ -238,13 +263,13 @@ P        C
     
     <t>The Proxy MAY offer also private monitoring.</t>
     
-          <t>The client PUT's the resource to be privately monitored, identified by the Proxy-URI. The request message contains a Monitor option with value 1, and possibly specifies a TTL (i.e. an implicit de-registration indication) for the monitor through Max-Age. One or more content types for the acceptable representations of the resource are optionally specified via the Accept option.</t>
+          <t>The client POST's the resource to be privately monitored, identified by the Proxy-URI. The request message contains a Monitor Option with value 1, and possibly specifies a TTL (i.e. an implicit de-registration indication) for the monitor through Max-Age. One or more content types for the acceptable representations of the resource are optionally specified via the Accept Option.</t>
   
           <t>The operation creates a private monitor resource at the Proxy, that SHALL be a carbon copy of one representation of the monitored resource.</t>
     
-    <t>The Proxy returns one or more location-path and/or location-query options to identify the new monitored resource instance.</t>
+    <t>The Proxy returns one or more location-path and/or location-query Options to identify the new monitored resource instance.</t>
     
-    <t>The location pointed by location-paths and/or location-query options MUST be unique.</t>
+    <t>The location pointed by location-paths and/or location-query Options MUST be unique.</t>
   
         </section>
  --> 
