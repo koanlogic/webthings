@@ -19,7 +19,7 @@
 <?rfc subcompact="no" ?>
 <?rfc comments="yes" ?>
 <?rfc inline="yes" ?>
-<rfc category="info" docName="draft-fossati-core-publish-monitor-options-00" ipr="trust200902">
+<rfc category="std" docName="draft-fossati-core-publish-monitor-options-00" ipr="trust200902">
   <front>
     <title>
       Publish and Monitor Options for CoAP
@@ -162,17 +162,17 @@ P        S
 |        |
           ]]></artwork>
         </figure>
-        <t>The origin server publish one of its hosted resources, specified by the enclosed Proxy-URI, by PUT'ing it to the Proxy with a Publish Option attached.  The Proxy, which is voluntarily given the authority by the origin of the resource for the "lease" time specified by Max-Age, replies with a 2.01 if the authority transfer has succeeded.  No Location-Query nor Location-Path are returned since the original resource URI has not changed: other clients can access it through its original handler, provided they go through the delegated Proxy.  If the Publish operation does not succeed, an appropriate [TBD] response code is returned.</t>
+        <t>The origin server publish one of its hosted resources, specified by the enclosed Proxy-URI, by PUT'ing it to the Proxy with a Publish Option attached.  The Proxy, which is voluntarily given the authority by the origin of the resource for the "lease" time specified by Max-Age, replies with a 2.01 if the authority transfer has succeeded.  An exact duplicate of the submitted representation is created, and from now on it can be accessed using the original URI provided that clients go through the delegated Proxy.  If the Publish operation does not succeed, an appropriate [TBD] response code is returned.</t>
 
         <t>ETag MAY be supplied to hint the underlying cache.  If no Max-Age is given, a default of 3600 seconds MUST be assumed.  The Max-Age value, both implicit or explicit, determines the lifetime of the implied origin delegation.  When the Max-Age value is elapsed, the Proxy MUST delete the Publish'ed resource value.</t>
 
         <t>The Publish Option is critical and MUST be present in the request only. If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the client.</t>
   
-        <t>It is sufficient for any client wishing to access the resource to do so using the Proxy node that thanks to the Publish will start to behave as a Reverse Proxy satisfying requests on behalf of
-           the asleep node.</t>  
+        <t>It is sufficient for any client wishing to access the resource to do so using the Proxy node that, following the Publish operation, will start behaving as a Reverse Proxy, satisfying requests on behalf of the sleeping node.</t>
+
         <t>An interesting outcome of this communication strategy is that the sleepy origin may really never need to listen on its radio interface.</t>
 
-        <t><cref anchor="OPEN ISSUE 1">Do we need to define how to unpublish a resource?</cref></t>
+        <t><cref anchor="OPEN ISSUE 1">Do we need to define how to explicitly un-publish a resource?</cref></t>
       </section>
       </section>
   
@@ -186,7 +186,9 @@ P        S
 
         <t>The Monitor Option is used to ask a Proxy to keep a given resource fresh by observing it, while the requesting node is sleeping. Thus the sleepy sensor can possibly get the latest representation published by the monitored resource when it wakes up, even if the origin is sleeping -- and was sleeping at the time the Monitor has been requested.</t>
 
+        <!--
        <t>How the Proxy actually implements the Monitor to keep a monitored resource fresh is out of the scope for this document.</t>
+         -->
 
         <t>The Monitor Option is critical and MUST be present in the request only. If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the client.</t>
   
@@ -204,7 +206,7 @@ P        C
 |        |
             ]]></artwork>
           </figure>
-          <t>The client Post's the resource to be monitored, identified by the Proxy-URI. The request message contains an empty Monitor Option, and possibly specifies a TTL (i.e. an implicit de-registration indication) for the monitor through Max-Age.  One or more content types for the acceptable representations of the resource are optionally specified via the Accept option.  In case no TTL is supplied, a default value of 3600 seconds is assumed.</t>
+          <t>The client POST's the resource to be monitored, identified by the Proxy-URI. The request message contains an empty Monitor Option, and possibly specifies a TTL (i.e. an implicit de-registration indication) for the monitor through Max-Age.  One or more content types for the acceptable representations of the resource are optionally specified via the Accept option.  In case no TTL is supplied, a default value of 3600 seconds is assumed.</t>
 
 <!--
 TODO: check the impact on cache
@@ -216,7 +218,7 @@ TODO: check the impact on cache
   
           <t>The operation creates a "monitor" resource at the Proxy, that MUST maintain a fresh carbon copy of one or more representations of the requested resource depending on the supplied Content-Type's.  For convenience, multiple "monitor" resources corresponding to the same target resource, can be coalesced into the same monitor object at the Proxy -- possibly with the same URI.  In such case, a set containing one entry for each registered client is kept, which holds the client identities, their expiry and one or more preferred media types for their representation(s).  When all entries are deleted (either because clients have explicitly deregistered the monitor, or the monitor period has expired), the corresponding "monitor" object is deleted. Note that an underlying cache entry MAY still be kept in case the cached representation(s) are still fresh (i.e. the Max-Age of the "monitor" resource and Max-Age of the target resource have completely different semantics.)</t>
         
-        <t>If the monitor resource is successfully created, the server MUST return a 2.01 response containing one or more Location-Path and/or Location-Query Options to identify the monitored resource instance, which can be used from now on by the requestor as an alias to the target resource.</t>
+        <t>If the monitor resource is successfully created, the server MUST return a 2.01 response containing one or more Location-Path and/or Location-Query Options to identify the monitored resource instance, which can be used from now on by the requester as an alias to the target resource.</t>
 
         <t>At a later time, the client wakes up and wants to access the monitored resource.  It does so by requesting the Proxy monitor resource that has been previously created.</t>
 
@@ -277,7 +279,7 @@ P        C
         <section title="Monitor De-registration" anchor="monitor_deregistration">
           <t>The monitor object MUST be deleted at the Proxy when all its associated resources have been de-registered or have expired.</t>
   
-          <t>In order to save storage, a Proxy MAY decide to delete a monitor resource in case it has not been requested for a sufficiently long time, or for any other reason.   Note that the Proxy may also reboot and lose its state, including the state associated to any monitored resource.  The requestor can realize that the state at the Proxy has been lost, and re-instantiate the monitor, when it receives an unexpected 4.04.</t>
+          <t>In order to save storage, a Proxy MAY decide to delete a monitor resource in case it has not been requested for a sufficiently long time, or for any other reason.   Note that the Proxy may also reboot and lose its state, including the state associated to any monitored resource.  The requester can realize that the state at the Proxy has been lost, and re-instantiate the monitor, when it receives an unexpected 4.04 from the "monitor" resource.</t>
   
           <section title="Explicit De-registration">
             <figure align="center" anchor="explicit_monitor_deregistration">
@@ -292,7 +294,7 @@ P        C
               ]]></artwork>
             </figure>
       
-      <t>Explicit de-registration is performed by a client, with a DELETE on the URI returned by the Proxy on the correspoding registration.</t>
+      <t>Explicit de-registration is performed by a client, with a DELETE on the URI returned by the Proxy on the corresponding registration.</t>
       
           </section>
   
@@ -364,12 +366,14 @@ P        C
       </list>
     </t>
 
+    <!--
     <t>
       <list style="hanging" hangIndent="6">
         <t hangText="Threat:">DoS on remote constrained resource via unneeded monitoring.</t>
         <t hangText="Countermeasure:">[TBD]</t>
       </list>
     </t>
+    -->
 
     <?rfc subcompact="no"?>
 
