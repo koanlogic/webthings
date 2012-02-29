@@ -191,7 +191,6 @@ REQ3:   The ability to deal with sleeping nodes.  Devices may be
 
       <t>Please note that, generally speaking, the framework is completely agnostic as to the transported message type and method.  Further, the Proxy may rearrange any implied block-wise transfer <xref target="I-D.ietf-core-block" /> in an optimal way.</t>
 
-    </section>
       <t><cref anchor="OPEN ISSUE 1">What if message (2) is lost ?</cref></t>
     </section>
 
