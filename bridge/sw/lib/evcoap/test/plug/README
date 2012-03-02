@@ -1,0 +1,28 @@
+Running tests
+-------------
+
+Both client and server are run by default.
+
+* Run all tests:
+
+    $ makl
+
+* Run specific test:
+
+Set environment variables then,
+
+    $ cd vectors 
+    $ sh <test_vectors>
+
+
+Environment variables
+---------------------
+
+* To activate verbose logging:
+    VERBOSE=1
+
+* To run client only:
+    MODE=cli
+
+* To run server only:
+    MODE=srv
