@@ -78,11 +78,9 @@
     <abstract>
       <t>This memo defines two additional Options for the Constrained Application Protocol (CoAP) especially targeted at sleepy sensors: Publish and Monitor.</t>
       
-      <t>The Publish Option enables opportunistic updates of a given resource state, by temporarily delegating the authority of the Publish'ed resource to a Proxy node.  
-         The whole process is driven by the (sleepy) origin -- which may actually never need to listen.</t>
+      <t>The Publish Option enables opportunistic updates of a given resource state, by temporarily delegating the authority of the Publish'ed resource to a Proxy node.  The whole process is driven by the (sleepy) origin -- which may actually never need to listen.</t>
 
-      <t>The Monitor Option complements the typical Observe pattern, enabling the tracking of a resource hosted by a node sleeping most of the time, by taking care 
-         of establishing and maintaining an Observe relationship with the (sleepy) origin on behalf of the (sleepy) client.</t>
+      <t>The Monitor Option complements the typical Observe pattern, enabling the tracking of a resource hosted by a node sleeping most of the time, by taking care of establishing and maintaining an Observe relationship with the (sleepy) origin on behalf of the (sleepy) client.</t>
 
     </abstract>
   </front>
@@ -110,22 +108,17 @@
       </list></t>
       </section>
 
-    <section title="Motivation">
-      <t>This memo focuses on the requirement REQ3 of <xref target="I-D.shelby-core-coap-req" />:</t>
+      <section title="Motivation">
+        <t>This memo focuses on the requirement REQ3 stated in  <xref target="I-D.shelby-core-coap-req" />:</t>
 
-      <figure align="center">
-        <artwork align="left"><![CDATA[
-REQ3:   The ability to deal with sleeping nodes.  Devices may be
-        powered off at any point in time but periodically "wake up"
-        for brief periods of time.
-        ]]></artwork>
-      </figure>
-
-    </section>
-
-
-
-
+        <figure align="center">
+          <artwork align="left"><![CDATA[
+    The ability to deal with sleeping nodes.  Devices may be
+    powered off at any point in time but periodically "wake up"
+    for brief periods of time.
+          ]]></artwork>
+        </figure>
+     </section>
     </section>
 
     <section title="Options">
@@ -134,7 +127,7 @@ REQ3:   The ability to deal with sleeping nodes.  Devices may be
 +-----+----------+---------+--------+--------+---------+
 | No. | C/E      | Name    | Format | Length | Default |
 +-----+----------+---------+--------+--------+---------+
-|  YY | Critical | Publish | (none) | 0 B    | (none)  |
+|  YY | Critical | Publish | uint   | 1 B    | (none)  |
 |  XX | Critical | Monitor | (none) | 0 B    | (none)  |
 +-----+----------+---------+--------+--------+---------+
         ]]></artwork>
@@ -142,17 +135,14 @@ REQ3:   The ability to deal with sleeping nodes.  Devices may be
 
       <section title="Publish Option">
 
-        <t>The Publish Option enables the sleepy origin to temporarily (i.e. for a specified "lease" time) delegate the authority of one of its hosted resources to a Proxy node
-           that will start to behave as a Reverse Proxy for the Publish'ed resource.
-           It allows a sleepy sensor to use the Proxy as the rendezvous point for one-way sleepy to sleepy signaling.</t>
+        <t>The Publish Option enables the sleepy origin to temporarily (i.e. for a specified "lease" time) delegate the authority of one or more of its hosted resources to a Proxy node that will start to behave as a reverse Proxy for the Publish'ed resource.  This option allows a sleepy sensor to use the Proxy as the rendezvous point for one-way sleepy to sleepy signaling.</t>
 
-
-      <section title="Publish a resource">   
-        <figure align="center" anchor="gratuitous_update_option">
+      <section title="Publishing a Resource">   
+        <figure align="center" anchor="publish_creation">
           <artwork align="left"><![CDATA[
 P        S
 |   PUT  | Proxy-URI: coap://thing.example.org/res
-|<-------+ Publish: <empty>
+|<-------+ Publish: 0110
 |    r   | Content-Type: text/plain
 |        | ETag: 0xabcd
 |        | Max-Age: 1200
@@ -161,28 +151,64 @@ P        S
 +------->| 
 |        |
           ]]></artwork>
+<!-- OK with draft-ietf-core-coap-08#section-5.8.3 -->
         </figure>
-        <t>The origin server publish one of its hosted resources, specified by the enclosed Proxy-URI, by PUT'ing it to the Proxy with a Publish Option attached.  The Proxy, which is voluntarily given the authority by the origin of the resource for the "lease" time specified by Max-Age, replies with a 2.01 if the authority transfer has succeeded.  An exact duplicate of the submitted representation is created, and from now on it can be accessed using the original URI provided that clients go through the delegated Proxy.  If the Publish operation does not succeed, an appropriate [TBD] response code is returned.</t>
+        <t>The origin server publishes one of its hosted resources, specified by the enclosed Proxy-URI, by PUT'ing it to the Proxy with a Publish Option attached.  The Publish Option value specifies the CoAP methods that clients are allowed to use on the resource (see TODO).</t>  
+ 
+        <t>The example in <xref target="publish_creation" /> shows a delegation where the GET and PUT methods are allowed while POST and DELETE are explicitly prohibited, meaning that the resource can be read and updated by clients, but it can't be deleted nor created.</t>
 
-        <t>ETag MAY be supplied to hint the underlying cache.  If no Max-Age is given, a default of 3600 seconds MUST be assumed.  The Max-Age value, both implicit or explicit, determines the lifetime of the implied origin delegation.  When the Max-Age value is elapsed, the Proxy MUST delete the Publish'ed resource value.</t>
+        <t>The Proxy, which is voluntarily charged by the resource owner to act as the delegated origin for the "lease" time specified by Max-Age, replies with a 2.01 if the authority transfer has succeeded.  An exact duplicate of the submitted representation is created, and from now on it can be accessed using the original URI provided that clients go through the delegated Proxy.  If the Publish operation does not succeed, the origin transfer fails, and an appropriate response code is returned.</t>
 
-        <t>The Publish Option is critical and MUST be present in the request only. If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the client.</t>
+        <t>An ETag MAY be supplied to hint the underlying cache.  If no Max-Age is given, a default of 3600 seconds MUST be assumed.  The Max-Age value, either implicit or explicit, determines the lifetime of the implied origin delegation.  When the Max-Age value is elapsed, the Proxy MUST delete the Publish'ed resource value.</t>
+
+        <t>The Publish Option is critical and MUST be present in the request only. If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the client.  If the option value is not correctly formatted (see TODO), a 4.00 (Bad Request) MUST be returned to the client..</t>
   
-        <t>It is sufficient for any client wishing to access the resource to do so using the Proxy node that, following the Publish operation, will start behaving as a Reverse Proxy, satisfying requests on behalf of the sleeping node.</t>
+        <t>It is sufficient for any client wishing to access the resource to do so using the Proxy node that, following the Publish operation, will start behaving as a reverse Proxy, satisfying requests on behalf of the sleeping node.</t>
+
+        <t>The Proxy MUST save the identity of the resource Publish'er in order to distinguish "maintainance" operations such as update and explicit deletion, from "regular" access to the published resource by clients.</t>
 
         <t>An interesting outcome of this communication strategy is that the sleepy origin may really never need to listen on its radio interface.</t>
+      </section>
 
-        <t><cref anchor="OPEN ISSUE 1">Do we need to define how to explicitly un-publish a resource?</cref></t>
+      <section title="Updating a Resource">
+        <figure align="center" anchor="publish_update">
+          <artwork align="left"><![CDATA[
+P        S
+|   PUT  | Proxy-URI: coap://thing.example.org/res
+|<-------+ Publish: 0110
+|    r   | Content-Type: text/plain
+|        | ETag: 0xdcba
+|        | Max-Age: 1200
+|        |
+|  2.04  |
++------->| 
+|        |
+          ]]></artwork>
+<!-- OK with draft-ietf-core-coap-08#section-5.8.3 -->
+        </figure>
+
+        <t>In order to update the delegated resource state, the sleepy node shall send the very same request to the Proxy, which in turn replies with a 2.04 (Changed) status code in case the update operation has succeeded, or an appropriate error code in case it fails.</t>
+
       </section>
-      </section>
+
+      <section title="Discovery">
+        <section title="Publishing the .well-known/core Resource">
+          <t>As any other resource, the .well-known/core of a sleepy node may be Publish'ed too.  Its registration is the same as in <xref target="publish_creation" />but it has to be treated by the Proxy in a way that is different from any other delegated resource.</t>
+         <t>In fact, the Proxy needs to respond to multicast, or unicast queries directed to the hosted authority, directed to the .well-known/core of the Publish'ed resource using its own address as the source of the response.</t>
+
+         <t>...</t>
+       </section>
+       <section title="Resource Directory">
+        <t>[[TODO]]</t>
+       </section>
+    </section>
+    </section>
   
       <section title="Monitor Option">
 
         <t>The Monitor Option is a variant of the Observe Option that is aimed at solving some issues that may occur when sleepy sensors are involved.</t>  
 
-	<t>Suppose that the resource of interest is not in cache, and a sleepy endpoint wants to Observe it through the Proxy. 
-          If the origin of the requested resource is sleeping at the time the observation is requested, the requesting node gets an error, 
-          and may need to stay awake and retry until the target node gets ready -- which is clearly not an option in case the sensor has a very small duty cycle.</t>
+	<t>Suppose that the resource of interest is not in cache, and a sleepy endpoint wants to Observe it through the Proxy.  If the origin of the requested resource is sleeping at the time the observation is requested, the requesting node gets an error, and may need to stay awake and retry until the target node gets ready -- which is clearly not an option in case the sensor has a very small duty cycle.</t>
 
         <t>The Monitor Option is used to ask a Proxy to keep a given resource fresh by observing it, while the requesting node is sleeping. Thus the sleepy sensor can possibly get the latest representation published by the monitored resource when it wakes up, even if the origin is sleeping -- and was sleeping at the time the Monitor has been requested.</t>
 
