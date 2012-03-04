@@ -1,0 +1,11 @@
+<% 
+#define RAND_ACC    ((int) (((double)rand() / RAND_MAX) * 250))
+#define RAND_SIGN   ((rand() % 2 == 0) ? "" : "-")
+#define RAND_TEMP   ((( (double)rand() / RAND_MAX )*4.0) + 23.0)
+
+io_printf(out, "%s%d,%s%d,%s%d:%f",
+        RAND_SIGN, RAND_ACC,
+        RAND_SIGN, RAND_ACC,
+        RAND_SIGN, RAND_ACC,
+        RAND_TEMP);
+%>

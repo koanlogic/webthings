@@ -42,14 +42,23 @@
     var rot_angle = 0;
     var rot_vector = [0,0,-1];
     var received_value = "";
-
+    var temp="";
+    var TMIN = 23;
+    var TMAX = 27;
     // testing (randomly generated vectors)
-    var ACCEL_RESOURCE = "http://wtdemo:8080/acc.kl1";
+    //var ACCEL_RESOURCE = "http://wtdemo:8080/acc.kl1";
+
+    // testing (randomly generated vectors and temperature)
+    var ACCEL_RESOURCE = "http://wtdemo:8080/acctmp.kl1";
 
     // demo (real data: KINK and motes attached)
     //var ACCEL_RESOURCE = "http://wtdemo:5683/acc";
 
-    var INTERVAL = 500; //ajax call interval in milliseconds
+    // demo (real data: KINK and motes attached, both temp and accel)
+    //var ACCEL_RESOURCE = "http://wtdemo:5683/acctmp";
+
+
+    var INTERVAL = 400; //ajax call interval in milliseconds
 
     function initGL(canvas) {
         try {
@@ -210,14 +219,36 @@
 
         cubeVertexColorBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, cubeVertexColorBuffer);
-        colors = [
-            [1.0, 0.0, 0.0, 1.0], // Front face
-            [1.0, 1.0, 0.0, 1.0], // Back face
-            [0.0, 1.0, 0.0, 1.0], // Top face
-            [1.0, 0.5, 0.5, 1.0], // Bottom face
-            [1.0, 0.0, 1.0, 1.0], // Right face
-            [0.0, 0.0, 1.0, 1.0]  // Left face
-        ];
+        if(temp!=""){
+	   
+	   t = parseFloat(temp);
+           if(t>TMAX){t=TMAX;}
+	   if(t<TMIN){t=TMIN;}
+           v = (t - TMIN)/ (TMAX - TMIN);
+           r = v + 0.2;
+           if(r>1){r = 1}
+           b = 1.0-r;
+           //alert(b+"   "+r);
+           colors = [
+	      [r-0.0, 0.0, b, 1.0], // Front face
+	      [r-0.0, 0.0, b, 1.0], // Back face
+	      [r-0.05, 0.0, b, 1.0], // Top face
+	      [r-0.10, 0.0, b, 1.0], // Bottom face
+	      [r-0.15, 0.0, b, 1.0], // Right face
+	      [r-0.2, 0.0, b, 1.0]  // Left face
+	   ];
+	}
+	else{
+          
+	  colors = [
+	      [1.0, 0.0, 0.0, 1.0], // Front face
+	      [1.0, 0.0, 0.0, 1.0], // Back face
+	      [0.95, 0.0, 0.0, 1.0], // Top face
+	      [0.90, 0.0, 0.0, 1.0], // Bottom face
+	      [0.85, 0.0, 0.0, 1.0], // Right face
+	      [0.8, 0.0, 0.0, 1.0]  // Left face
+	  ];
+	}
         var unpackedColors = [];
         for (var i in colors) {
             var color = colors[i];
@@ -267,7 +298,6 @@
 
         gl.bindBuffer(gl.ARRAY_BUFFER, cubeVertexColorBuffer);
         gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, cubeVertexColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cubeVertexIndexBuffer);
         setMatrixUniforms();
         gl.drawElements(gl.TRIANGLES, cubeVertexIndexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
@@ -291,6 +321,7 @@
 
     function tick() {
         requestAnimFrame(tick);
+	initBuffers();
         drawScene();
         animate();
     }
@@ -322,9 +353,9 @@
     }
     function webGLStart() {
 	var intervalID = setInterval(function(){load_data();}, INTERVAL);
-        var canvas = document.getElementById("lesson04-canvas");
+        var canvas = document.getElementById("canvas");
         initGL(canvas);
-        initShaders()
+        initShaders();
         initBuffers();
 
         gl.clearColor(0.9, 0.9, 0.9, 1.0);
@@ -351,6 +382,12 @@
 	    if (xmlhttp.readyState==4 && xmlhttp.status==200){
 		first_vec = [0,0,-1];
 		received_value = xmlhttp.responseText;
+		if (received_value.indexOf(":") != -1){
+                    temp = received_value.split(':')[1]
+                    received_value = received_value.split(':')[0]
+                }
+
+        //   alert(received_value);
 		sec_vec = normalize_vector(received_value.split(','));
 		//alert(sec_vec);
 		rot_angle = (angle(first_vec,sec_vec)*180)/Math.PI;//rotation angle
@@ -359,6 +396,7 @@
                 document.getElementById('angle').innerHTML = rot_angle;
                 document.getElementById('vector').innerHTML = rot_vector;
 		document.getElementById('nvector').innerHTML = sec_vec;
+		if(temp!="") {document.getElementById('temperature').innerHTML = temp;}
 		//alert(rot_angle);
 		//alert(rot_vector);//rotation vector
 	    }
@@ -375,13 +413,18 @@
 
 <body onload="webGLStart();">
 
-    <canvas id="lesson04-canvas" style="border: none;" width="500" height="500"></canvas>
+    <div style="float:left;height:550;width:800;">
+      <canvas id="canvas" style="border: none;" width="800" height="550"></canvas>
+    </div>
+
 
     <br/>
     <p>value: <span id="value" ></span></p>
     <p>normalized vector: <span id="nvector" ></span></p>
     <p>angle: <span id="angle" ></span></p>
     <p>vector: <span id="vector" ></span></p>
+    <p>Temperature: <span id="temperature" ></span></p>
+
 
 </body>
 
