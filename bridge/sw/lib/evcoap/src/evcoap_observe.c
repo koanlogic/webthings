@@ -64,7 +64,7 @@ static void ec_ob_cb(evutil_socket_t u0, short u1, void *c)
         /* Stick the token sent by the client on the original request. */
         dbg_err_if (ec_opts_add_token(&nfy->opts, ovr->token, ovr->token_sz));
 
-        /* Encode PDU. */
+        /* Encode PDU (NON). */
         dbg_err_if (ec_source_copy(&ovr->conn, &flow.conn));
         dbg_err_if (ec_net_set_confirmable(&flow.conn, false));
         dbg_err_if (ec_pdu_encode_response_separate(nfy));

@@ -16,6 +16,7 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
 static void ec_cli_app_timeout(evutil_socket_t u0, short u1, void *c);
 static void ec_cli_coap_timeout(evutil_socket_t u0, short u1, void *c);
 static void ec_cli_obs_timeout(evutil_socket_t u0, short u1, void *c);
+static int ec_client_handle_observation(ec_client_t *cli);
 static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a);
 static int ec_client_check_req_token(ec_client_t *cli);
 static int ec_client_invoke_user_callback(ec_client_t *cli);
@@ -177,6 +178,9 @@ ec_client_t *ec_client_new(struct ec_s *coap, ec_method_t m, const char *uri,
     /* Cache the base so that we don't need to pass it around every function
      * that manipulates the transaction. */
     cli->base = coap;
+
+    /* It will be possibly set in case response confirms the observation. */
+    cli->observing = false;
 
     return cli;
 err:
@@ -372,9 +376,14 @@ static int ec_client_check_transition(ec_cli_state_t cur, ec_cli_state_t next)
         case EC_CLI_STATE_APP_TIMEOUT:
         case EC_CLI_STATE_REQ_DONE:
         case EC_CLI_STATE_REQ_RST:
-        case EC_CLI_STATE_WAIT_NFY:
             dbg_err_if (cur != EC_CLI_STATE_REQ_SENT
                     && cur != EC_CLI_STATE_REQ_ACKD);
+            break;
+
+        case EC_CLI_STATE_WAIT_NFY:
+            dbg_err_if (cur != EC_CLI_STATE_REQ_SENT
+                    && cur != EC_CLI_STATE_REQ_ACKD
+                    && cur != EC_CLI_STATE_WAIT_NFY);
             break;
 
         case EC_CLI_STATE_NONE:
@@ -586,6 +595,9 @@ int ec_cli_start_obs_timer(ec_client_t *cli)
     else
         ti->tout.tv_sec = max_age;
 
+    /* Add 1 sec of tolerance to accomodate network latency. */
+    ti->tout.tv_sec += 1;
+
     /* One-shot timer. */
     return ec_cli_timer_start(cli, ti, 1, ec_cli_obs_timeout);
 }
@@ -649,8 +661,19 @@ bool ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
     }
     else if (state == EC_CLI_STATE_WAIT_NFY)
     {
-        /* Start timeout counter based on requested resource's max-age. */
-        dbg_err_if (ec_cli_start_obs_timer(cli));
+        /* Start (or restart) timeout counter based on requested resource's 
+         * max-age. */
+        if (cur == EC_CLI_STATE_WAIT_NFY)
+            dbg_err_if (ec_cli_restart_obs_timer(cli));
+        else
+        {
+            /* In case we enter the WAIT_NFY through one of ACKD or SENT, stop 
+             * any running application and/or retransmit timers, then start 
+             * the observation timeout. */
+            dbg_if (ec_cli_stop_app_timer(cli));
+            dbg_if (is_con && ec_cli_stop_coap_timer(cli));
+            dbg_err_if (ec_cli_start_obs_timer(cli));
+        }
     }
     else if ((is_final_state = ec_client_state_is_final(state)))
     {
@@ -664,17 +687,15 @@ bool ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
         dbg_if (ec_cli_stop_obs_timer(cli));
     }
 
-    /* Finally set state and, in case the state we've entered is final, 
-     * invoke the user callback. */
+    /* Finally set state and, in case the state we've entered is final, or
+     * we are (re)entering the WAIT_NFY state, invoke the user callback. */
     cli->state = state;
 
-    if (is_final_state)
-    {
+    if (is_final_state || cli->state == EC_CLI_STATE_WAIT_NFY)
         (void) ec_client_invoke_user_callback(cli);
 
-        /* We can now finish off with this client. */
-        ec_client_free(cli);
-    }
+    if (is_final_state)
+        ec_client_free(cli); /* We can now finish off with this client. */
 
     return is_final_state;
 err:
@@ -810,12 +831,13 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     /* Check that there is a token and it matches the one we sent out with the 
      * request. */
     dbg_err_if ((t = ec_opts_get(&res->opts, EC_OPT_TOKEN)) == NULL);
-    dbg_err_if (t->l != flow->token_sz || memcmp(t->v, flow->token, t->l));
+    dbg_err_ifm (t->l != flow->token_sz || memcmp(t->v, flow->token, t->l),
+            "received token mismatch");
 
-    /* Attach response code. */
+    /* Attach response code to the client context. */
     dbg_err_if (ec_flow_set_resp_code(flow, (ec_rc_t) h->code));
 
-    /* Attach payload, if any. */
+    /* Attach payload, if any, to the client context. */
     if ((plen = raw_sz - (olen + EC_COAP_HDR_SIZE)))
         (void) ec_pdu_set_payload(res, raw + EC_COAP_HDR_SIZE + olen, plen);
 
@@ -823,24 +845,66 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
 
     /* Add response PDU to the client response set. */
     dbg_err_if (ec_res_set_add(&cli->res_set, res));
+    res = NULL;
 
-    /* Just before invoking the client callback, set state to DONE.
-     * If state is final, make the caller aware through EC_NET_CBRC_DEAD
-     * which signals that the client context is not available anymore. */
-    if (ec_client_set_state(cli, EC_CLI_STATE_REQ_DONE) == true)
-        return EC_NET_CBRC_DEAD;
+    /* Check if a (possibly) requested observation has been accepted by the
+     * end node and set the client->obs flag in case.  Do this *after* 
+     * the 'res' PDU is added to the response set in client context. */
+    dbg_err_if (ec_client_handle_observation(cli));
 
-    return EC_NET_CBRC_SUCCESS;
+    /* Just before invoking the client callback, set state to one of DONE or
+     * WAIT_NFY (observer).  If state is final, make the caller aware of that 
+     * through EC_NET_CBRC_DEAD which signals that the client context is not 
+     * available anymore. */
+    ec_cli_state_t next = cli->observing 
+        ? EC_CLI_STATE_WAIT_NFY 
+        : EC_CLI_STATE_REQ_DONE;
+
+    if (ec_client_set_state(cli, next) == true)
+        return EC_NET_CBRC_DEAD;    /* final */
+    else
+    {
+        /* In case the client context holds an observation, cleanup the
+         * response set so that it can be reused on next notification. */
+        if (cli->observing)
+            ec_res_set_clear(&cli->res_set);
+        return EC_NET_CBRC_SUCCESS; /* non-final */
+    }
 
 cleanup:
+    u_dbg("TODO check this cleanup: label");
     ec_pdu_free(res);
-
     return EC_NET_CBRC_SUCCESS;
 err:
     if (res)
         ec_pdu_free(res);
-
     return EC_NET_CBRC_ERROR;
+}
+
+/* Decide if the .observing flag has to be asserted or not. */
+static int ec_client_handle_observation(ec_client_t *cli)
+{
+    ec_opt_t *obs;
+    ec_opts_t *res_opts, *req_opts;
+
+    dbg_return_if (cli == NULL, -1);
+
+    /* Do nothing in case we get here on subsequent notifications. */
+    if (cli->observing)
+        return 0;
+
+    /* Try to see if we have asked for an Observe on the remote resource. */
+    dbg_err_if ((req_opts = ec_client_get_request_options(cli)) == NULL);
+    if (ec_opts_get(req_opts, EC_OPT_OBSERVE))
+    {
+        /* Assert the .observing flag if the server has acknowledged. */
+        dbg_err_if ((res_opts = ec_client_get_response_options(cli)) == NULL);
+        cli->observing = ec_opts_get(res_opts, EC_OPT_OBSERVE) ? true : false; 
+    }
+
+    return 0;
+err:
+    return -1;
 }
 
 static int ec_client_invoke_user_callback(ec_client_t *cli)
@@ -931,7 +995,7 @@ int ec_res_set_init(ec_res_set_t *rset)
     return 0;
 }
 
-int ec_res_set_clear(ec_res_set_t *rset)
+void ec_res_set_clear(ec_res_set_t *rset)
 {
     if (rset)
     {
@@ -946,8 +1010,6 @@ int ec_res_set_clear(ec_res_set_t *rset)
 
         (void) ec_res_set_init(rset);
     }
-
-    return 0;
 }
 
 ec_pdu_t *ec_client_get_request_pdu(ec_client_t *cli)

@@ -129,7 +129,8 @@ void cb(ec_client_t *cli)
     ec_cli_state_t s;
    
     /* Get FSM final state, bail out on !REQ_DONE. */
-    con_err_ifm ((s = ec_client_get_state(cli)) != EC_CLI_STATE_REQ_DONE, 
+    con_err_ifm ((s = ec_client_get_state(cli)) != EC_CLI_STATE_REQ_DONE
+            && s != EC_CLI_STATE_WAIT_NFY,
             "request failed: %s", ec_cli_state_str(s));
 
     /* Get response code. */

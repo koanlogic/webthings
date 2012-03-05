@@ -399,7 +399,10 @@ void usage(const char *prog)
 const uint8_t *ob_serve(const char *uri, ec_mt_t mt, size_t *p_sz, void *args)
 {
     u_con("TODO produce resource for %s", uri);
-    return NULL;
+
+    *p_sz = strlen("hello observe");
+
+    return (const uint8_t *) "hello observe";
 }
 
 ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)

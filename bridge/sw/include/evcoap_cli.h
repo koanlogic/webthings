@@ -45,6 +45,7 @@ struct ec_client_s
     ec_client_cb_t cb;
     void *cb_args;
     ec_cli_state_t state;
+    bool observing; /* true if this ctx is associated to an observation. */
     ec_cli_timers_t timers;
     ec_flow_t flow;
     ec_pdu_t req;
@@ -90,6 +91,6 @@ int ec_cli_stop_coap_timer(ec_client_t *cli);
 /* Response set handling. */
 int ec_res_set_add(ec_res_set_t *rset, ec_pdu_t *pdu);
 int ec_res_set_init(ec_res_set_t *rset);
-int ec_res_set_clear(ec_res_set_t *rset);
+void ec_res_set_clear(ec_res_set_t *rset);
 
 #endif  /* !_EC_CLI_H_ */

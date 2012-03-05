@@ -10,12 +10,10 @@
 typedef struct
 {
     ec_conn_t conn;
-
     ec_method_t method;
+    ec_rc_t resp_code;
     u_uri_t *uri;
     char urlstr[U_URI_STRMAX];  /* URI string \minus the query */
-    ec_rc_t resp_code;
-
     uint8_t token[8];
     size_t token_sz;
 } ec_flow_t;
