@@ -27,6 +27,23 @@ const char *ec_cli_state_str(ec_cli_state_t s)
     return g_client_states[s];
 }
 
+ec_method_mask_t ec_method_to_mask(ec_method_t method)
+{
+    switch (method)
+    {
+        case EC_GET:
+            return EC_GET_MASK;
+        case EC_PUT:
+            return EC_PUT_MASK;
+        case EC_POST:
+            return EC_POST_MASK;
+        case EC_DELETE:
+            return EC_DELETE_MASK;
+    }
+
+    return -1;
+}
+
 int ec_mt_from_string(const char *s, ec_mt_t *pmt)
 {
     int rc = 0;

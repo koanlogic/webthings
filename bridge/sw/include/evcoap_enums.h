@@ -59,6 +59,21 @@ typedef enum
 
 #define EC_IS_METHOD(m) ((m) > EC_METHOD_UNSET && (m) < EC_METHOD_MAX)
 
+typedef enum
+{
+    EC_METHOD_MASK_UNSET    = 0,
+    EC_GET_MASK             = (1 << 0),
+    EC_PUT_MASK             = (1 << 1),
+    EC_POST_MASK            = (1 << 2),
+    EC_DELETE_MASK          = (1 << 3),
+    EC_METHOD_MASK_ALL      = (EC_GET_MASK | EC_PUT_MASK | EC_POST_MASK |
+                               EC_DELETE_MASK)
+} ec_method_mask_t;
+#define EC_IS_METHOD_MASK(m) ((m) > EC_METHOD_MASK_UNSET && \
+        (m) <= EC_METHOD_MASK_ALL)
+
+ec_method_mask_t ec_method_to_mask(ec_method_t method);
+
 /* Available Media types.
  * "The identifiers between 201 and 255 inclusive are reserved for Private Use."
  * Evcoap reserves 255 for "any media type", which is used as a wild-card in 

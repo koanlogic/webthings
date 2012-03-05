@@ -221,7 +221,7 @@ int vhost_load_resource(u_config_t *resource, const char *origin)
     CHAT("adding resource %s", uri);
 
     /* Create FS resource. */
-    con_err_ifm ((res = ec_resource_new(uri, ma)) == NULL,
+    con_err_ifm ((res = ec_resource_new(uri, EC_METHOD_MASK_ALL, ma)) == NULL,
             "resource creation failed");
 
     /* Load each resource representation. */
@@ -407,6 +407,7 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
     ec_mt_t mta[16];
     size_t mta_sz = sizeof mta / sizeof(ec_mt_t);
     ec_rep_t *rep;
+    ec_res_t *res;
 
     u_unused_args(u0, u1, u2);
 
@@ -431,6 +432,9 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
     /* If found, craft the response. */
     if (rep)
     {
+        res = ec_rep_get_res(rep);
+        dbg_err_if (res == NULL);
+
         /* Set response code, payload, etag and content-type. */
         (void) ec_response_set_code(srv, EC_CONTENT);
         (void) ec_response_set_payload(srv, rep->data, rep->data_sz);
@@ -438,8 +442,8 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
         (void) ec_response_add_content_type(srv, rep->media_type);
 
         /* Add max-age if != from default. */
-        if (rep->max_age != EC_COAP_DEFAULT_MAX_AGE)
-            (void) ec_response_add_max_age(srv, rep->max_age);
+        if (res->max_age != EC_COAP_DEFAULT_MAX_AGE)
+            (void) ec_response_add_max_age(srv, res->max_age);
 
         /* See if the client asked for Observing the resource. */
         if (ec_request_get_observe(srv) == 0)
@@ -447,7 +451,7 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
             uint16_t o_cnt;
 
             /* Add a NON notifier attached to ob_serve callback. */
-            if (!ec_add_observer(srv, ob_serve, NULL, rep->max_age, 
+            if (!ec_add_observer(srv, ob_serve, NULL, res->max_age, 
                         rep->media_type, EC_NON, rep->etag, sizeof rep->etag))
             {
                 /* TODO get counter from time */
