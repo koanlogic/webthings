@@ -320,14 +320,30 @@ ec_cbrc_t resource_cb_test(ec_server_t *srv, void *u0, struct timeval *u1,
         goto end;
     }
 
-    (void) ec_response_set_code(srv, EC_CONTENT);
-    (void) ec_response_set_payload(srv, rep->data, rep->data_sz);
-    (void) ec_response_add_etag(srv, rep->etag, sizeof rep->etag);
-    (void) ec_response_add_content_type(srv, rep->media_type);
+    switch (method)
+    {
+        case EC_GET:
+            (void) ec_response_set_code(srv, EC_CONTENT);
+            (void) ec_response_set_payload(srv, rep->data, rep->data_sz);
+            (void) ec_response_add_etag(srv, rep->etag, sizeof rep->etag);
+            (void) ec_response_add_content_type(srv, rep->media_type);
 
-    /* Add max-age if != from default. */
-    if (res->max_age != EC_COAP_DEFAULT_MAX_AGE)
-        (void) ec_response_add_max_age(srv, res->max_age);
+            /* Add max-age if != from default. */
+            if (res->max_age != EC_COAP_DEFAULT_MAX_AGE)
+                (void) ec_response_add_max_age(srv, res->max_age);
+            break;
+        case EC_POST:
+            (void) ec_response_set_code(srv, EC_CREATED);
+            break;
+        case EC_PUT:
+            (void) ec_response_set_code(srv, EC_CHANGED);
+            break;
+        case EC_DELETE:
+            (void) ec_response_set_code(srv, EC_DELETED);
+            break;
+        default:
+            con_err("unsupported method: %d", method);
+    }
 
 end:
     return EC_CBRC_READY;
