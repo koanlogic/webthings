@@ -35,6 +35,7 @@ typedef struct
     bool observe;
     bool verbose;
     blockopt_t bopt;
+    bool fail;
 } ctx_t;
 
 ctx_t g_ctx = {
@@ -50,7 +51,8 @@ ctx_t g_ctx = {
     .ofn = DEFAULT_OFN,
     .pfn = NULL,
     .observe = false,
-    .verbose = false
+    .verbose = false,
+    .fail = false
 };
 
 void usage(const char *prog);
@@ -114,7 +116,9 @@ int main(int ac, char *av[])
     con_err_if (client_init());
 
     /* Run, and keep on doing it until all blocks are exhausted. */
-    do { con_err_if (client_run()); } while (g_ctx.bopt.more);
+    do { con_err_if (client_run()); } while (g_ctx.bopt.more && !g_ctx.fail);
+
+    con_err_if (g_ctx.fail);
 
     client_term();
     return EXIT_SUCCESS;
@@ -139,6 +143,8 @@ void cb(ec_client_t *cli)
 
     /* TODO replace with coap_hdr_pretty_print() or similar. */
     u_con("%s", ec_rc_str(rc));
+
+    con_err_if (!EC_IS_OK(rc));
 
     if (rc == EC_CONTENT)
     {
@@ -183,8 +189,10 @@ void cb(ec_client_t *cli)
         }
     }
 
-    /* Fall through. */
+    ec_loopbreak(ec_client_get_base(cli));
+    return;
 err:
+    g_ctx.fail = true;
     ec_loopbreak(ec_client_get_base(cli));
     return;
 }
@@ -240,6 +248,9 @@ int client_run(void)
 {
     uint8_t *payload = NULL;
     size_t payload_sz;
+
+    /* Initialisations */
+    g_ctx.fail = false;
 
     dbg_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, g_ctx.method, 
                     g_ctx.uri, g_ctx.model)) == NULL);

@@ -56,7 +56,6 @@ typedef enum
     EC_DELETE        = 4,
     EC_METHOD_MAX    = EC_DELETE + 1
 } ec_method_t;
-
 #define EC_IS_METHOD(m) ((m) > EC_METHOD_UNSET && (m) < EC_METHOD_MAX)
 
 typedef enum
@@ -132,6 +131,8 @@ typedef enum
     EC_PROXYING_NOT_SUPPORTED   = 165,  /* 5.05 */
     EC_500_UNKNOWN              = 191   /* Highest 5.xx */
 } ec_rc_t;
+#define EC_IS_OK(rc) \
+    ((rc) >= EC_CREATED && (rc) <= EC_200_UNKNOWN)
 #define EC_IS_RESP_CODE(rc) \
     ((rc) >= EC_CREATED && (rc) <= EC_500_UNKNOWN)
 
