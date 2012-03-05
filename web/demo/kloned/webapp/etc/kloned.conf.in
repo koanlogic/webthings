@@ -5,7 +5,7 @@ allow_root yes
 log
 {
     type                syslog
-    syslog.facility     ${{LF_WTDEMO}}
+    syslog.facility     @{{LF_WTDEMO}}
 }
 
 wtdemo
