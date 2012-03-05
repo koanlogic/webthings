@@ -51,7 +51,7 @@ t_cmp()
     if [ "$1" = "$2" ]; then
         return 0
     else 
-        t_die 1 "[KO] comparison failed! ($1,$2)"
+        t_die 1 "comparison failed! ($1,$2)"
     fi
 }
 
@@ -99,6 +99,7 @@ t_run_cli()
     [ -z ${rsrc} ] && rsrc="/test"
 
     t_wrap 0 "${CLI_CMD}" -m ${meth} -M ${msg} -u ${addr}/${rsrc} -o -
+    [ $? -eq 0 ] || t_die 1 "client failed! (rc=$?)"
 }
 
 trap t_term 2 9 15
