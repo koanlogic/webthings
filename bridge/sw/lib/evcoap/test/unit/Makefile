@@ -16,7 +16,6 @@ LDADD += $(LIBEVENT_LDADD)
 LDADD += $(LIBU_LDADD)
 
 LDADD += ../../src/libevcoap.a
-LDADD += ../../extra/libevcoap-extra.a
 
 include prog.mk
 

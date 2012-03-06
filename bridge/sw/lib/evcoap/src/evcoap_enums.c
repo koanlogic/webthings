@@ -16,7 +16,8 @@ static const char *g_client_states[] =
     [EC_CLI_STATE_COAP_TIMEOUT] = "COAP TIMEOUT (FINAL)",
     [EC_CLI_STATE_REQ_DONE]     = "REQ DONE (FINAL)",
     [EC_CLI_STATE_REQ_RST]      = "REQ RST (FINAL)",
-    [EC_CLI_STATE_WAIT_NFY]     = "WAIT NOTIFICATION"
+    [EC_CLI_STATE_WAIT_NFY]     = "WAIT NOTIFICATION",
+    [EC_CLI_STATE_OBS_TIMEOUT]  = "OBSERVE TIMEOUT (FINAL)"
 };
 
 const char *ec_cli_state_str(ec_cli_state_t s)
@@ -39,9 +40,11 @@ ec_method_mask_t ec_method_to_mask(ec_method_t method)
             return EC_POST_MASK;
         case EC_DELETE:
             return EC_DELETE_MASK;
+        case EC_METHOD_UNSET:
+        case EC_METHOD_MAX:
+        default:
+            return -1;
     }
-
-    return -1;
 }
 
 int ec_mt_from_string(const char *s, ec_mt_t *pmt)

@@ -8,7 +8,6 @@ CFLAGS += $(LIBU_CFLAGS)
 CFLAGS += $(LIBEVENT_CFLAGS)
 
 LDADD += ../../../src/libevcoap.a
-LDADD += ../../../extra/libevcoap-extra.a
 LDADD += $(LIBEVENT_LDADD)
 LDADD += $(LIBU_LDADD)
 

@@ -18,9 +18,8 @@ static ec_observation_t *ec_observation_add(ec_t *coap, const char *uri,
 static ec_observation_t *ec_observation_new(ec_t *coap, const char *uri, 
         uint32_t max_age);
 static void ec_observation_free(ec_observation_t *obs);
-static int ec_observation_start(ec_observation_t *obs);
+static int ec_observation_start_countdown(ec_observation_t *obs);
 static bool ec_source_match(const ec_conn_t *req_src, const ec_conn_t *obs_src);
-static int ec_source_copy(const ec_conn_t *src, ec_conn_t *dst);
 
 /* 
  * TODO: The callback should produce all the requested representations in one 
@@ -64,17 +63,27 @@ static void ec_ob_cb(evutil_socket_t u0, short u1, void *c)
         /* Stick the token sent by the client on the original request. */
         dbg_err_if (ec_opts_add_token(&nfy->opts, ovr->token, ovr->token_sz));
 
+        /* Add Observe option with counter. */
+        dbg_err_if (ec_opts_add_observe(&nfy->opts, o_cnt));
+
         /* Encode PDU (NON). */
-        dbg_err_if (ec_source_copy(&ovr->conn, &flow.conn));
+        dbg_err_if (ec_conn_copy(&ovr->conn, &flow.conn));
         dbg_err_if (ec_net_set_confirmable(&flow.conn, false));
         dbg_err_if (ec_pdu_encode_response_separate(nfy));
 
         /* Send PDU (ignore ovr->msg_model for now, go NON all the way.)
          * 'NULL' means, don't go through the duplicate handling machinery. */
         dbg_err_if (ec_pdu_send(nfy, NULL));
+
+        ec_pdu_free(nfy), nfy = NULL;
     }
 
+    /* Rearm the notification countdown. */
+    dbg_err_if (ec_observation_start_countdown(obs));
+
 err:
+    if (nfy)
+        ec_pdu_free(nfy);
     return;
 }
 
@@ -108,7 +117,7 @@ static ec_observer_t *ec_observer_new(const uint8_t *token, size_t token_sz,
     ovr->msg_model = msg_model;
 
     /* Copy-in the needed bits from the connection object. */
-    dbg_err_if (ec_source_copy(conn, &ovr->conn));
+    dbg_err_if (ec_conn_copy(conn, &ovr->conn));
 
     /* Attach user provided callback that will create the updated resource
      * representation. */
@@ -138,20 +147,6 @@ static int ec_observer_add(ec_observation_t *obs, const uint8_t *tok,
 
     /* Add the observer to the parent observation. */
     TAILQ_INSERT_TAIL(&obs->observers, ovr, next);
-
-    return 0;
-}
-
-/* Duplicate the bits needed to identify the observer. */
-static int ec_source_copy(const ec_conn_t *src, ec_conn_t *dst)
-{
-    dbg_return_if (src == NULL, -1);
-    dbg_return_if (dst == NULL, -1);
-
-    dst->socket = src->socket;
-    memcpy(&dst->peer, &src->peer, sizeof dst->peer);
-
-    /* TODO copy in security context. */
 
     return 0;
 }
@@ -252,7 +247,7 @@ static ec_observation_t *ec_observation_add(ec_t *coap, const char *uri,
     dbg_err_ifm (obs == NULL, "observation creation failure");
 
     /* Start the countdown based on supplied resource max-age. */
-    dbg_err_if (ec_observation_start(obs));
+    dbg_err_if (ec_observation_start_countdown(obs));
 
     TAILQ_INSERT_TAIL(&coap->observing, obs, next);
 
@@ -264,7 +259,7 @@ err:
 }
 
 /* Fire the observation countdown. */
-static int ec_observation_start(ec_observation_t *obs)
+static int ec_observation_start_countdown(ec_observation_t *obs)
 {
     dbg_return_if (obs == NULL, -1);
 
