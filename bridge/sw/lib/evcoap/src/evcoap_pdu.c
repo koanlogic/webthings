@@ -278,6 +278,83 @@ static void encode_header(ec_pdu_t *pdu, uint8_t code, uint8_t t,
     return;
 }
 
+void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
+{
+#define FWRITE_STR(f, str) (fwrite(str, strlen(str), 1, f) < 1)
+#define FWRITE_PRINT(f, ...) do { \
+        dbg_err_if (u_snprintf(buf, sizeof buf, __VA_ARGS__)); \
+        dbg_err_if (FWRITE_STR(f, buf)); \
+    } while (0);
+#define FWRITE_HEX(f, b, sz) do { \
+        for (bi = 0; bi < sz; bi++) \
+            FWRITE_PRINT(f, "%02x ", b[bi]); \
+    } while (0);
+
+    enum { MAX_STR = 256 };
+    FILE *f = NULL;
+    char fname[U_PATH_MAX];
+    const char *prefix = ".";
+    char buf[MAX_STR];
+    static int pnum = 1;
+    ec_hdr_t *h;
+    ec_opt_t *o;
+    size_t bi;
+
+    dbg_ifb (pdu == NULL || pdu->hdr == NULL)
+        return;
+
+    h = &pdu->hdr_bits;
+
+    dbg_err_if (u_snprintf(fname, sizeof fname, "%s/%d-%s.dump", prefix,
+                pnum++, srv ? "srv" : "cli"));
+
+    f = fopen(fname, "w+");
+    dbg_err_sif (f == NULL);
+
+    FWRITE_STR(f, "h  ");
+    FWRITE_HEX(f, pdu->hdr, EC_COAP_HDR_SIZE);
+    FWRITE_STR(f, "\n\n");
+
+    FWRITE_PRINT(f, "    h_type\t%u\n", h->t);
+    FWRITE_PRINT(f, "    h_oc\t%u\n", h->oc);
+    FWRITE_PRINT(f, "    h_code\t%u\n", h->code);
+    FWRITE_PRINT(f, "    h_mid\t%u\n", h->mid);
+    FWRITE_PRINT(f, "\n");
+
+    if (pdu->payload_sz)
+        FWRITE_PRINT(f, "p: %*s\n\n", pdu->payload_sz, pdu->payload);
+
+    TAILQ_FOREACH(o, &pdu->opts.bundle, next)
+    {
+        FWRITE_PRINT(f, "o%d\t", o->sym);
+
+        switch (o->t) 
+        {
+            case EC_OPT_TYPE_STRING:
+                FWRITE_PRINT(f, "%s", o->v);
+                break;
+
+            case EC_OPT_TYPE_OPAQUE:
+            default:
+                FWRITE_HEX(f, o->v, o->l);
+                break;
+        }
+
+        FWRITE_PRINT(f, "\n");
+    }
+    FWRITE_PRINT(f, "\n");
+
+    /* Fall through. */
+err:
+    if (f)
+        fclose(f);
+    return;
+
+#undef FWRITE_STR
+#undef FWRITE_HEX
+#undef FWRITE_PRINT
+}
+
 ec_pdu_t *ec_pdu_new_empty(void)
 {
     ec_pdu_t *pdu = NULL;

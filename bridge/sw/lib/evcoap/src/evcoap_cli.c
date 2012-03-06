@@ -828,6 +828,10 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     dbg_err_ifm (ec_opts_decode(&res->opts, raw, raw_sz, h->oc, &olen),
             "CoAP options could not be parsed correctly");
 
+    /* If enabled, dump PDU (server=false). */
+    if (getenv("DUMP_PDUS"))
+        (void) ec_pdu_dump(res, false);
+
     /* Check that there is a token and it matches the one we sent out with the 
      * request. */
     dbg_err_if ((t = ec_opts_get(&res->opts, EC_OPT_TOKEN)) == NULL);

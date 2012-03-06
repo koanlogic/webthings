@@ -54,6 +54,8 @@ ec_cbrc_t resource_cb_query(ec_server_t *srv, void *u0, struct timeval *u1,
         bool u2);
 ec_cbrc_t resource_cb_large(ec_server_t *srv, void *u0, struct timeval *u1,
         bool u2);
+ec_cbrc_t resource_cb_separate(ec_server_t *srv, void *u0, struct timeval *u1, 
+        bool u2);
 ec_cbrc_t resource_cb_large_update(ec_server_t *srv, void *u0,
         struct timeval *u1, bool u2);
 ec_cbrc_t resource_cb_large_create(ec_server_t *srv, void *u0,
@@ -103,31 +105,43 @@ int main(int ac, char *av[])
 
     /* Add plugtest resources. */
     con_err_ifm (
-            resource_add("/test", EC_METHOD_MASK_ALL, 0, 
-                "text/plain", (const uint8_t *) "Hello world!", 
-                strlen("Hello world!"), &resource_cb_test), 
-        "failed adding resources");
+            resource_add("/test", EC_METHOD_MASK_ALL, 0, "text/plain", 
+                (const uint8_t *) "Hello world!", strlen("Hello world!"),
+                &resource_cb_test) ||
 
-#if 0
-            ||
-            resource_add("/seg1/seg2/seg3", EC_GET_MASK, 0, &resource_cb_seg) ||
+            resource_add("/seg1/seg2/seg3", EC_GET_MASK, 0, "text/plain",
+                (const uint8_t *) "Hello world!", strlen("Hello world!"),
+                &resource_cb_seg) ||
 
-            resource_add("/query", EC_GET_MASK, 0, &resource_cb_query) ||
+            resource_add("/query", EC_GET_MASK, 0, "text/plain",
+                (const uint8_t *) "Hello world!", strlen("Hello world!"),
+                &resource_cb_query) ||
 
-            resource_add("/large", EC_GET_MASK, 0, &resource_cb_large) ||
+            resource_add("/large", EC_GET_MASK, 0, "text/plain",
+                (const uint8_t *) "Hello world!", strlen("Hello world!"),
+                &resource_cb_large) ||
 
-            resource_add("/large_update", EC_PUT_MASK, 0,
+            resource_add("/separate", EC_GET_MASK, 0, "text/plain",
+                (const uint8_t *) "Hello world!", strlen("Hello world!"),
+                &resource_cb_separate) ||
+
+            resource_add("/large_update", EC_PUT_MASK, 0, "text/plain",
+                (const uint8_t *) "Hello world!", strlen("Hello world!"),
                 &resource_cb_large_update) ||
 
-            resource_add("/large_create", EC_POST_MASK, 0,
+            resource_add("/large_create", EC_POST_MASK, 0, "text/plain",
+                (const uint8_t *) "Hello world!", strlen("Hello world!"),
                 &resource_cb_large_create) ||
 
-            resource_add("/obs", EC_GET_MASK, 0, &resource_cb_obs) ||
+            resource_add("/obs", EC_GET_MASK, 0, "text/plain", 
+                (const uint8_t *) "Hello world!", strlen("Hello world!"),
+                &resource_cb_obs) ||
 
             resource_add("/.well-known/core", EC_GET_MASK, 0,
-                "application/link-format", "TODO"
-                &resource_cb_wellknown)
-#endif
+                "application/link-format", (const uint8_t *) "TODO",
+                strlen("TODO"), &resource_cb_wellknown),
+
+        "failed adding resources");
     
     con_err_ifm (server_run(), "server run failed");
 
@@ -325,22 +339,25 @@ ec_cbrc_t resource_cb_test(ec_server_t *srv, void *u0, struct timeval *u1,
         case EC_GET:
             (void) ec_response_set_code(srv, EC_CONTENT);
             (void) ec_response_set_payload(srv, rep->data, rep->data_sz);
-            (void) ec_response_add_etag(srv, rep->etag, sizeof rep->etag);
             (void) ec_response_add_content_type(srv, rep->media_type);
 
             /* Add max-age if != from default. */
             if (res->max_age != EC_COAP_DEFAULT_MAX_AGE)
                 (void) ec_response_add_max_age(srv, res->max_age);
             break;
+
         case EC_POST:
-            (void) ec_response_set_code(srv, EC_CREATED);
+            (void) ec_response_set_code(srv, EC_CREATED);  /* fake */
             break;
+
         case EC_PUT:
-            (void) ec_response_set_code(srv, EC_CHANGED);
+            (void) ec_response_set_code(srv, EC_CHANGED);  /* fake */
             break;
+
         case EC_DELETE:
-            (void) ec_response_set_code(srv, EC_DELETED);
+            (void) ec_response_set_code(srv, EC_DELETED);  /* fake */
             break;
+
         default:
             con_err("unsupported method: %d", method);
     }
@@ -372,6 +389,16 @@ ec_cbrc_t resource_cb_query(ec_server_t *srv, void *u0, struct timeval *u1,
 }
 
 ec_cbrc_t resource_cb_large(ec_server_t *srv, void *u0, struct timeval *u1, 
+        bool u2)
+{
+    u_unused_args(srv, u0, u1, u2);
+
+    CHAT("[%s]", __FUNCTION__);
+
+    return EC_CBRC_READY;
+}
+
+ec_cbrc_t resource_cb_separate(ec_server_t *srv, void *u0, struct timeval *u1, 
         bool u2)
 {
     u_unused_args(srv, u0, u1, u2);

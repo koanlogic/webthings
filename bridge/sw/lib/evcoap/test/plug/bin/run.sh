@@ -4,11 +4,19 @@
 
 VEC_PATH=../vectors
 
-for v in `ls ${VEC_PATH}`; do
+for v in `ls "${VEC_PATH}"`; do
 
+    f="${VEC_PATH}/${v}"
+
+    # Match test case prefix.
+    echo "${f}" | grep "TD_COAP_" >/dev/null
+    [ $? -eq 0 ] || continue
+
+    # Run test.
     echo "# test: ${v}"
-    sh "${VEC_PATH}/${v}"
+    sh "${f}"
 
+    # Prit exit status.
     if [ $? = 0 ]; then
         echo "# [ok]."
     else

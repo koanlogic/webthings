@@ -55,6 +55,7 @@ int ec_pdu_encode_response_ack(ec_pdu_t *pdu);
 int ec_pdu_encode_response_rst(ec_pdu_t *pdu);
 int ec_pdu_encode_request(ec_pdu_t *pdu);
 int ec_pdu_decode_header(ec_pdu_t *pdu, const uint8_t *raw, size_t raw_sz);
+void ec_pdu_dump(ec_pdu_t *pdu, bool srv);
 ec_pdu_t *ec_pdu_new_empty(void);
 void ec_pdu_free(ec_pdu_t *pdu);
 

@@ -21,6 +21,9 @@ Environment variables
 * To activate verbose logging:
     VERBOSE=1
 
+* To activate dumping of input PDUs:
+    DUMP_PDUS=1
+
 * To run client only:
     MODE=cli
 

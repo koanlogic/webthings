@@ -1,7 +1,7 @@
 #VERBOSE=1
-SRV_ADDR=coap://[::1]/
-CLI_CMD=../../client/coap-client
-SRV_CMD=../server/coap-server
+SRV_ADDR="coap://[::1]:5683"
+CLI_CMD="../../client/coap-client"
+SRV_CMD="../server/coap-server"
 
 # If VERBOSE=1, debugs all strings to standard error.
 t_dbg()
@@ -69,11 +69,16 @@ t_term()
 }
 
 # Run a CoAP server.
+#
+# $1    address     <uri>                   (default is coap://[::1])
 t_run_srv()
 {
     [ "${MODE}" != "cli" ] || return 0
 
-    t_wrap 1 "${SRV_CMD}"
+    addr=$1
+    [ -z ${addr} ] && addr="${SRV_ADDR}"
+
+    t_wrap 1 "${SRV_CMD}" -u "${addr}"
 }
 
 # Run a CoAP client.
@@ -95,11 +100,44 @@ t_run_cli()
     # set defaults for empty string vals
     [ "${meth}" = "" ] && meth="GET"
     [ -z ${msg} ] && msg="CON"
-    [ -z ${addr} ] && addr="coap://[::1]"
+    [ -z ${addr} ] && addr="${SRV_ADDR}"
     [ -z ${rsrc} ] && rsrc="/test"
 
-    t_wrap 0 "${CLI_CMD}" -m ${meth} -M ${msg} -u ${addr}/${rsrc} -o -
+    t_wrap 0 "${CLI_CMD}" -m "${meth}" -M "${msg}" -u "${addr}${rsrc}" -o -
     [ $? -eq 0 ] || t_die 1 "client failed! (rc=$?)"
+}
+
+# Get the value of a field in header.
+#
+# $1    packet identifier
+# $2    srv|cli
+# $3    field name
+t_get_hdr()
+{
+    id=$1
+    srv=$2
+    field=$3
+
+    grep ${field} ${id}-${srv}.dump | awk '{print $2}'
+}
+
+# Check the value of a dumped header.
+#
+# $1    packet identifier
+# $2    srv|cli
+# $3    field name
+# $4    field value
+t_check_hdr()
+{
+    id=$1
+    srv=$2
+    field=$3
+    val=$4
+
+    t_dbg "# checking message ${id}-${srv} field ${field} val ${val}"
+
+    xval=`grep ${field} ${id}-${srv}.dump | awk '{print $2}'`
+    [ "${xval}" = "${val}" ] || t_die 1 "failed check! (rc=$?)"
 }
 
 trap t_term 2 9 15

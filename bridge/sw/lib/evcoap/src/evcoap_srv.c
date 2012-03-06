@@ -80,7 +80,6 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     dbg_return_if (sd == -1, EC_NET_CBRC_ERROR);
     dbg_return_if (peer == NULL, EC_NET_CBRC_ERROR);
 
-    /* Make room for the new PDU. */
     dbg_err_sif ((req = ec_pdu_new_empty()) == NULL);
 
     ec_hdr_t *h = &req->hdr_bits;    /* shortcut */
@@ -134,6 +133,10 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
 
     ec_flow_t *flow = &srv->flow;   /* shortcut */
     ec_conn_t *conn = &flow->conn;  /* shortcut */
+
+    /* If enabled, dump PDU (server=true). */
+    if (getenv("DUMP_PDUS"))
+        (void) ec_pdu_dump(req, true);
 
     /* Save requested method. */
     dbg_err_if (ec_flow_set_method(flow, (ec_method_t) h->code));
