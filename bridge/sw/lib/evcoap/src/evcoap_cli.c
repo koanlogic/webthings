@@ -388,6 +388,10 @@ static int ec_client_check_transition(ec_cli_state_t cur, ec_cli_state_t next)
                     && cur != EC_CLI_STATE_WAIT_NFY);
             break;
 
+        case EC_CLI_STATE_OBS_TIMEOUT:
+            dbg_err_if (cur != EC_CLI_STATE_WAIT_NFY);
+            break;
+
         case EC_CLI_STATE_NONE:
         default:
             goto err;
@@ -411,6 +415,7 @@ static bool ec_client_state_is_final(ec_cli_state_t state)
         case EC_CLI_STATE_APP_TIMEOUT:
         case EC_CLI_STATE_REQ_DONE:
         case EC_CLI_STATE_REQ_RST:
+        case EC_CLI_STATE_OBS_TIMEOUT:
             return true;
         case EC_CLI_STATE_NONE:
         case EC_CLI_STATE_DNS_OK:
@@ -624,7 +629,14 @@ int ec_cli_restart_obs_timer(ec_client_t *cli)
 
 static void ec_cli_obs_timeout(evutil_socket_t u0, short u1, void *c)
 {
-    u_dbg("TODO %s", __func__);
+    ec_client_t *cli = (ec_client_t *) c;
+
+    /* Remove the observe flag from the client context. */
+    cli->observe.on = false;
+
+    /* Set state to OBS_TIMEOUT. */
+    (void) ec_client_set_state(cli, EC_CLI_STATE_OBS_TIMEOUT);
+
     return;
 }
 
