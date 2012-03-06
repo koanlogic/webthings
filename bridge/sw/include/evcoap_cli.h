@@ -40,6 +40,7 @@ typedef struct ec_cli_timers_s ec_cli_timers_t;
 struct ec_cli_obs_s
 {
     bool on;            /* True if this ctx is associated to an observation. */
+    bool cancel;        /* Set by client via ec_client_delete_observation. */
     uint16_t last_cnt;  /* Last counter received. */
     time_t last_ts;     /* Timestamp of last received notification. */
 };
@@ -100,5 +101,9 @@ int ec_cli_stop_coap_timer(ec_client_t *cli);
 int ec_res_set_add(ec_res_set_t *rset, ec_pdu_t *pdu);
 int ec_res_set_init(ec_res_set_t *rset);
 void ec_res_set_clear(ec_res_set_t *rset);
+
+/* Observe'r interfaces. */
+bool ec_client_is_observing(ec_client_t *cli);
+int ec_client_cancel_observation(ec_client_t *cli);
 
 #endif  /* !_EC_CLI_H_ */

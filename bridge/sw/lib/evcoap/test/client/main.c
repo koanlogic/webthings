@@ -32,7 +32,7 @@ typedef struct
     uint8_t etag[4];
     const char *ofn;
     const char *pfn;
-    bool observe;
+    uint32_t observe;
     bool verbose;
     blockopt_t bopt;
     bool fail;
@@ -50,7 +50,7 @@ ctx_t g_ctx = {
     .etag = { 0xde, 0xad, 0xbe, 0xef },
     .ofn = DEFAULT_OFN,
     .pfn = NULL,
-    .observe = false,
+    .observe = 0,
     .verbose = false,
     .fail = false
 };
@@ -62,6 +62,7 @@ void client_term(void);
 int client_set_uri(const char *s);
 int client_set_method(const char *s);
 int client_set_model(const char *s);
+int client_set_observe(const char *s);
 int client_set_output_file(const char *s);
 int client_set_payload_file(const char *s);
 int client_set_app_timeout(const char *s);
@@ -72,7 +73,7 @@ int main(int ac, char *av[])
 {
     int c;
 
-    while ((c = getopt(ac, av, "hu:m:M:Oo:p:vt:")) != -1)
+    while ((c = getopt(ac, av, "hu:m:M:O:o:p:vt:")) != -1)
     {
         switch (c)
         {
@@ -89,7 +90,8 @@ int main(int ac, char *av[])
                     usage(av[0]);
                 break;
             case 'O':
-                g_ctx.observe = true;
+                if (client_set_observe(optarg))
+                    usage(av[0]);
                 break;
             case 'o':
                 if (client_set_output_file(optarg))
@@ -132,24 +134,27 @@ void cb(ec_client_t *cli)
     ec_rc_t rc;
     ec_cli_state_t s;
    
-    /* Get FSM final state, bail out on !REQ_DONE (or observe). */
-    con_err_ifm ((s = ec_client_get_state(cli)) != EC_CLI_STATE_REQ_DONE
-            && s != EC_CLI_STATE_WAIT_NFY,
-            "request failed: %s", ec_cli_state_str(s));
+    /* 
+     * Get FSM final state, bail out on !REQ_DONE (or observe).
+     */
+    switch ((s = ec_client_get_state(cli)))
+    {
+        case EC_CLI_STATE_REQ_DONE:
+        case EC_CLI_STATE_WAIT_NFY:
+            break;
+        default:
+            con_err("request failed: %s", ec_cli_state_str(s));
+    }
 
-    /* Get response code. */
-    con_err_ifm ((rc = ec_response_get_code(cli)) == EC_RC_UNSET,
-           "could not get response code");
-
-    /* TODO replace with coap_hdr_pretty_print() or similar. */
-    u_con("%s", ec_rc_str(rc));
-
-    con_err_if (!EC_IS_OK(rc));
+    /* 
+     * Get response code.
+     */
+    u_con("%s", ec_rc_str((rc = ec_response_get_code(cli))));
+    con_err_ifm (!EC_IS_OK(rc), "request failed");
 
     if (rc == EC_CONTENT)
     {
         uint8_t *pl;
-        uint16_t o_serial;
         uint32_t bnum, max_age;
         size_t pl_sz;
 
@@ -171,24 +176,26 @@ void cb(ec_client_t *cli)
         con_err_sifm (client_save_to_file(pl, pl_sz),
                 "payload could not be saved");
 
-        /* See if we've been added to the notification list for the
-         * requested resource. */
-        if (g_ctx.observe)
+        /* In case we've requested an observation on the resource, see if we've
+         * been added to the notification list. */
+        if (g_ctx.observe && ec_client_is_observing(cli))
         {
-            if (ec_response_get_observe(cli, &o_serial) == 0)
-            {
-                if (ec_response_get_max_age(cli, &max_age) == 0)
-                    CHAT("waiting next notification in %u seconds", max_age);
+            if (ec_response_get_max_age(cli, &max_age) == 0)
+                CHAT("notifications expected every %u second(s)", max_age);
 
-                /* Return here, without breaking the event loop since we
-                 * need to be called back again on next notification. */
-                return;
+            if (--g_ctx.observe == 0)
+            {
+                (void) ec_client_cancel_observation(cli);
+                goto end;
             }
-            
-            CHAT("Observation could not be established");
+
+            /* Return here, without breaking the event loop since we
+             * need to be called back again on next notification. */
+            return;
         }
     }
 
+end:
     ec_loopbreak(ec_client_get_base(cli));
     return;
 err:
@@ -200,18 +207,18 @@ err:
 void usage(const char *prog)
 {
     const char *us = 
-        "Usage: %s [opts]                                                  \n"
-        "                                                                  \n"
-        "   where opts is one of:                                          \n"
-        "       -h  this help                                              \n"
-        "       -m <GET|POST|PUT|DELETE>    (default is GET)               \n"
-        "       -M <CON|NON>                (default is NON)               \n"
-        "       -O                          observe the requested resource \n"
-        "       -o <file>                   (default is "DEFAULT_OFN")     \n"
-        "       -p <file>                   (default is NULL)              \n"
-        "       -u <uri>                    (default is "DEFAULT_URI")     \n"
-        "       -t <timeout>                (default is %u sec)            \n"
-        "                                                                  \n"
+        "Usage: %s [opts]                                                   \n"
+        "                                                                   \n"
+        "   where opts is one of:                                           \n"
+        "       -h  this help                                               \n"
+        "       -m <GET|POST|PUT|DELETE>     (default is GET)               \n"
+        "       -M <CON|NON>                 (default is NON)               \n"
+        "       -o <file>                    (default is "DEFAULT_OFN")     \n"
+        "       -p <file>                    (default is NULL)              \n"
+        "       -u <uri>                     (default is "DEFAULT_URI")     \n"
+        "       -t <timeout>                 (default is %u sec)            \n"
+        "       -O <number of notifications> try to observe the resource    \n"
+        "                                                                   \n"
         ;
 
     u_con(us, prog, DEFAULT_TOUT);
@@ -329,6 +336,20 @@ int client_set_method(const char *s)
 
     u_con("unknown method %s", s);
     return -1;
+}
+
+int client_set_observe(const char *s)
+{
+    int tmp;
+
+    dbg_return_if (s == NULL, -1);
+
+    con_return_ifm (u_atoi(s, &tmp) || tmp <= 0, -1,
+            "bad observe notification counter '%s'", s);
+
+    g_ctx.observe = (uint32_t) tmp;
+
+    return 0;
 }
 
 int client_set_model(const char *s)

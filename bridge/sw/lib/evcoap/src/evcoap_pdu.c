@@ -193,13 +193,16 @@ static int encode_response(ec_pdu_t *pdu, uint8_t t, ec_rc_t rc,
     ec_flow_t *flow = pdu->flow;
     ec_opts_t *opts = &pdu->opts;
 
-    /* TODO Check that no token has been set in options. */
-    if (flow->token_sz)
-        dbg_err_if (ec_opts_add_token(opts, flow->token, flow->token_sz));
+    if (t != EC_COAP_RST && t != EC_COAP_CON && rc != EC_RC_UNSET)
+    {
+        /* TODO Check that no token has been set in options. */
+        if (flow->token_sz)
+            dbg_err_if (ec_opts_add_token(opts, flow->token, flow->token_sz));
 
-    /* Encode options.  This is needed before header encoding because it sets
-     * the 'oc' field. */
-    dbg_err_if (ec_opts_encode(&pdu->opts));
+        /* Encode options.  This is needed before header encoding because it 
+         * sets the 'oc' field. */
+        dbg_err_if (ec_opts_encode(&pdu->opts));
+    }
 
     /* Encode header. */
     encode_header(pdu, rc, t, mid);

@@ -225,3 +225,18 @@ int ec_net_socklen(const struct sockaddr_storage *ss, uint8_t *ss_len)
 err:
     return -1;
 }
+
+/* Duplicate the bits needed to identify the observer. */
+int ec_conn_copy(const ec_conn_t *src, ec_conn_t *dst)
+{
+    dbg_return_if (src == NULL, -1);
+    dbg_return_if (dst == NULL, -1);
+
+    dst->socket = src->socket;
+    memcpy(&dst->peer, &src->peer, sizeof dst->peer);
+
+    /* TODO copy in security context. */
+
+    return 0;
+}
+

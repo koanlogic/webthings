@@ -64,10 +64,8 @@ int ec_add_observer(ec_server_t *srv, ec_observe_cb_t cb, void *cb_args,
 int ec_rem_observer(ec_server_t *srv);
 int ec_trigger_notification(ec_server_t *srv);
 
-
 int ec_observation_chores(void);
 int ec_observation_run(void);
-
 
 #ifdef __cplusplus
 }

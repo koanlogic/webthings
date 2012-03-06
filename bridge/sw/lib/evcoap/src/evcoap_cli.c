@@ -26,6 +26,7 @@ static int ec_cli_timer_start(ec_client_t *cli, ec_cli_timer_t *ti,
 static int ec_cli_timer_remove(ec_cli_timer_t *ti);
 static int ec_cli_timer_restart(ec_cli_timer_t *ti);
 static int ec_cli_obs_init(ec_cli_obs_t *obs);
+static int ec_client_rst_peer(ec_client_t *cli);
 
 int ec_client_set_method(ec_client_t *cli, ec_method_t m)
 {
@@ -274,6 +275,22 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
 err:
     (void) ec_client_set_state(cli, EC_CLI_STATE_INTERNAL_ERR);
     return -1;
+}
+
+bool ec_client_is_observing(ec_client_t *cli)
+{
+    dbg_return_if (cli == NULL, false);
+    
+    return cli->observe.on;
+}
+
+int ec_client_cancel_observation(ec_client_t *cli)
+{
+    dbg_return_if (cli == NULL, -1);
+
+    cli->observe.cancel = true;
+
+    return 0;
 }
 
 static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
@@ -689,32 +706,79 @@ bool ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
             dbg_err_if (ec_cli_start_obs_timer(cli));
         }
     }
-    else if ((is_final_state = ec_client_state_is_final(state)))
-    {
-        /* Any final state MUST destroy all pending timers. */
-        dbg_if (ec_cli_stop_app_timer(cli));
-
-        /* If CON also stop the retransmission timer. */
-        dbg_if (is_con && ec_cli_stop_coap_timer(cli));
-
-        /* Tear down any observe timeout. */
-        dbg_if (ec_cli_stop_obs_timer(cli));
-    }
 
     /* Finally set state and, in case the state we've entered is final, or
-     * we are (re)entering the WAIT_NFY state, invoke the user callback. */
+     * we are (re)entering the WAIT_NFY state triggered by the arrival of a 
+     * notification, invoke the user callback. */
     cli->state = state;
 
-    if (is_final_state || cli->state == EC_CLI_STATE_WAIT_NFY)
+    if ((is_final_state = ec_client_state_is_final(state))
+            || cli->state == EC_CLI_STATE_WAIT_NFY)
+    {
         (void) ec_client_invoke_user_callback(cli);
 
+        /* Check if the user has canceled the observation and in case set
+         * the "final state" indicator to allow clean disposal of the client
+         * context. */
+        if (cli->observe.cancel)
+        {
+            dbg_if (ec_client_rst_peer(cli));
+            is_final_state = true;
+        }
+    }
+
     if (is_final_state)
-        ec_client_free(cli); /* We can now finish off with this client. */
+    {
+        /* Any final state MUST destroy all pending timers:
+         * - application
+         * - if CON also stop the retransmission timer
+         * - any observe timeout */
+        dbg_if (ec_cli_stop_app_timer(cli));
+        dbg_if (is_con && ec_cli_stop_coap_timer(cli));
+        dbg_if (ec_cli_stop_obs_timer(cli));
+
+        /* We can now finish off with this client. */
+        ec_client_free(cli);
+    }
 
     return is_final_state;
 err:
     /* Should never happen ! */
     die(EXIT_FAILURE, "%s failed (see logs)", __func__);
+}
+
+static int ec_client_rst_peer(ec_client_t *cli)
+{
+    ec_flow_t flow;
+    ec_pdu_t *nfy, *rst = NULL;
+
+    dbg_return_if (cli == NULL, -1);
+
+    memset(&flow, 0, sizeof flow);
+
+    /* Create ad-hoc PDU. */
+    dbg_err_if ((rst = ec_pdu_new_empty()) == NULL);
+
+    /* Clone the connection data into the disposable flow object and
+     * attach it to the RST PDU. */
+    dbg_err_if (ec_conn_copy(&cli->flow.conn, &flow.conn));
+    dbg_err_if (ec_pdu_set_flow(rst, &flow));
+
+    /* Retrieve and attach sibling (needed for MID mirroring). */
+    dbg_err_if ((nfy = ec_client_get_response_pdu(cli)) == NULL);
+    dbg_err_if (ec_pdu_set_sibling(rst, nfy));
+
+    /* Encode PDU and send. */
+    dbg_err_if (ec_pdu_encode_response_rst(rst));
+    dbg_err_if (ec_pdu_send(rst, NULL));
+
+    ec_pdu_free(rst);
+
+    return 0;
+err:
+    if (rst)
+        ec_pdu_free(rst);
+    return -1;
 }
 
 int ec_client_register(ec_client_t *cli)
@@ -870,7 +934,7 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
      * WAIT_NFY (observer).  If state is final, make the caller aware of that 
      * through EC_NET_CBRC_DEAD which signals that the client context is not 
      * available anymore. */
-    ec_cli_state_t next = cli->observe.on 
+    ec_cli_state_t next = ec_client_is_observing(cli)
         ? EC_CLI_STATE_WAIT_NFY 
         : EC_CLI_STATE_REQ_DONE;
 
@@ -880,7 +944,7 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     {
         /* In case the client context holds an observation, cleanup the
          * response set so that it can be reused on next notification. */
-        if (cli->observe.on)
+        if (ec_client_is_observing(cli))
             ec_res_set_clear(&cli->res_set);
         return EC_NET_CBRC_SUCCESS; /* non-final */
     }
