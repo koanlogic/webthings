@@ -39,9 +39,11 @@ ec_method_mask_t ec_method_to_mask(ec_method_t method)
             return EC_POST_MASK;
         case EC_DELETE:
             return EC_DELETE_MASK;
+        case EC_METHOD_UNSET:
+        case EC_METHOD_MAX:
+        default:
+            return -1;
     }
-
-    return -1;
 }
 
 int ec_mt_from_string(const char *s, ec_mt_t *pmt)

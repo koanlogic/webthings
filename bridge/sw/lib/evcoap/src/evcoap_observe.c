@@ -18,7 +18,7 @@ static ec_observation_t *ec_observation_add(ec_t *coap, const char *uri,
 static ec_observation_t *ec_observation_new(ec_t *coap, const char *uri, 
         uint32_t max_age);
 static void ec_observation_free(ec_observation_t *obs);
-static int ec_observation_start(ec_observation_t *obs);
+static int ec_observation_start_countdown(ec_observation_t *obs);
 static bool ec_source_match(const ec_conn_t *req_src, const ec_conn_t *obs_src);
 static int ec_source_copy(const ec_conn_t *src, ec_conn_t *dst);
 
@@ -64,6 +64,9 @@ static void ec_ob_cb(evutil_socket_t u0, short u1, void *c)
         /* Stick the token sent by the client on the original request. */
         dbg_err_if (ec_opts_add_token(&nfy->opts, ovr->token, ovr->token_sz));
 
+        /* Add Observe option with counter. */
+        dbg_err_if (ec_opts_add_observe(&nfy->opts, o_cnt));
+
         /* Encode PDU (NON). */
         dbg_err_if (ec_source_copy(&ovr->conn, &flow.conn));
         dbg_err_if (ec_net_set_confirmable(&flow.conn, false));
@@ -73,6 +76,9 @@ static void ec_ob_cb(evutil_socket_t u0, short u1, void *c)
          * 'NULL' means, don't go through the duplicate handling machinery. */
         dbg_err_if (ec_pdu_send(nfy, NULL));
     }
+
+    /* Rearm the notification countdown. */
+    dbg_err_if (ec_observation_start_countdown(obs));
 
 err:
     return;
@@ -252,7 +258,7 @@ static ec_observation_t *ec_observation_add(ec_t *coap, const char *uri,
     dbg_err_ifm (obs == NULL, "observation creation failure");
 
     /* Start the countdown based on supplied resource max-age. */
-    dbg_err_if (ec_observation_start(obs));
+    dbg_err_if (ec_observation_start_countdown(obs));
 
     TAILQ_INSERT_TAIL(&coap->observing, obs, next);
 
@@ -264,7 +270,7 @@ err:
 }
 
 /* Fire the observation countdown. */
-static int ec_observation_start(ec_observation_t *obs)
+static int ec_observation_start_countdown(ec_observation_t *obs)
 {
     dbg_return_if (obs == NULL, -1);
 

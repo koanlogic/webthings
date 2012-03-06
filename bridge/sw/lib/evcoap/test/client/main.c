@@ -177,8 +177,8 @@ void cb(ec_client_t *cli)
         {
             if (ec_response_get_observe(cli, &o_serial) == 0)
             {
-                dbg_err_if (ec_response_get_max_age(cli, &max_age));
-                CHAT("waiting next notification in %u seconds", max_age);
+                if (ec_response_get_max_age(cli, &max_age) == 0)
+                    CHAT("waiting next notification in %u seconds", max_age);
 
                 /* Return here, without breaking the event loop since we
                  * need to be called back again on next notification. */

@@ -3,6 +3,7 @@
 #include <event2/event.h>
 #include <event2/util.h>
 #include <u/libu.h>
+#include "evcoap.h"
 #include "evcoap_cli.h"
 #include "evcoap_base.h"
 #include "evcoap_debug.h"
@@ -24,6 +25,7 @@ static int ec_cli_timer_start(ec_client_t *cli, ec_cli_timer_t *ti,
         size_t max_retry, void (*cb)(evutil_socket_t, short, void *));
 static int ec_cli_timer_remove(ec_cli_timer_t *ti);
 static int ec_cli_timer_restart(ec_cli_timer_t *ti);
+static int ec_cli_obs_init(ec_cli_obs_t *obs);
 
 int ec_client_set_method(ec_client_t *cli, ec_method_t m)
 {
@@ -180,7 +182,7 @@ ec_client_t *ec_client_new(struct ec_s *coap, ec_method_t m, const char *uri,
     cli->base = coap;
 
     /* It will be possibly set in case response confirms the observation. */
-    cli->observing = false;
+    ec_cli_obs_init(&cli->observe);
 
     return cli;
 err:
@@ -856,7 +858,7 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
      * WAIT_NFY (observer).  If state is final, make the caller aware of that 
      * through EC_NET_CBRC_DEAD which signals that the client context is not 
      * available anymore. */
-    ec_cli_state_t next = cli->observing 
+    ec_cli_state_t next = cli->observe.on 
         ? EC_CLI_STATE_WAIT_NFY 
         : EC_CLI_STATE_REQ_DONE;
 
@@ -866,7 +868,7 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     {
         /* In case the client context holds an observation, cleanup the
          * response set so that it can be reused on next notification. */
-        if (cli->observing)
+        if (cli->observe.on)
             ec_res_set_clear(&cli->res_set);
         return EC_NET_CBRC_SUCCESS; /* non-final */
     }
@@ -881,26 +883,77 @@ err:
     return EC_NET_CBRC_ERROR;
 }
 
-/* Decide if the .observing flag has to be asserted or not. */
+/* Decide if the .observe.on flag has to be asserted or not. */
+/* TODO handle "ok", "generic error", "refused", "stale notification", and
+ * TODO explicit "cancellation" states. */
 static int ec_client_handle_observation(ec_client_t *cli)
 {
-    ec_opt_t *obs;
+    bool obs_ack;
+    uint16_t o_cnt;
+    ec_opt_t *req_obs;
     ec_opts_t *res_opts, *req_opts;
 
     dbg_return_if (cli == NULL, -1);
 
-    /* Do nothing in case we get here on subsequent notifications. */
-    if (cli->observing)
-        return 0;
-
-    /* Try to see if we have asked for an Observe on the remote resource. */
     dbg_err_if ((req_opts = ec_client_get_request_options(cli)) == NULL);
-    if (ec_opts_get(req_opts, EC_OPT_OBSERVE))
+    dbg_err_if ((res_opts = ec_client_get_response_options(cli)) == NULL);
+
+    /* Lookup the Observe options in both request and response. */
+    req_obs = ec_opts_get(req_opts, EC_OPT_OBSERVE);
+    obs_ack = ec_opts_get_observe(res_opts, &o_cnt) == 0 ? true : false;
+
+    /* 
+     * In case we get here on subsequent notifications, check consistency.
+     */
+    if (cli->observe.on)
     {
-        /* Assert the .observing flag if the server has acknowledged. */
-        dbg_err_if ((res_opts = ec_client_get_response_options(cli)) == NULL);
-        cli->observing = ec_opts_get(res_opts, EC_OPT_OBSERVE) ? true : false; 
+        /* XXX Is it correct to reset the observe flag here, or should we 
+         * XXX return specific code to the caller so that more sophisticated
+         * XXX actions can be taken accordingly ? */
+
+        time_t now = time(NULL);
+
+        /* 1) "If the server is unable to continue sending notifications using 
+         *     this media type, it SHOULD send a 5.00 (Internal Server Error) 
+         *     notification and MUST empty the list of observers of the 
+         *     resource." */
+        if (ec_response_get_code(cli) == EC_INTERNAL_SERVER_ERROR)
+        {
+            u_dbg("observation canceled by the server");
+
+            cli->observe.on = false;
+            return 0;
+        }
+
+        /* 2) "Each such notification response MUST include an Observe Option 
+         *     and MUST echo the token specified by the client in the GET 
+         *     request" */
+        if (obs_ack == false)
+        {
+            u_dbg("Observe opt missing in notification !");
+
+            cli->observe.on = false;
+            return 0;
+        }
+
+        /* 3) Check stale notification. */
+        if (((uint32_t) (cli->observe.last_cnt - o_cnt)) % (1 << 16) < (1 << 15)
+                && now < cli->observe.last_ts + (1 << 14))
+        {
+            u_dbg("stale (or duplicate) notification (last=%u, curr=%u)",
+                    cli->observe.last_cnt, o_cnt);
+            goto err;
+        }
+
+        cli->observe.last_cnt = o_cnt;
+        cli->observe.last_ts = now;
+
+        return 0;
     }
+
+    /* Try to see if we have asked for an Observe on the remote resource, and 
+     * in case assert the .observe.on flag if the server has acknowledged. */
+    cli->observe.on = (req_obs && obs_ack) ? true : false;
 
     return 0;
 err:
@@ -1067,5 +1120,16 @@ ec_opts_t *ec_client_get_response_options(ec_client_t *cli)
     return &res->opts;
 err:
     return NULL;
+}
+
+static int ec_cli_obs_init(ec_cli_obs_t *obs)
+{
+    dbg_return_if (obs == NULL, -1);
+
+    obs->on = false;
+    obs->last_cnt = 0;
+    obs->last_ts = 0;
+
+    return 0;
 }
 
