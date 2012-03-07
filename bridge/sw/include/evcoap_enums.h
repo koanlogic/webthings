@@ -51,8 +51,8 @@ typedef enum
 {
     EC_METHOD_UNSET  = 0,
     EC_GET           = 1,
-    EC_PUT           = 2,
-    EC_POST          = 3,
+    EC_POST          = 2,
+    EC_PUT           = 3,
     EC_DELETE        = 4,
     EC_METHOD_MAX    = EC_DELETE + 1
 } ec_method_t;
