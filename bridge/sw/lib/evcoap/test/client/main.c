@@ -133,6 +133,9 @@ void cb(ec_client_t *cli)
 {
     ec_rc_t rc;
     ec_cli_state_t s;
+    uint8_t *pl;
+    size_t pl_sz;
+    uint32_t bnum, max_age;
    
     /* 
      * Get FSM final state, bail out on !REQ_DONE (or observe).
@@ -152,47 +155,42 @@ void cb(ec_client_t *cli)
     u_con("%s", ec_rc_str((rc = ec_response_get_code(cli))));
     con_err_ifm (!EC_IS_OK(rc), "request failed");
 
-    if (rc == EC_CONTENT)
+	/* Always check content for OK codes */
+
+    /* Get response payload. */
+    dbg_ifm ((pl = ec_response_get_payload(cli, &pl_sz)) == NULL,
+			"empty payload");
+
+    /* Save payload to file. */
+    con_err_sifm (pl && client_save_to_file(pl, pl_sz),
+            "payload could not be saved");
+
+    /* If fragmented will set g_ctx.bopt. */
+    if ((ec_response_get_block2(cli, &bnum, &g_ctx.bopt.more,
+                &g_ctx.bopt.block_sz) == 0) && g_ctx.bopt.more)
     {
-        uint8_t *pl;
-        uint32_t bnum, max_age;
-        size_t pl_sz;
+        /* Blockwise transfer - make sure requested block was returned. */
+        dbg_err_if (bnum != g_ctx.bopt.block_no);
 
-        /* Get response payload. */
-        con_err_ifm ((pl = ec_response_get_payload(cli, &pl_sz)) == NULL,
-                    "empty payload");
+        g_ctx.bopt.block_no = bnum;
+    }
 
-        /* If fragmented will set g_ctx.bopt. */
-        if ((ec_response_get_block2(cli, &bnum, &g_ctx.bopt.more,
-                    &g_ctx.bopt.block_sz) == 0) && g_ctx.bopt.more)
+    /* In case we've requested an observation on the resource, see if we've
+     * been added to the notification list. */
+    if (g_ctx.observe && ec_client_is_observing(cli))
+    {
+        if (ec_response_get_max_age(cli, &max_age) == 0)
+            CHAT("notifications expected every %u second(s)", max_age);
+
+        if (--g_ctx.observe == 0)
         {
-            /* Blockwise transfer - make sure requested block was returned. */
-            dbg_err_if (bnum != g_ctx.bopt.block_no);
-
-            g_ctx.bopt.block_no = bnum;
+            (void) ec_client_cancel_observation(cli);
+            goto end;
         }
 
-        /* Save payload to file. */
-        con_err_sifm (client_save_to_file(pl, pl_sz),
-                "payload could not be saved");
-
-        /* In case we've requested an observation on the resource, see if we've
-         * been added to the notification list. */
-        if (g_ctx.observe && ec_client_is_observing(cli))
-        {
-            if (ec_response_get_max_age(cli, &max_age) == 0)
-                CHAT("notifications expected every %u second(s)", max_age);
-
-            if (--g_ctx.observe == 0)
-            {
-                (void) ec_client_cancel_observation(cli);
-                goto end;
-            }
-
-            /* Return here, without breaking the event loop since we
-             * need to be called back again on next notification. */
-            return;
-        }
+        /* Return here, without breaking the event loop since we
+         * need to be called back again on next notification. */
+        return;
     }
 
 end:
