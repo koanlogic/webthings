@@ -281,7 +281,7 @@ static void encode_header(ec_pdu_t *pdu, uint8_t code, uint8_t t,
     return;
 }
 
-static char *wrap_null_str(char *buf, size_t buf_sz, const char *prefix,
+static const char *wrap_null_str(char *buf, size_t buf_sz, const char *prefix,
         const char *strfunc(int c), int c)
 {
     const char *s;
@@ -306,8 +306,8 @@ void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
     } while (0);
 #define FWRITE_HEX(f, b, sz) do { \
         FWRITE_PRINT(f, "0x"); \
-        for (bi = 0; bi < sz; bi++) \
-            FWRITE_PRINT(f, "%02x", b[bi]); \
+        for (_bi = 0; _bi < sz; _bi++) \
+            FWRITE_PRINT(f, "%02x", b[_bi]); \
     } while (0);
 
     enum { MAX_STR = 256 };
@@ -319,8 +319,7 @@ void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
     static int pnum = 1;
     ec_hdr_t *h;
     ec_opt_t *o;
-    uint8_t bi;
-    const char *s;
+    uint8_t _bi;
 
     dbg_ifb (pdu == NULL || pdu->hdr == NULL)
         return;
