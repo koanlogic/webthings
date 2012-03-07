@@ -332,6 +332,7 @@ void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
     f = fopen(fname, "w+");
     dbg_err_sif (f == NULL);
 
+    FWRITE_STR(f, "\n");
     FWRITE_STR(f, "[Header]: ");
     FWRITE_HEX(f, pdu->hdr, EC_COAP_HDR_SIZE);
     FWRITE_STR(f, "\n");
@@ -342,9 +343,6 @@ void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
                 &ec_code_str, h->code));
     FWRITE_PRINT(f, "  MID: 0x%02x\n", h->mid);
     FWRITE_PRINT(f, "\n");
-
-    if (pdu->payload_sz)
-        FWRITE_PRINT(f, "p: %*s\n\n", pdu->payload_sz, pdu->payload);
 
     FWRITE_STR(f, "[Options]:\n");
 
@@ -368,6 +366,13 @@ void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
         FWRITE_PRINT(f, "\n");
     }
     FWRITE_PRINT(f, "\n");
+
+    if (pdu->payload_sz)
+    {
+        FWRITE_STR(f, "[Payload]: ");
+        FWRITE_HEX(f, pdu->payload, pdu->payload_sz);
+        FWRITE_PRINT(f, "\n\n");
+    }
 
     /* Fall through. */
 err:
