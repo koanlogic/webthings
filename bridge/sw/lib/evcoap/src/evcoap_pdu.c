@@ -282,7 +282,7 @@ static void encode_header(ec_pdu_t *pdu, uint8_t code, uint8_t t,
 }
 
 static const char *wrap_null_str(char *buf, size_t buf_sz, const char *prefix,
-        const char *strfunc(int c), int c)
+        const char *strfunc(unsigned int c), int c)
 {
     const char *s;
 
@@ -357,6 +357,15 @@ void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
                 FWRITE_PRINT(f, "%s", o->v);
                 break;
 
+            case EC_OPT_TYPE_UINT:
+                FWRITE_PRINT(f, "%lu", o->v);
+                break;
+
+            case EC_OPT_TYPE_INVALID:
+                u_dbg("XXX should never reach here with EC_OPT_TYPE_INVALID");
+            case EC_OPT_TYPE_EMPTY:
+                break;
+
             case EC_OPT_TYPE_OPAQUE:
             default:
                 FWRITE_HEX(f, o->v, o->l);
@@ -383,7 +392,6 @@ err:
 #undef FWRITE_STR
 #undef FWRITE_PRINT
 #undef FWRITE_HEX
-#undef WRAP_UNDEF
 }
 
 ec_pdu_t *ec_pdu_new_empty(void)

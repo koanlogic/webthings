@@ -126,6 +126,7 @@ const char *ec_method_str(ec_method_t method)
             return "PUT";
         case EC_COAP_DELETE:
             return "DELETE";
+        case EC_METHOD_MAX:
         default:
             return NULL;
     }
@@ -200,7 +201,7 @@ const char *ec_rc_str(ec_rc_t rc)
     return "unknown response code";
 }
 
-const char *ec_code_str(int c)
+const char *ec_code_str(unsigned int c)
 {
     if (c == 0)
         return "Empty";
