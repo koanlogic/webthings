@@ -305,9 +305,9 @@ void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
         dbg_err_if (FWRITE_STR(f, _buf)); \
     } while (0);
 #define FWRITE_HEX(f, b, sz) do { \
-        FWRITE_PRINT(f, "0x "); \
+        FWRITE_PRINT(f, "0x"); \
         for (bi = 0; bi < sz; bi++) \
-            FWRITE_PRINT(f, "%02x ", b[bi]); \
+            FWRITE_PRINT(f, "%02x", b[bi]); \
     } while (0);
 
     enum { MAX_STR = 256 };
@@ -341,7 +341,7 @@ void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
     FWRITE_PRINT(f, "  OC: %u\n", h->oc);
     FWRITE_PRINT(f, "  Code: %s\n", wrap_null_str(buf, sizeof buf, "c",
                 &ec_code_str, h->code));
-    FWRITE_PRINT(f, "  MID: 0x %02x\n", h->mid);
+    FWRITE_PRINT(f, "  MID: 0x%02x\n", h->mid);
     FWRITE_PRINT(f, "\n");
 
     if (pdu->payload_sz)
