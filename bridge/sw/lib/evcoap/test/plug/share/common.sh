@@ -3,6 +3,11 @@ SRV_ADDR="coap://[::1]:5683"
 CLI_CMD="../../client/coap-client"
 SRV_CMD="../server/coap-server"
 
+[ "${DUMP_PDUS}" = "1" ] || \
+        echo "# [warn] DUMP_PDUS not set,"\
+             "no 'check' steps will be performed"
+
+
 # If VERBOSE=1, debugs all strings to standard error.
 t_dbg()
 {
@@ -114,11 +119,13 @@ t_run_cli()
 # $3    field name
 t_get_hdr()
 {
+    [ "${DUMP_PDUS}" = "1" ] || return
+
     id=$1
     srv=$2
     field=$3
 
-    grep ${field} ${id}-${srv}.dump | awk '{print $2}'
+    grep ${field}= ${id}-${srv}.dump | cut -d '=' -f 2
 }
 
 # Check the value of a dumped header.
@@ -129,6 +136,8 @@ t_get_hdr()
 # $4    field value
 t_check_hdr()
 {
+    [ "${DUMP_PDUS}" = "1" ] || return
+
     id=$1
     srv=$2
     field=$3
@@ -136,7 +145,7 @@ t_check_hdr()
 
     t_dbg "# checking message ${id}-${srv} field ${field} val ${val}"
 
-    xval=`grep ${field} ${id}-${srv}.dump | awk '{print $2}'`
+    xval=`grep ${field}= ${id}-${srv}.dump | cut -d '=' -f 2`
     [ "${xval}" = "${val}" ] || t_die 1 "failed check! (rc=$?)"
 }
 

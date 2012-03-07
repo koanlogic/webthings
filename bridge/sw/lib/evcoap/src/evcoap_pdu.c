@@ -314,14 +314,14 @@ void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
     f = fopen(fname, "w+");
     dbg_err_sif (f == NULL);
 
-    FWRITE_STR(f, "h  ");
+    FWRITE_STR(f, "h=");
     FWRITE_HEX(f, pdu->hdr, EC_COAP_HDR_SIZE);
     FWRITE_STR(f, "\n\n");
 
-    FWRITE_PRINT(f, "    h_type\t%u\n", h->t);
-    FWRITE_PRINT(f, "    h_oc\t%u\n", h->oc);
-    FWRITE_PRINT(f, "    h_code\t%u\n", h->code);
-    FWRITE_PRINT(f, "    h_mid\t%u\n", h->mid);
+    FWRITE_PRINT(f, "    T=%u\n", h->t);
+    FWRITE_PRINT(f, "    OC=%u\n", h->oc);
+    FWRITE_PRINT(f, "    Code=%u\n", h->code);
+    FWRITE_PRINT(f, "    MID=%u\n", h->mid);
     FWRITE_PRINT(f, "\n");
 
     if (pdu->payload_sz)
@@ -329,7 +329,7 @@ void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
 
     TAILQ_FOREACH(o, &pdu->opts.bundle, next)
     {
-        FWRITE_PRINT(f, "o%d\t", o->sym);
+        FWRITE_PRINT(f, "o%d=", o->sym);
 
         switch (o->t) 
         {

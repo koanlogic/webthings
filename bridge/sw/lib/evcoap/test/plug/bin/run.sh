@@ -4,6 +4,10 @@
 
 VEC_PATH=../vectors
 
+echo "#"
+echo "# running plugtests v"`cat ../VERSION`"."
+echo "#"
+
 for v in `ls "${VEC_PATH}"`; do
 
     f="${VEC_PATH}/${v}"
@@ -13,7 +17,7 @@ for v in `ls "${VEC_PATH}"`; do
     [ $? -eq 0 ] || continue
 
     # Run test.
-    echo "# test: ${v}"
+    echo "# [test] ${v}"
     sh "${f}"
 
     # Prit exit status.
