@@ -1,6 +1,6 @@
-## TD_COAP_CORE_03
+## TD_COAP_CORE_04
 ##
-## status: incomplete,tested
+## status: complete,tested
 
 . ../share/common.sh
 
@@ -28,18 +28,21 @@ t_check_field 1 srv Code DELETE
 #
 # Step 3
 #
-t_dbg "# Step 4"
+t_dbg "# Step 3"
 
 t_check_field 1 cli Code "2.02 (Deleted)"
 v=`t_get_field 1 srv MID`
 t_check_field 1 cli MID "${v}"
 
 #
-# Step 4 TODO
+# Step 4
 #
-t_dbg "# Step 5"
+t_dbg "# Step 4"
 
-t_dbg "< ${out}"
+t_dbg "${out}"
+if [ "${MODE}" != "srv" ]; then
+    t_cmp "${out}" "Hello world!"
+fi
 
 #
 # Cleanup

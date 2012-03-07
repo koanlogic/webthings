@@ -53,6 +53,8 @@ t_wrap()
 # Compare two strings and fail if they are different.
 t_cmp()
 {
+    t_dbg "# checking value $1"
+
     if [ "$1" = "$2" ]; then
         return 0
     else 

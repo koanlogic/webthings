@@ -28,7 +28,7 @@ t_check_field 1 srv Code GET
 #
 # Step 3
 #
-t_dbg "# Step 4"
+t_dbg "# Step 3"
 
 t_check_field 1 cli Code "2.05 (Content)"
 v=`t_get_field 1 srv MID`
@@ -37,9 +37,12 @@ t_diff_field 1 cli MID "${v}"
 #
 # Step 4 
 #
-t_dbg "# Step 5"
+t_dbg "# Step 4"
 
-t_dbg "< ${out}"
+t_dbg "${out}"
+if [ "${MODE}" != "srv" ]; then
+    t_cmp "${out}" "Hello world!"
+fi
 
 #
 # Cleanup

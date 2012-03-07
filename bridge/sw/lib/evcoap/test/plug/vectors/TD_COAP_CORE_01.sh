@@ -16,7 +16,6 @@ t_run_srv
 t_dbg "# Step 1"
 
 out=`t_run_cli GET CON "" /test`
-t_dbg "< ${out}"
 
 #
 # Step 2
@@ -40,6 +39,7 @@ t_check_field 1 cli MID "${v}"
 #
 t_dbg "# Step 4"
 
+t_dbg "${out}"
 if [ "${MODE}" != "srv" ]; then
     t_cmp "${out}" "Hello world!"
 fi

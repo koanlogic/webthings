@@ -1,6 +1,6 @@
 ## TD_COAP_CORE_03
 ##
-## status: incomplete,tested
+## status: complete,tested
 
 . ../share/common.sh
 
@@ -48,11 +48,14 @@ v=`t_get_field 1 srv MID`
 t_check_field 1 cli MID "${v}"
 
 #
-# Step 5 TODO
+# Step 5
 #
 t_dbg "# Step 5"
 
-t_dbg "< ${out}"
+t_dbg "${out}"
+if [ "${MODE}" != "srv" ]; then
+    t_cmp "${out}" "Hello world!"
+fi
 
 #
 # Cleanup
