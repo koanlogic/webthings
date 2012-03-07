@@ -333,7 +333,7 @@ void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
     dbg_err_sif (f == NULL);
 
     FWRITE_STR(f, "\n");
-    FWRITE_STR(f, "[Header]: ");
+    FWRITE_STR(f, "Header: ");
     FWRITE_HEX(f, pdu->hdr, EC_COAP_HDR_SIZE);
     FWRITE_STR(f, "\n");
     FWRITE_PRINT(f, "  T: %s\n", wrap_null_str(buf, sizeof buf, "t",
@@ -344,7 +344,7 @@ void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
     FWRITE_PRINT(f, "  MID: 0x%02x\n", h->mid);
     FWRITE_PRINT(f, "\n");
 
-    FWRITE_STR(f, "[Options]:\n");
+    FWRITE_STR(f, "Options:\n");
 
     TAILQ_FOREACH(o, &pdu->opts.bundle, next)
     {
@@ -378,7 +378,7 @@ void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
 
     if (pdu->payload_sz)
     {
-        FWRITE_STR(f, "[Payload]: ");
+        FWRITE_STR(f, "Payload: ");
         FWRITE_HEX(f, pdu->payload, pdu->payload_sz);
         FWRITE_PRINT(f, "\n\n");
     }

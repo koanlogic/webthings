@@ -1,33 +1,50 @@
+## TD_COAP_CORE_01
+##
+## status: complete,tested
+
 . ../share/common.sh
 
+#
+# Init
+#
 t_init
-
 t_run_srv
 
 #
 # Step 1
 #
+t_dbg "# Step 1"
+
 out=`t_run_cli GET CON "" /test`
 t_dbg "< ${out}"
 
 #
 # Step 2
 #
-t_check_hdr 1 srv T CON
-t_check_hdr 1 srv Code GET
+t_dbg "# Step 2"
+
+t_check_field 1 srv T CON
+t_check_field 1 srv Code GET
 
 #
 # Step 3
 #
-t_check_hdr 1 cli Code "2.05 (Content)"
-v=`t_get_hdr 1 srv MID`
-t_check_hdr 1 cli MID "${v}"
+t_dbg "# Step 3"
+
+t_check_field 1 cli Code "2.05 (Content)"
+v=`t_get_field 1 srv MID`
+t_check_field 1 cli MID "${v}"
 
 #
 # Step 4
 #
+t_dbg "# Step 4"
+
 if [ "${MODE}" != "srv" ]; then
     t_cmp "${out}" "Hello world!"
 fi
 
+#
+# Cleanup
+#
 t_term

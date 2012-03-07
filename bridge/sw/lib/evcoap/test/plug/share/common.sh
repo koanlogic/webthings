@@ -92,6 +92,7 @@ t_run_srv()
 # $2    message     <CON|NON>               (default is CON)
 # $3    address     <uri>                   (default is coap://[::1])
 # $4    resource    <rsrc>                  (default is /test)
+# $5    payload     <rsrc>                  (default is /test)
 #
 t_run_cli()
 {
@@ -101,6 +102,7 @@ t_run_cli()
     msg=$2
     addr=$3
     rsrc=$4
+    payload=$5
 
     # set defaults for empty string vals
     [ "${meth}" = "" ] && meth="GET"
@@ -108,16 +110,22 @@ t_run_cli()
     [ -z ${addr} ] && addr="${SRV_ADDR}"
     [ -z ${rsrc} ] && rsrc="/test"
 
-    t_wrap 0 "${CLI_CMD}" -m "${meth}" -M "${msg}" -u "${addr}${rsrc}" -o -
+    # initialise default arguments
+    args="-m ${meth} -M ${msg} -u ${addr}${rsrc} -o -"
+
+    # if specified, add optional payload
+    [ -z ${payload} ] || args="${args} -p ${payload}"
+
+    t_wrap 0 "${CLI_CMD}" "${args}"
     [ $? -eq 0 ] || t_die 1 "client failed! (rc=$?)"
 }
 
-# Get the value of a field in header.
+# Get the value of a field.
 #
 # $1    packet identifier
 # $2    srv|cli
 # $3    field name
-t_get_hdr()
+t_get_field()
 {
     [ "${DUMP_PDUS}" = "1" ] || return
 
@@ -132,13 +140,13 @@ t_get_hdr()
     echo "${xval}" | sed 's/^ //'
 }
 
-# Check the value of a dumped header.
+# Check that the value of a dumped field is equal to the expected value.
 #
 # $1    packet identifier
 # $2    srv|cli
 # $3    field name
 # $4    field value
-t_check_hdr()
+t_check_field()
 {
     [ "${DUMP_PDUS}" = "1" ] || return
 
@@ -153,12 +161,47 @@ t_check_hdr()
     # remove leading space
     xtrim=`echo ${xval} | sed 's/^ //'`
 
-    t_dbg "# checking message ${id}-${srv} field '${field}' "\
-            "(found: '${xtrim}', expected '${val}')"
+    t_dbg "# checking message ${id}-${srv} field ${field}: ${xtrim}"
 
     # compare result with value    
     [ "${xtrim}" = "${val}" ] || t_die 1 \
             "failed check! (found: '${xtrim}'. expected: '${val}')"
+}
+
+# Check that the value of a dumped field is different from the given value.
+#
+# $1    packet identifier
+# $2    srv|cli
+# $3    field name
+# $4    field value
+t_diff_field()
+{
+    [ "${DUMP_PDUS}" = "1" ] || return
+
+    id=$1
+    srv=$2
+    field=$3
+    val=$4
+
+    # retrived dumped value field
+    xval=`grep "${field}:" ${id}-${srv}.dump | cut -d ':' -f 2`
+
+    # remove leading space
+    xtrim=`echo ${xval} | sed 's/^ //'`
+
+    t_dbg "# checking message ${id}-${srv} field ${field} != ${xtrim}"
+
+    # compare result with value    
+    [ "${xtrim}" != "${val}" ] || t_die 1 \
+            "failed check! (found: '${xtrim}'. expected a different value')"
+}
+
+# Convert input string to hex representation.
+t_str2hex()
+{
+    hexval=`echo $@ | xxd -p`
+
+    echo "0x${hexval}"
 }
 
 trap t_term 2 9 15

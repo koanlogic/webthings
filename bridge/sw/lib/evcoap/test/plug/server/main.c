@@ -306,12 +306,19 @@ ec_cbrc_t resource_cb_test(ec_server_t *srv, void *u0, struct timeval *u1,
     size_t mta_sz = sizeof mta / sizeof(ec_mt_t);
     ec_rep_t *rep;
     ec_res_t *res;
-    const char *url = ec_server_get_url(srv);
-    ec_method_t method = ec_server_get_method(srv);
+    const char *url;
+    ec_method_t method;
+    uint8_t *payload;
+    size_t payload_sz;
 
-    u_unused_args(srv, u0, u1, u2);
+    con_err_if (srv == NULL);
+
+    u_unused_args(u0, u1, u2);
 
     CHAT("[%s]", __FUNCTION__);
+
+    url = ec_server_get_url(srv);
+    method = ec_server_get_method(srv);
 
     /* Get Accept'able media types. */
     con_err_if (ec_request_get_acceptable_media_types(srv, mta, &mta_sz));
@@ -334,16 +341,23 @@ ec_cbrc_t resource_cb_test(ec_server_t *srv, void *u0, struct timeval *u1,
         goto end;
     }
 
+    /* Always return current representation. */
+    (void) ec_response_set_payload(srv, rep->data, rep->data_sz);
+    (void) ec_response_add_content_type(srv, rep->media_type);
+
+    /* Add max-age if != from default. */
+    if (res->max_age != EC_COAP_DEFAULT_MAX_AGE)
+        (void) ec_response_add_max_age(srv, res->max_age);
+
+    /* Display payload if available. */
+    payload = ec_request_get_payload(srv, &payload_sz);
+    if (payload)
+        u_info("payload: %*s", payload_sz, payload);
+
     switch (method)
     {
         case EC_COAP_GET:
             (void) ec_response_set_code(srv, EC_CONTENT);
-            (void) ec_response_set_payload(srv, rep->data, rep->data_sz);
-            (void) ec_response_add_content_type(srv, rep->media_type);
-
-            /* Add max-age if != from default. */
-            if (res->max_age != EC_COAP_DEFAULT_MAX_AGE)
-                (void) ec_response_add_max_age(srv, res->max_age);
             break;
 
         case EC_COAP_POST:
