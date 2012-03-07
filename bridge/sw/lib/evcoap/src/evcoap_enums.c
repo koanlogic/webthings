@@ -32,13 +32,13 @@ ec_method_mask_t ec_method_to_mask(ec_method_t method)
 {
     switch (method)
     {
-        case EC_GET:
+        case EC_COAP_GET:
             return EC_GET_MASK;
-        case EC_PUT:
+        case EC_COAP_PUT:
             return EC_PUT_MASK;
-        case EC_POST:
+        case EC_COAP_POST:
             return EC_POST_MASK;
-        case EC_DELETE:
+        case EC_COAP_DELETE:
             return EC_DELETE_MASK;
         case EC_METHOD_UNSET:
         case EC_METHOD_MAX:
@@ -93,6 +93,42 @@ const char *ec_srv_state_str(ec_srv_state_t s)
         return "unknown state";
 
     return g_server_states[s];
+}
+
+const char *ec_model_str(ec_msg_model_t model)
+{
+    switch (model)
+    {
+        case EC_COAP_CON:
+            return "CON";
+        case EC_COAP_NON:
+            return "NON";
+        case EC_COAP_ACK:
+            return "ACK";
+        case EC_COAP_RST:
+            return "RST";
+        default:
+            return NULL;
+    }
+}
+
+const char *ec_method_str(ec_method_t method)
+{
+    switch (method)
+    {
+        case EC_METHOD_UNSET:
+            return "UNSET";
+        case EC_COAP_GET:
+            return "GET";
+        case EC_COAP_POST:
+            return "POST";
+        case EC_COAP_PUT:
+            return "PUT";
+        case EC_COAP_DELETE:
+            return "DELETE";
+        default:
+            return NULL;
+    }
 }
 
 const char *ec_rc_str(ec_rc_t rc)
@@ -162,4 +198,20 @@ const char *ec_rc_str(ec_rc_t rc)
         return "unknown server failure";
 
     return "unknown response code";
+}
+
+const char *ec_code_str(int c)
+{
+    if (c == 0)
+        return "Empty";
+    else if (c >= 1 && c <= 31)
+        return ec_method_str(c);
+    else if (c >= 32 && c <= 63)
+        return "Reserved";
+    else if (c >= 64 && c <= 191)
+        return ec_rc_str(c);
+    else if (c >= 192 && c <= 255)
+        return "Reserved";
+    else
+        return NULL;
 }

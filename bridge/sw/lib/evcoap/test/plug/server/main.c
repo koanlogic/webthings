@@ -336,7 +336,7 @@ ec_cbrc_t resource_cb_test(ec_server_t *srv, void *u0, struct timeval *u1,
 
     switch (method)
     {
-        case EC_GET:
+        case EC_COAP_GET:
             (void) ec_response_set_code(srv, EC_CONTENT);
             (void) ec_response_set_payload(srv, rep->data, rep->data_sz);
             (void) ec_response_add_content_type(srv, rep->media_type);
@@ -346,15 +346,15 @@ ec_cbrc_t resource_cb_test(ec_server_t *srv, void *u0, struct timeval *u1,
                 (void) ec_response_add_max_age(srv, res->max_age);
             break;
 
-        case EC_POST:
+        case EC_COAP_POST:
             (void) ec_response_set_code(srv, EC_CREATED);  /* fake */
             break;
 
-        case EC_PUT:
+        case EC_COAP_PUT:
             (void) ec_response_set_code(srv, EC_CHANGED);  /* fake */
             break;
 
-        case EC_DELETE:
+        case EC_COAP_DELETE:
             (void) ec_response_set_code(srv, EC_DELETED);  /* fake */
             break;
 

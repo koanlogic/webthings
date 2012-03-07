@@ -733,7 +733,8 @@ static ec_client_t *ec_observer_new(ec_t *coap, const char *uri,
         ec_msg_model_t mm, const char *p_host, uint16_t p_port)
 {
     /* Create new GET-er client. */
-    ec_client_t *cli = ec_client_new(coap, EC_GET, uri, mm, p_host, p_port);
+    ec_client_t *cli = ec_client_new(coap, EC_COAP_GET, uri, mm, p_host,
+            p_port);
 
     dbg_return_if (cli == NULL, NULL);
 
@@ -745,4 +746,3 @@ err:
     ec_client_free(cli);
     return NULL;
 }
-

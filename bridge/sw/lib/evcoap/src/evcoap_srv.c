@@ -119,7 +119,8 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     if (h->code)
     {
         dbg_err_if ((srv = ec_server_new(coap, sd)) == NULL);
-        (void) ec_server_set_msg_model(srv, h->t == EC_CON ? true : false);
+        (void) ec_server_set_msg_model(srv, h->t == EC_COAP_CON ? 
+                true : false);
     }
     else
         u_dbg("TODO handle incoming RST and/or ACK");

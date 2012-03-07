@@ -175,7 +175,8 @@ ec_client_t *ec_client_new(struct ec_s *coap, ec_method_t m, const char *uri,
     dbg_err_if (ec_pdu_init_options(&cli->req));
     dbg_err_if (ec_client_set_method(cli, m));
     dbg_err_ifm (ec_client_set_uri(cli, uri), "bad URI: %s", uri);
-    dbg_err_if (ec_client_set_msg_model(cli, mm == EC_CON ? true : false));
+    dbg_err_if (ec_client_set_msg_model(cli, mm == EC_COAP_CON ?
+                true : false));
     dbg_err_if (ec_pdu_set_flow(&cli->req, &cli->flow));
 
     /* Cache the base so that we don't need to pass it around every function

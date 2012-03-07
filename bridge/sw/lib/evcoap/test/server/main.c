@@ -420,7 +420,7 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
     CHAT("GET %s", url);
 
     /* Do not accept verbs different from GET (this may obviously change.) */
-    if (ec_server_get_method(srv) != EC_GET)
+    if (ec_server_get_method(srv) != EC_COAP_GET)
     {
         (void) ec_response_set_code(srv, EC_NOT_IMPLEMENTED); 
         goto end;
@@ -455,7 +455,7 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
 
             /* Add a NON notifier attached to ob_serve callback. */
             if (!ec_add_observer(srv, ob_serve, NULL, res->max_age, 
-                        rep->media_type, EC_NON, rep->etag, sizeof rep->etag))
+                        rep->media_type, EC_COAP_NON, rep->etag, sizeof rep->etag))
             {
                 /* TODO get counter from time */
                 (void) ec_get_observe_counter(&o_cnt);

@@ -281,14 +281,31 @@ static void encode_header(ec_pdu_t *pdu, uint8_t code, uint8_t t,
     return;
 }
 
+static char *wrap_null_str(char *buf, size_t buf_sz, const char *prefix,
+        const char *strfunc(int c), int c)
+{
+    const char *s;
+
+    /* If string is not NULL simply return it. */
+    s = strfunc(c);
+    if (s)
+        return s;
+
+    /* Otherwise return buf with a string-representation of the code. */
+    u_snprintf(buf, sizeof buf, "%s%d", prefix, c);
+    u_warn("BUF: %s", buf);
+    return buf;
+}
+
 void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
 {
 #define FWRITE_STR(f, str) (fwrite(str, strlen(str), 1, f) < 1)
 #define FWRITE_PRINT(f, ...) do { \
-        dbg_err_if (u_snprintf(buf, sizeof buf, __VA_ARGS__)); \
-        dbg_err_if (FWRITE_STR(f, buf)); \
+        dbg_err_if (u_snprintf(_buf, sizeof _buf, __VA_ARGS__)); \
+        dbg_err_if (FWRITE_STR(f, _buf)); \
     } while (0);
 #define FWRITE_HEX(f, b, sz) do { \
+        FWRITE_PRINT(f, "0x "); \
         for (bi = 0; bi < sz; bi++) \
             FWRITE_PRINT(f, "%02x ", b[bi]); \
     } while (0);
@@ -297,11 +314,13 @@ void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
     FILE *f = NULL;
     char fname[U_PATH_MAX];
     const char *prefix = ".";
+    char _buf[MAX_STR];
     char buf[MAX_STR];
     static int pnum = 1;
     ec_hdr_t *h;
     ec_opt_t *o;
-    size_t bi;
+    uint8_t bi;
+    const char *s;
 
     dbg_ifb (pdu == NULL || pdu->hdr == NULL)
         return;
@@ -314,14 +333,15 @@ void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
     f = fopen(fname, "w+");
     dbg_err_sif (f == NULL);
 
-    FWRITE_STR(f, "h=");
+    FWRITE_STR(f, "Header: ");
     FWRITE_HEX(f, pdu->hdr, EC_COAP_HDR_SIZE);
-    FWRITE_STR(f, "\n\n");
-
-    FWRITE_PRINT(f, "    T=%u\n", h->t);
-    FWRITE_PRINT(f, "    OC=%u\n", h->oc);
-    FWRITE_PRINT(f, "    Code=%u\n", h->code);
-    FWRITE_PRINT(f, "    MID=%u\n", h->mid);
+    FWRITE_STR(f, "\n");
+    FWRITE_PRINT(f, "  T: %s\n", wrap_null_str(buf, sizeof buf, "t",
+                &ec_model_str, h->t));
+    FWRITE_PRINT(f, "  OC: %u\n", h->oc);
+    FWRITE_PRINT(f, "  Code: %s\n", wrap_null_str(buf, sizeof buf, "c",
+                &ec_code_str, h->code));
+    FWRITE_PRINT(f, "  MID: 0x %02x\n", h->mid);
     FWRITE_PRINT(f, "\n");
 
     if (pdu->payload_sz)
@@ -329,7 +349,8 @@ void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
 
     TAILQ_FOREACH(o, &pdu->opts.bundle, next)
     {
-        FWRITE_PRINT(f, "o%d=", o->sym);
+        FWRITE_PRINT(f, "%s: ", wrap_null_str(buf, sizeof buf, "o",
+                    &ec_opt_sym2str, o->sym));
 
         switch (o->t) 
         {
@@ -354,8 +375,9 @@ err:
     return;
 
 #undef FWRITE_STR
-#undef FWRITE_HEX
 #undef FWRITE_PRINT
+#undef FWRITE_HEX
+#undef WRAP_UNDEF
 }
 
 ec_pdu_t *ec_pdu_new_empty(void)

@@ -125,7 +125,11 @@ t_get_hdr()
     srv=$2
     field=$3
 
-    grep ${field}= ${id}-${srv}.dump | cut -d '=' -f 2
+    # retrived dumped value field
+    xval=`grep "${field}:" ${id}-${srv}.dump | cut -d ':' -f 2`
+
+    # remove leading space
+    echo "${xval}" | sed 's/^ //'
 }
 
 # Check the value of a dumped header.
@@ -143,10 +147,18 @@ t_check_hdr()
     field=$3
     val=$4
 
-    t_dbg "# checking message ${id}-${srv} field ${field} val ${val}"
+    # retrived dumped value field
+    xval=`grep "${field}:" ${id}-${srv}.dump | cut -d ':' -f 2`
 
-    xval=`grep ${field}= ${id}-${srv}.dump | cut -d '=' -f 2`
-    [ "${xval}" = "${val}" ] || t_die 1 "failed check! (rc=$?)"
+    # remove leading space
+    xtrim=`echo ${xval} | sed 's/^ //'`
+
+    t_dbg "# checking message ${id}-${srv} field '${field}' "\
+            "(found: '${xtrim}', expected '${val}')"
+
+    # compare result with value    
+    [ "${xtrim}" = "${val}" ] || t_die 1 \
+            "failed check! (found: '${xtrim}'. expected: '${val}')"
 }
 
 trap t_term 2 9 15

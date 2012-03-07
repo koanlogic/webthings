@@ -44,8 +44,8 @@ ctx_t g_ctx = {
     .base = NULL,
     .dns = NULL,
     .uri = DEFAULT_URI,
-    .method = EC_GET,
-    .model = EC_NON,
+    .method = EC_COAP_GET,
+    .model = EC_COAP_NON,
     .app_tout = { .tv_sec = DEFAULT_TOUT, .tv_usec = 0 },
     .etag = { 0xde, 0xad, 0xbe, 0xef },
     .ofn = DEFAULT_OFN,
@@ -279,7 +279,8 @@ int client_run(void)
     }
 
     /* In case of POST/PUT load payload from file (if not NULL). */
-    if ((g_ctx.method == EC_POST || g_ctx.method == EC_PUT) && g_ctx.pfn)
+    if ((g_ctx.method == EC_COAP_POST || g_ctx.method == EC_COAP_PUT) &&
+            g_ctx.pfn)
     {
         dbg_err_if (u_load_file(g_ctx.pfn, 0, (char **) &payload, &payload_sz));
         dbg_err_if (ec_request_set_payload(g_ctx.cli, payload, payload_sz));
@@ -317,10 +318,10 @@ int client_set_method(const char *s)
         ec_method_t m;
         const char *s;  
     } methmap[4] = {
-        { EC_GET, "get" }, 
-        { EC_POST, "post" }, 
-        { EC_PUT, "put" }, 
-        { EC_DELETE, "delete" }
+        { EC_COAP_GET, "get" }, 
+        { EC_COAP_POST, "post" }, 
+        { EC_COAP_PUT, "put" }, 
+        { EC_COAP_DELETE, "delete" }
     };
 
     dbg_return_if (s == NULL, -1);
@@ -358,12 +359,12 @@ int client_set_model(const char *s)
 
     if (!strcasecmp(s, "non"))
     {
-        g_ctx.model = EC_NON; 
+        g_ctx.model = EC_COAP_NON; 
         return 0;
     }
     else if (!strcasecmp(s, "con"))
     {
-        g_ctx.model = EC_CON; 
+        g_ctx.model = EC_COAP_CON; 
         return 0;
     }
 
