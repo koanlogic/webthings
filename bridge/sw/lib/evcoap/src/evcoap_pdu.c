@@ -332,7 +332,7 @@ void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
     f = fopen(fname, "w+");
     dbg_err_sif (f == NULL);
 
-    FWRITE_STR(f, "Header: ");
+    FWRITE_STR(f, "[Header]: ");
     FWRITE_HEX(f, pdu->hdr, EC_COAP_HDR_SIZE);
     FWRITE_STR(f, "\n");
     FWRITE_PRINT(f, "  T: %s\n", wrap_null_str(buf, sizeof buf, "t",
@@ -346,9 +346,11 @@ void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
     if (pdu->payload_sz)
         FWRITE_PRINT(f, "p: %*s\n\n", pdu->payload_sz, pdu->payload);
 
+    FWRITE_STR(f, "[Options]:\n");
+
     TAILQ_FOREACH(o, &pdu->opts.bundle, next)
     {
-        FWRITE_PRINT(f, "%s: ", wrap_null_str(buf, sizeof buf, "o",
+        FWRITE_PRINT(f, "  %s: ", wrap_null_str(buf, sizeof buf, "o",
                     &ec_opt_sym2str, o->sym));
 
         switch (o->t) 
