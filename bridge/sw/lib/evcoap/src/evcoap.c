@@ -392,6 +392,21 @@ err:
     return -1;
 }
 
+uint8_t *ec_request_get_payload(ec_server_t *srv, size_t *sz)
+{
+    ec_pdu_t *req;
+
+    dbg_return_if (srv == NULL, NULL);
+    dbg_return_if (sz == NULL, NULL);
+
+    dbg_return_if ((req = ec_server_get_request_pdu(srv)) == NULL, NULL);
+
+    /* Return payload and size. */
+    *sz = req->payload_sz;
+
+    return req->payload;
+}
+
 /* Works for unicast exchanges only. */
 uint8_t *ec_response_get_payload(ec_client_t *cli, size_t *sz)
 {

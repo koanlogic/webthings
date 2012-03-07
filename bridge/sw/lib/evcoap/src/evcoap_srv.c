@@ -135,6 +135,10 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     ec_flow_t *flow = &srv->flow;   /* shortcut */
     ec_conn_t *conn = &flow->conn;  /* shortcut */
 
+    /* Attach payload, if any, to the server context. */
+    if ((plen = raw_sz - (olen + EC_COAP_HDR_SIZE)))
+        (void) ec_pdu_set_payload(req, raw + EC_COAP_HDR_SIZE + olen, plen);
+
     /* If enabled, dump PDU (server=true). */
     if (getenv("DUMP_PDUS"))
         (void) ec_pdu_dump(req, true);
@@ -463,4 +467,11 @@ int ec_server_set_msg_model(ec_server_t *srv, bool is_con)
     dbg_return_if (srv == NULL, -1);
 
     return ec_net_set_confirmable(&srv->flow.conn, is_con);
+}
+
+ec_pdu_t *ec_server_get_request_pdu(ec_server_t *srv)
+{
+    dbg_return_if (srv == NULL, NULL);
+
+    return srv->req;
 }

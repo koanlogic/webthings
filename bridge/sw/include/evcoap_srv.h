@@ -31,5 +31,6 @@ int ec_server_set_msg_model(ec_server_t *srv, bool is_confirmable);
 struct ec_s *ec_server_get_base(ec_server_t *srv);
 const char *ec_server_get_url(ec_server_t *srv);
 ec_method_t ec_server_get_method(ec_server_t *srv);
+ec_pdu_t *ec_server_get_request_pdu(ec_server_t *srv);
 
 #endif  /* !_EC_SRV_H_ */

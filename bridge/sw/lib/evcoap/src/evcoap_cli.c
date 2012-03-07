@@ -907,6 +907,10 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     dbg_err_ifm (ec_opts_decode(&res->opts, raw, raw_sz, h->oc, &olen),
             "CoAP options could not be parsed correctly");
 
+    /* Attach payload, if any, to the client context. */
+    if ((plen = raw_sz - (olen + EC_COAP_HDR_SIZE)))
+        (void) ec_pdu_set_payload(res, raw + EC_COAP_HDR_SIZE + olen, plen);
+
     /* If enabled, dump PDU (server=false). */
     if (getenv("DUMP_PDUS"))
         (void) ec_pdu_dump(res, false);
@@ -919,10 +923,6 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
 
     /* Attach response code to the client context. */
     dbg_err_if (ec_flow_set_resp_code(flow, (ec_rc_t) h->code));
-
-    /* Attach payload, if any, to the client context. */
-    if ((plen = raw_sz - (olen + EC_COAP_HDR_SIZE)))
-        (void) ec_pdu_set_payload(res, raw + EC_COAP_HDR_SIZE + olen, plen);
 
     /* TODO fill in the residual info (e.g. socket...). */
 
