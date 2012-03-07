@@ -141,7 +141,7 @@ typedef enum
     ((rc) >= EC_CREATED && (rc) <= EC_500_UNKNOWN)
 
 const char *ec_rc_str(ec_rc_t rc);
-const char *ec_code_str(int rc);    /* full CoAP Code Registry */
+const char *ec_code_str(unsigned int rc);    /* full CoAP Code Registry */
 
 /* Client transaction states. */
 typedef enum
