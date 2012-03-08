@@ -80,6 +80,7 @@ int ec_observation_chores(void);
 int ec_observation_run(void);
 
 int ec_observe_canceled_by_rst(ec_t *coap, ec_pdu_t *rst);
+int ec_observe_canceled_by_get(ec_server_t *srv);
 
 #ifdef __cplusplus
 }

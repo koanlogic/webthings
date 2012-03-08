@@ -172,8 +172,8 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     if ((plen = raw_sz - (olen + EC_COAP_HDR_SIZE)))
         (void) ec_pdu_set_payload(req, raw + EC_COAP_HDR_SIZE + olen, plen);
 
-    /* TODO check best fit for this (here RSTs may be missed) */
-    /* If enabled, dump PDU (server=true). */
+    /* If enabled, dump PDU (server=true).
+     * (Doing this here may miss RSTs.) */
     if (getenv("DUMP_PDUS")) (void) ec_pdu_dump(req, true);
 
     /* Save requested method. */
@@ -192,7 +192,9 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     (void) ec_server_set_req(srv, req);
     ec_server_set_state(srv, EC_SRV_STATE_REQ_OK);
 
-/* u_dbg("requested URI: %s", flow->urlstr); */
+    /* Observations may be removed by GET'ing the observed resource with
+     * no Observe option. */
+    dbg_if (ec_observe_canceled_by_get(srv) == -1);
 
     /* Initialize the poll/wait timeout. */
     struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };

@@ -382,6 +382,32 @@ err:
     return -1;
 }
 
+/* Same return codes as ec_observe_canceled_by_rst() */
+int ec_observe_canceled_by_get(ec_server_t *srv)
+{
+    ec_observer_t *ovr;
+    ec_observation_t *obs;
+
+    dbg_return_if (srv == NULL, -1);
+
+    ec_flow_t *flow = &srv->flow;
+    ec_pdu_t *req = srv->req;
+    ec_t *coap = srv->base;
+
+    if (flow->method != EC_COAP_GET
+            || (obs = ec_observation_search(coap, flow->urlstr)) == NULL)
+        return 0;
+
+    /* Delete observer (in case the Observe option has been set, the user
+     * will later decide if an observation can be installed.) */
+    if ((ovr = ec_observer_search(obs, &flow->conn, 0)))
+        dbg_err_if (ec_observer_remove(coap, obs, ovr));
+
+    return 1;
+err:
+    return -1;
+}
+
 static int ec_observer_remove(ec_t *coap, ec_observation_t *obs, 
         ec_observer_t *ovr)
 {
@@ -420,17 +446,7 @@ int ec_rem_observer(ec_server_t *srv)
     dbg_return_if (!(ovr = ec_observer_search(obs, &flow->conn, 0)), 0);
 
     /* Remove the observer and free memory. */
-    TAILQ_REMOVE(&obs->observers, ovr, next);
-    ec_observer_free(ovr);
-
-    /* Also remove the observation in case there are no observers left. */
-    if (TAILQ_EMPTY(&obs->observers))
-    {
-        TAILQ_REMOVE(&coap->observing, obs, next)
-        ec_observation_free(obs);
-    }
-
-    return 0;
+    return ec_observer_remove(coap, obs, ovr);
 }
 
 int ec_trigger_notification(ec_server_t *srv)
