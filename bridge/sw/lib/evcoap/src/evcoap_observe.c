@@ -458,7 +458,7 @@ int ec_trigger_notification(ec_server_t *srv)
 
 int ec_observation_chores(void)
 {
-    u_con("TODO I don't remember :-)");
+    u_con("Pass over all the observations and remove those likely to be stale");
     return 0;
 }
 

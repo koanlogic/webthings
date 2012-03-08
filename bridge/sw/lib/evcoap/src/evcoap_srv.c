@@ -13,6 +13,39 @@ static int ec_server_reply(ec_server_t *srv, ec_rc_t rc, uint8_t *pl,
         size_t pl_sz);
 static int ec_server_check_transition(ec_srv_state_t cur, ec_srv_state_t next);
 static int ec_trim_payload_sz(ec_cfg_t *cfg, size_t *pl_sz);
+static int ec_server_add(ec_server_t *srv, ec_servers_t *srvs);
+static int ec_server_del(ec_server_t *srv, ec_servers_t *srvs);
+
+int ec_servers_init(ec_servers_t *srvs)
+{
+    dbg_return_if (srvs == NULL, -1);
+
+    TAILQ_INIT(&srvs->h);
+
+    return 0;
+}
+
+static int ec_server_add(ec_server_t *srv, ec_servers_t *srvs)
+{
+    dbg_return_if (srv == NULL, -1);
+    dbg_return_if (srvs == NULL, -1);
+
+    TAILQ_INSERT_TAIL(&srvs->h, srv, next);
+    srv->parent = srvs;
+
+    return 0;
+}
+
+static int ec_server_del(ec_server_t *srv, ec_servers_t *srvs)
+{
+    dbg_return_if (srv == NULL, -1);
+    dbg_return_if (srvs == NULL, -1);
+
+    TAILQ_REMOVE(&srvs->h, srv, next);
+    srv->parent = NULL;
+
+    return 0;
+}
 
 ec_server_t *ec_server_new(struct ec_s *coap, evutil_socket_t sd)
 {
@@ -20,7 +53,9 @@ ec_server_t *ec_server_new(struct ec_s *coap, evutil_socket_t sd)
     ec_server_t *srv = NULL;
 
     dbg_err_sif ((srv = u_zalloc(sizeof *srv)) == NULL);
+
     srv->base = coap;
+    srv->parent = NULL;
 
     ec_flow_t *flow = &srv->flow;
     ec_conn_t *conn = &flow->conn;
@@ -48,6 +83,8 @@ void ec_server_free(ec_server_t *srv)
             ec_pdu_free(srv->res);
         if (srv->req)
             ec_pdu_free(srv->req);
+        if (srv->parent)
+            ec_server_del(srv, srv->parent);
         u_free(srv);
     }
 }
@@ -61,8 +98,6 @@ void ec_server_input(evutil_socket_t sd, short u, void *arg)
     ec_net_pullup_all(sd, ec_server_handle_pdu, coap);
 }
 
-/* TODO factor out common code with ec_client_handle_pdu, namely the PDU 
- *      decoding */
 static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         struct sockaddr_storage *peer, void *arg)
 {
@@ -172,8 +207,7 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     if ((plen = raw_sz - (olen + EC_COAP_HDR_SIZE)))
         (void) ec_pdu_set_payload(req, raw + EC_COAP_HDR_SIZE + olen, plen);
 
-    /* If enabled, dump PDU (server=true).
-     * (Doing this here may miss RSTs.) */
+    /* If enabled, dump PDU (server=true).  Doing this here may miss RSTs. */
     if (getenv("DUMP_PDUS")) (void) ec_pdu_dump(req, true);
 
     /* Save requested method. */
@@ -334,18 +368,46 @@ err:
 static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args, 
         struct timeval *interval, bool resched)
 {
+    bool is_con = false;
+    ec_flow_t *flow = &srv->flow;
+    ec_conn_t *conn = &flow->conn;
+    ec_t *coap = srv->base;
+
+    dbg_err_if (ec_net_get_confirmable(conn, &is_con));
+
     switch (f(srv, args, interval, resched))
     {
         case EC_CBRC_READY:
+            u_dbg("TODO check if separate resp");
             dbg_err_if (ec_server_send_resp(srv));
             /* In case it is NON or CON piggybacked, we can set state 
              * to RESP_DONE. */
             ec_server_set_state(srv, EC_SRV_STATE_RESP_DONE);
             break;
+
         case EC_CBRC_WAIT:
+            if (srv->state == EC_SRV_STATE_REQ_OK)
+            {
+                if (is_con)
+                    u_dbg("TODO send separate ACK");
+                /* Fake the ACK_SENT state for NON. */
+                ec_server_set_state(srv, EC_SRV_STATE_ACK_SENT);
+                dbg_err_if (ec_server_add(srv, &coap->servers));
+                u_dbg("TODO start timer");
+            }
+            else if (srv->state == EC_SRV_STATE_ACK_SENT)
+            {
+                dbg_err("TODO give it another chance or bailout here ?");
+            }
+            else
+                dbg_err("unexpected state: %s", ec_cli_state_str(srv->state));
+
+            break;
+
         case EC_CBRC_POLL:
             u_dbg("TODO handle client wait/poll");
             break;
+
         case EC_CBRC_ERROR:
             /* This gets mapped to an internal error. */
             goto err;

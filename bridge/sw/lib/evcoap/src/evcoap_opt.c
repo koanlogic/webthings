@@ -726,6 +726,7 @@ ec_rc_t ec_opts_decode(ec_opts_t *opts, const uint8_t *pdu, size_t pdu_sz,
             case EC_OPT_IF_NONE_MATCH:
                 break;
             case EC_OPT_NONE:
+            case EC_OPT_MAX:
             default:
                 /* Unrecognized options of class "critical" that occur in 
                  * a confirmable request MUST cause the return of a 4.02 

@@ -456,10 +456,11 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
             uint16_t o_cnt;
 
             /* Add a NON notifier attached to ob_serve callback. */
-            if (!ec_add_observer(srv, ob_serve, NULL, res->max_age, 
-                        rep->media_type, EC_COAP_NON, rep->etag, sizeof rep->etag))
+            if (!ec_add_observer(srv, ob_serve, NULL, res->max_age,
+                        rep->media_type, EC_COAP_NON, rep->etag, 
+                        sizeof rep->etag))
             {
-                /* TODO get counter from time */
+                /* Get counter from time */
                 (void) ec_get_observe_counter(&o_cnt);
                 (void) ec_response_add_observe(srv, o_cnt);
             }

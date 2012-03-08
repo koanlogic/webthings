@@ -6,9 +6,11 @@
 
 #include "evcoap_enums.h"
 #include "evcoap_pdu.h"
+#include "evcoap_timer.h"
 
 struct ec_s;
 struct ec_client_s;
+struct ec_timer_s;
 
 typedef void (*ec_client_cb_t)(struct ec_client_s *cli);
 
@@ -19,21 +21,13 @@ typedef struct ec_res_set_s
     TAILQ_HEAD(, ec_pdu_s) bundle;
 } ec_res_set_t;
 
-struct ec_cli_timer_s
-{
-    size_t retries_left;    /* >1 for counted timer (decremented when fires.) */
-    struct event *evti;     /* timer event. */
-    struct timeval tout;    /* timer interval. */
-};
-typedef struct ec_cli_timer_s ec_cli_timer_t;
-
 /* Client timers. */
 struct ec_cli_timers_s
 {
 #define EC_TIMERS_APP_TOUT  60  /* Default is one minute. */
-    ec_cli_timer_t app;         /* Application level timer. */
-    ec_cli_timer_t coap;        /* CoAP internal retransmission timers. */
-    ec_cli_timer_t obs;         /* Observe timer -- driven by the server. */
+    ec_timer_t app;         /* Application level timer. */
+    ec_timer_t coap;        /* CoAP internal retransmission timers. */
+    ec_timer_t obs;         /* Observe timer -- driven by the server. */
 };
 typedef struct ec_cli_timers_s ec_cli_timers_t;
 
