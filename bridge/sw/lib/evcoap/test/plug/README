@@ -18,6 +18,9 @@ Set environment variables then,
 Environment variables
 ---------------------
 
+* To disable plugtests
+    EC_PLUG_DISABLE=1
+
 * To activate verbose logging:
     VERBOSE=1
 
