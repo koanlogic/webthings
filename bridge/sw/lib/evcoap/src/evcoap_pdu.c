@@ -169,9 +169,12 @@ int ec_pdu_encode_response_separate(ec_pdu_t *pdu)
 
     ec_hdr_t *h = &pdu->hdr_bits;
 
-    /* Create new MID */
+    /* Create new MID in case it is not already set. */
     if (!h->mid)
+    {
         evutil_secure_rng_get_bytes(&mid, sizeof mid);
+        h->mid = mid;
+    }
 
     /* Get requested messaging semantics. */
     ec_flow_t *flow = pdu->flow;

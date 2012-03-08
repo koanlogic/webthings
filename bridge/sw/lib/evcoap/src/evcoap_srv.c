@@ -3,6 +3,7 @@
 #include "evcoap_srv.h"
 #include "evcoap_base.h"
 #include "evcoap_flow.h"
+#include "evcoap_observe.h"
 
 static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         struct sockaddr_storage *peer, void *arg);
@@ -114,16 +115,51 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
             goto err;
     }
 
+    /* Create a new server context. */
+    dbg_err_if ((srv = ec_server_new(coap, sd)) == NULL);
 
-    /* If PDU is a request, create a new server context. */
-    if (h->code)
+    ec_pdu_t *res = srv->res;       /* shortcut */
+    ec_flow_t *flow = &srv->flow;   /* ditto */
+    ec_conn_t *conn = &flow->conn;  /* ditto */
+
+    /* Save destination and source addresses in the server context. */
+    dbg_err_if (ec_net_save_us(conn, sd));
+    dbg_err_if (ec_pdu_set_peer(res, peer));
+
+    /* The response payload has been allocated by ec_server_new(), hence we
+     * can take its reference and pair it to the corresponding request PDU. */
+    dbg_err_if (ec_pdu_set_sibling(res, req));
+    dbg_err_if (ec_pdu_set_flow(req, flow));
+
+    /* Check if its a "control" message. */
+    if (!h->code)
     {
-        dbg_err_if ((srv = ec_server_new(coap, sd)) == NULL);
-        (void) ec_server_set_msg_model(srv, h->t == EC_COAP_CON ? 
-                true : false);
+        /* Check if RST. */
+        if (h->t == EC_COAP_RST)
+        {
+            /* Observations may be removed by RST'ing a notification message
+             * so check whether this RST comes in response to an nfy PDU. */
+            switch (ec_observe_canceled_by_rst(coap, req))
+            {
+                case 0:
+                    /* Not an active observation, proceed. */
+                    break;
+                case 1:
+                    /* Active observer removed. */
+                    goto cleanup;
+                default:
+                    /* Internal error. */
+                    u_dbg("Observe handling machinery failed !");
+                    goto err;
+            }
+
+            u_dbg("TODO handle RST (!observe-deletion)");
+        }
+        else
+            u_dbg("TODO handle separate ACK");
     }
     else
-        u_dbg("TODO handle incoming RST and/or ACK");
+        (void) ec_server_set_msg_model(srv, h->t == EC_COAP_CON ? true : false);
 
     /* Decode options. */
     if (h->oc)
@@ -132,16 +168,13 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         dbg_err_ifm (rc, "CoAP options could not be parsed correctly");
     }
 
-    ec_flow_t *flow = &srv->flow;   /* shortcut */
-    ec_conn_t *conn = &flow->conn;  /* shortcut */
-
     /* Attach payload, if any, to the server context. */
     if ((plen = raw_sz - (olen + EC_COAP_HDR_SIZE)))
         (void) ec_pdu_set_payload(req, raw + EC_COAP_HDR_SIZE + olen, plen);
 
+    /* TODO check best fit for this (here RSTs may be missed) */
     /* If enabled, dump PDU (server=true). */
-    if (getenv("DUMP_PDUS"))
-        (void) ec_pdu_dump(req, true);
+    if (getenv("DUMP_PDUS")) (void) ec_pdu_dump(req, true);
 
     /* Save requested method. */
     dbg_err_if (ec_flow_set_method(flow, (ec_method_t) h->code));
@@ -149,15 +182,6 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     /* Save token into context. */
     ec_opt_t *t = ec_opts_get(&req->opts, EC_OPT_TOKEN);
     dbg_err_if (ec_flow_save_token(flow, t ? t->v : NULL, t ? t->l : 0));
-
-    /* Response payload has been allocated by ec_server_new(), so we can
-     * take its reference and pair it to the corresponding request PDU. */
-    ec_pdu_t *res = srv->res;   /* shortcut */
-    dbg_err_if (ec_pdu_set_sibling(res, req));
-
-    /* Save dst and src addresses in srv context. */
-    dbg_err_if (ec_net_save_us(conn, sd));
-    dbg_err_if (ec_pdu_set_peer(res, peer));
 
     /* Recompose the requested URI and save it into the server context.
      * XXX Assume NoSec is the sole supported mode. */

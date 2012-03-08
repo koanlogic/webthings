@@ -35,6 +35,18 @@ struct ec_observer_s
     /* Peer/end-point identification. */
     ec_conn_t conn;
 
+    /* MID used for the most recent notification. */
+    uint16_t last_mid;
+
+    /* TODO DESIGN CHOICE AHEAD
+     * The resource producer must be here and not in ec_observation_s because 
+     * each observer may need its different representation of the resource.
+     * Once produced it should be cached in parent ec_observation_t record
+     * (.cached_res).  Another strategy is to let the representation producer
+     * be a resource producer, by supplying all the needed media types to the 
+     * ec_observe_cb_t and let it populate the cached_res.  If so, we need to 
+     * move the ec_observe_cb_t to the ec_observation_t. */
+
     ec_observe_cb_t reps_cb;    /* Callback used for resource creation. */
     void *reps_cb_args;
 
@@ -66,6 +78,8 @@ int ec_trigger_notification(ec_server_t *srv);
 
 int ec_observation_chores(void);
 int ec_observation_run(void);
+
+int ec_observe_canceled_by_rst(ec_t *coap, ec_pdu_t *rst);
 
 #ifdef __cplusplus
 }

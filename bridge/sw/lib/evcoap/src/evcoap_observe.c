@@ -2,6 +2,7 @@
 #include "evcoap_base.h"
 #include "evcoap_observe.h"
 
+/* ec_observer_t private interfaces. */
 static ec_observer_t *ec_observer_new(const uint8_t *token, size_t token_sz, 
         const uint8_t *etag, size_t etag_sz, ec_mt_t media_type, 
         ec_msg_model_t msg_model, const ec_conn_t *conn, ec_observe_cb_t cb, 
@@ -10,8 +11,13 @@ static int ec_observer_add(ec_observation_t *obs, const uint8_t *tok,
         size_t tok_sz, const uint8_t *etag, size_t etag_sz, ec_mt_t mt, 
         ec_msg_model_t mm, const ec_conn_t *conn, ec_observe_cb_t cb, 
         void *args);
-static ec_observer_t *ec_observer_search(ec_observation_t *obs, ec_conn_t *cn);
+static ec_observer_t *ec_observer_search(ec_observation_t *obs, ec_conn_t *cn,
+        uint16_t mid);
 static void ec_observer_free(ec_observer_t *ovr);
+static int ec_observer_remove(ec_t *coap, ec_observation_t *obs, 
+        ec_observer_t *ovr);
+
+/* ec_observation_t private interfaces. */
 static ec_observation_t *ec_observation_search(ec_t *coap, const char *uri);
 static ec_observation_t *ec_observation_add(ec_t *coap, const char *uri, 
         uint32_t max_age);
@@ -74,6 +80,10 @@ static void ec_ob_cb(evutil_socket_t u0, short u1, void *c)
         /* Send PDU (ignore ovr->msg_model for now, go NON all the way.)
          * 'NULL' means, don't go through the duplicate handling machinery. */
         dbg_err_if (ec_pdu_send(nfy, NULL));
+
+        /* Retrieve MID and save it in the observer context, so that we can 
+         * identify it in case the observer RST's it. */
+        ovr->last_mid = nfy->hdr_bits.mid;
 
         ec_pdu_free(nfy), nfy = NULL;
     }
@@ -175,7 +185,8 @@ err:
 }
 
 /* Try to find an observer matching the given address/security context. */
-static ec_observer_t *ec_observer_search(ec_observation_t *obs, ec_conn_t *conn)
+static ec_observer_t *ec_observer_search(ec_observation_t *obs, ec_conn_t *conn,
+        uint16_t mid)
 {
     ec_observer_t *ovr;
 
@@ -185,7 +196,13 @@ static ec_observer_t *ec_observer_search(ec_observation_t *obs, ec_conn_t *conn)
     TAILQ_FOREACH(ovr, &obs->observers, next)
     {
         if (ec_source_match(conn, &ovr->conn))
+        {
+            /* If mid != 0, try to match also the last sent MID. */
+            if (mid && ovr->last_mid != mid)
+                continue;
+
             return ovr;
+        }
     }
 
     return NULL;
@@ -288,6 +305,9 @@ static void ec_observation_free(ec_observation_t *obs)
         if (obs->cached_res)
             ec_resource_free(obs->cached_res);
 
+        /* Cancel countdown timer. */
+        evtimer_del(obs->notify);
+
         u_free(obs); 
     }
     return;
@@ -328,6 +348,62 @@ err:
     return -1;
 }
 
+/* TODO The lookup strategy is very inefficient: we should index observers by 
+ * TODO addr and/or last sent MID to allow O(1) access. */
+/* 
+ *  0: not an active observer
+ *  1: active observer deleted
+ * -1: error (removal, param sanitization)
+ */
+int ec_observe_canceled_by_rst(ec_t *coap, ec_pdu_t *rst)
+{
+    ec_observation_t *obs;
+    ec_observer_t *ovr = NULL;
+
+    dbg_return_if (coap == NULL, -1);
+    dbg_return_if (rst == NULL, -1);
+
+    ec_flow_t *flow = rst->flow;
+    ec_hdr_t *h = &rst->hdr_bits;
+
+    /* Search each and every active observer. */
+    TAILQ_FOREACH(obs, &coap->observing, next)
+    {
+        if ((ovr = ec_observer_search(obs, &flow->conn, h->mid)))
+            break;
+    }
+
+    /* If found remove it (this also removes the parent observation in 
+     * case it is the last observer.) */
+    dbg_err_if (ovr && ec_observer_remove(coap, obs, ovr));
+
+    return ovr ? 1 : 0;
+err:
+    return -1;
+}
+
+static int ec_observer_remove(ec_t *coap, ec_observation_t *obs, 
+        ec_observer_t *ovr)
+{
+    dbg_return_if (coap == NULL, -1);
+    dbg_return_if (obs == NULL, -1);
+    dbg_return_if (ovr == NULL, -1);
+
+    /* Remove the observer and free memory. */
+    TAILQ_REMOVE(&obs->observers, ovr, next);
+    ec_observer_free(ovr);
+
+    /* Also remove the observation in case there are no observers left. */
+    if (TAILQ_EMPTY(&obs->observers))
+    {
+        u_dbg("removing empty parent observation %p", obs);
+        TAILQ_REMOVE(&coap->observing, obs, next)
+        ec_observation_free(obs);
+    }
+
+    return 0;
+}
+
 int ec_rem_observer(ec_server_t *srv)
 {
     ec_observer_t *ovr;
@@ -341,7 +417,7 @@ int ec_rem_observer(ec_server_t *srv)
     /* It's fine if the requested observation is not active, or there is no
      * such observer.  Just leave a trace in the (debug) log. */
     dbg_return_if (!(obs = ec_observation_search(coap, flow->urlstr)), 0);
-    dbg_return_if (!(ovr = ec_observer_search(obs, &flow->conn)), 0);
+    dbg_return_if (!(ovr = ec_observer_search(obs, &flow->conn, 0)), 0);
 
     /* Remove the observer and free memory. */
     TAILQ_REMOVE(&obs->observers, ovr, next);
