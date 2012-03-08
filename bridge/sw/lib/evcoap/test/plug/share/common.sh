@@ -2,16 +2,17 @@
 SRV_ADDR="coap://[::1]:5683"
 CLI_CMD="../../client/coap-client"
 SRV_CMD="../server/coap-server"
+ECHO=/bin/echo
 
 [ "${DUMP_PDUS}" = "1" ] || \
-        echo "# [warn] DUMP_PDUS not set,"\
+        ${ECHO} "# [warn] DUMP_PDUS not set,"\
              "no 'check' steps will be performed"
 
 
 # If VERBOSE=1, debugs all strings to standard error.
 t_dbg()
 {
-    [ "${VERBOSE}" = "1" ] && echo $@ 1>&2
+    [ "${VERBOSE}" = "1" ] && ${ECHO} $@ 1>&2
 }
 
 # Print a message and exit with return code $1.
@@ -19,7 +20,7 @@ t_die()
 {
     rc=$1
     shift
-    echo "$@"
+    ${ECHO} "$@"
     t_term
     exit ${rc}
 }
@@ -90,11 +91,12 @@ t_run_srv()
 
 # Run a CoAP client.
 #
-# $1    method      <GET|POST|PUT|DELETE>   (default is GET)
-# $2    message     <CON|NON>               (default is CON)
-# $3    address     <uri>                   (default is coap://[::1])
-# $4    resource    <rsrc>                  (default is /test)
-# $5    payload     <rsrc>                  (default is /test)
+# $1    method          <GET|POST|PUT|DELETE>   (default is GET)
+# $2    message         <CON|NON>               (default is CON)
+# $3    address         <uri>                   (default is coap://[::1])
+# $4    resource        <rsrc>                  (default is /test)
+# $5    payload         <rsrc>                  (default is /test)
+# $6    token option    <1|0>                   (default is 0)
 #
 t_run_cli()
 {
@@ -105,6 +107,7 @@ t_run_cli()
     addr=$3
     rsrc=$4
     payload=$5
+    token=$6
 
     # set defaults for empty string vals
     [ "${meth}" = "" ] && meth="GET"
@@ -117,6 +120,9 @@ t_run_cli()
 
     # if specified, add optional payload
     [ -z ${payload} ] || args="${args} -p ${payload}"
+
+    # if specified, enable Token option
+    [ "${token}" = "1" ] && args="${args} -T"
 
     t_wrap 0 "${CLI_CMD}" "${args}"
     [ $? -eq 0 ] || t_die 1 "client failed! (rc=$?)"
@@ -139,7 +145,23 @@ t_get_field()
     xval=`grep "${field}:" ${id}-${srv}.dump | cut -d ':' -f 2`
 
     # remove leading space
-    echo "${xval}" | sed 's/^ //'
+    ${ECHO} "${xval}" | sed 's/^ //'
+}
+
+# Check the size of a string.
+#
+# $1    input string
+# $2    expectes size of string
+t_check_len()
+{
+    s=$1
+    len=$2
+
+    t_dbg "# checking length of '${s}' (expected ${len})"
+
+    xlen=`${ECHO} -n "${s}" | wc -c | sed -e 's/\ //g'`
+
+    [ ${xlen} = ${len} ] || t_die 1 "# bad length!"
 }
 
 # Check that the value of a dumped field is equal to the expected value.
@@ -161,7 +183,7 @@ t_check_field()
     xval=`grep "${field}:" ${id}-${srv}.dump | cut -d ':' -f 2`
 
     # remove leading space
-    xtrim=`echo ${xval} | sed 's/^ //'`
+    xtrim=`${ECHO} ${xval} | sed 's/^ //'`
 
     t_dbg "# checking message ${id}-${srv} field ${field}: ${xtrim}"
 
@@ -189,7 +211,7 @@ t_diff_field()
     xval=`grep "${field}:" ${id}-${srv}.dump | cut -d ':' -f 2`
 
     # remove leading space
-    xtrim=`echo ${xval} | sed 's/^ //'`
+    xtrim=`${ECHO} ${xval} | sed 's/^ //'`
 
     t_dbg "# checking message ${id}-${srv} field ${field} != ${xtrim}"
 
@@ -201,9 +223,9 @@ t_diff_field()
 # Convert input string to hex representation.
 t_str2hex()
 {
-    hexval=`echo $@ | xxd -p`
+    hexval=`${ECHO} $@ | xxd -p`
 
-    echo "0x${hexval}"
+    ${ECHO} "0x${hexval}"
 }
 
 trap t_term 2 9 15

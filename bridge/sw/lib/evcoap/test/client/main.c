@@ -36,6 +36,7 @@ typedef struct
     bool verbose;
     blockopt_t bopt;
     bool fail;
+    bool token;
 } ctx_t;
 
 ctx_t g_ctx = {
@@ -52,7 +53,8 @@ ctx_t g_ctx = {
     .pfn = NULL,
     .observe = 0,
     .verbose = false,
-    .fail = false
+    .fail = false,
+    .token = false
 };
 
 void usage(const char *prog);
@@ -73,7 +75,7 @@ int main(int ac, char *av[])
 {
     int c;
 
-    while ((c = getopt(ac, av, "hu:m:M:O:o:p:vt:")) != -1)
+    while ((c = getopt(ac, av, "hu:m:M:O:o:p:vt:T")) != -1)
     {
         switch (c)
         {
@@ -107,6 +109,9 @@ int main(int ac, char *av[])
             case 't':
                 if (client_set_app_timeout(optarg))
                     usage(av[0]);
+                break;
+            case 'T':
+                g_ctx.token = true;
                 break;
             case 'h':
             default:
@@ -262,6 +267,9 @@ int client_run(void)
 
     if (g_ctx.observe)
         dbg_err_if (ec_request_add_observe(g_ctx.cli));
+
+	if (g_ctx.token)
+        dbg_err_if (ec_request_add_token(g_ctx.cli, NULL, 0));
 
     /* Handle blockwise transfer. */
     if (g_ctx.bopt.more)

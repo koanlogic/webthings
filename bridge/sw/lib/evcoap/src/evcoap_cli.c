@@ -19,7 +19,6 @@ static void ec_cli_coap_timeout(evutil_socket_t u0, short u1, void *c);
 static void ec_cli_obs_timeout(evutil_socket_t u0, short u1, void *c);
 static int ec_client_handle_observation(ec_client_t *cli);
 static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a);
-static int ec_client_check_req_token(ec_client_t *cli);
 static int ec_client_invoke_user_callback(ec_client_t *cli);
 static int ec_cli_timer_start(ec_client_t *cli, ec_cli_timer_t *ti, 
         size_t max_retry, void (*cb)(evutil_socket_t, short, void *));
@@ -223,9 +222,6 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
     conn = &flow->conn;
 
     /* TODO Sanitize request. */ 
-
-    /* Add a Token option, if missing. */
-    dbg_err_if (ec_client_check_req_token(cli));
 
     /* Get destination for this flow. */
     if (conn->use_proxy)
@@ -915,11 +911,12 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     if (getenv("DUMP_PDUS"))
         (void) ec_pdu_dump(res, false);
 
-    /* Check that there is a token and it matches the one we sent out with the 
+    /* If there is a token check if it matches the one we sent out with the
      * request. */
-    dbg_err_if ((t = ec_opts_get(&res->opts, EC_OPT_TOKEN)) == NULL);
-    dbg_err_ifm (t->l != flow->token_sz || memcmp(t->v, flow->token, t->l),
-            "received token mismatch");
+    t = ec_opts_get(&res->opts, EC_OPT_TOKEN);
+    if (t)
+        dbg_err_ifm (t->l != flow->token_sz || memcmp(t->v, flow->token, t->l),
+                "received token mismatch");
 
     /* Attach response code to the client context. */
     dbg_err_if (ec_flow_set_resp_code(flow, (ec_rc_t) h->code));
@@ -1076,36 +1073,6 @@ void *ec_client_get_args(ec_client_t *cli)
     dbg_return_if (cli == NULL, NULL);
 
     return cli->cb_args;
-}
-
-static int ec_client_check_req_token(ec_client_t *cli)
-{
-    ec_opt_t *t;
-    ec_flow_t *flow;
-    ec_pdu_t *req;
-    uint8_t tok[8];
-    const size_t tok_sz = sizeof tok;
-
-    dbg_return_if (cli == NULL, -1);
-
-    req = &cli->req;    /* shortcut */
-    flow = &cli->flow;  /* ditto */
-
-    if ((t = ec_opts_get(&req->opts, EC_OPT_TOKEN)) == NULL)
-    {
-        evutil_secure_rng_get_bytes(tok, tok_sz);
-        dbg_err_if (ec_opts_add_token(&req->opts, tok, tok_sz));
-    }
-
-    /* Cache the token value into the flow. */
-    dbg_err_if (ec_flow_save_token(flow, t ? t->v : tok, t ? t->l : tok_sz));
- 
-    return 0;
-err:
-    /* Since failure is critical remove all added opts. */
-    ec_opts_clear(&req->opts);
-
-    return -1;
 }
 
 int ec_res_set_add(ec_res_set_t *rset, ec_pdu_t *pdu)

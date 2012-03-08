@@ -398,6 +398,8 @@ void usage(const char *prog)
 /* Payload serving callback. */
 const uint8_t *ob_serve(const char *uri, ec_mt_t mt, size_t *p_sz, void *args)
 {
+    u_unused_args(mt, args);
+
     u_con("TODO produce resource for %s", uri);
 
     *p_sz = strlen("hello observe");

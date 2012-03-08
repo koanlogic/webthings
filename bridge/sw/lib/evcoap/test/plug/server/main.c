@@ -412,14 +412,28 @@ ec_cbrc_t resource_cb_large(ec_server_t *srv, void *u0, struct timeval *u1,
     return EC_CBRC_READY;
 }
 
+/* TODO */
 ec_cbrc_t resource_cb_separate(ec_server_t *srv, void *u0, struct timeval *u1, 
         bool u2)
 {
-    u_unused_args(srv, u0, u1, u2);
+    bool resched = u2;
+    struct timeval *tv = u1;
+
+    u_unused_args(srv, u0);
 
     CHAT("[%s]", __FUNCTION__);
 
-    return EC_CBRC_READY;
+    if (!resched) {
+
+        /* Call me again in 2 seconds */
+        tv->tv_sec = 2;
+
+        return EC_CBRC_WAIT;
+
+    } else {
+
+        return EC_CBRC_READY;
+    }
 }
 
 ec_cbrc_t resource_cb_large_update(ec_server_t *srv, void *u0, struct timeval *u1, 

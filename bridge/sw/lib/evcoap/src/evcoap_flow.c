@@ -1,6 +1,6 @@
 #include "evcoap_flow.h"
 
-int ec_flow_save_token(ec_flow_t *flow, uint8_t *tok, size_t tok_sz)
+int ec_flow_save_token(ec_flow_t *flow, const uint8_t *tok, size_t tok_sz)
 {
     dbg_return_if (flow == NULL, -1);
 

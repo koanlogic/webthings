@@ -538,11 +538,31 @@ int ec_request_add_uri_path(ec_client_t *cli, const char *up)
  */
 int ec_request_add_token(ec_client_t *cli, const uint8_t *t, size_t t_len)
 {
+    uint8_t tok[8];
+    const size_t tok_sz = sizeof tok;
+    ec_opts_t *opts = &cli->req.opts;
+    ec_flow_t *flow;
+
     dbg_return_if (cli == NULL, -1);
     
-    ec_opts_t *opts = &cli->req.opts;
+    opts = &cli->req.opts;
+    flow = &cli->flow;
 
-    return ec_opts_add_token(opts, t, t_len);
+    /* If no Token was passed by user, generate it */
+    if (t == NULL || t_len == 0) {
+        t = tok;
+        t_len = tok_sz;
+        evutil_secure_rng_get_bytes(tok, tok_sz);
+    }
+
+    dbg_err_if (ec_opts_add_token(opts, t, t_len));
+
+    /* Cache the token value into the flow. */
+    dbg_err_if (ec_flow_save_token(flow, t, t_len));
+
+    return 0;
+err:
+    return -1;
 }
 
 /**
