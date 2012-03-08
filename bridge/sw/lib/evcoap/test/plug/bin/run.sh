@@ -4,6 +4,8 @@
 
 VEC_PATH=../vectors
 
+. ../share/common.sh
+
 echo "#"
 echo "# running plugtests v"`cat ../VERSION`"."
 echo "#"
@@ -17,12 +19,13 @@ for v in `ls "${VEC_PATH}"`; do
     [ $? -eq 0 ] || continue
 
     # Run test.
-    echo "# [test] ${v}"
+    desc=`grep "## description: " "${f}" | cut -d ':' -f 2`
+    echo "# [test] ${v}:${desc}."
     sh "${f}"
 
     # Prit exit status.
-    if [ $? = 0 ]; then
-        echo "# [ok]."
+    if [ $? -eq 0 ]; then
+        t_dbg "# [ok]."
     else
         echo "# [***KO***]."
     fi

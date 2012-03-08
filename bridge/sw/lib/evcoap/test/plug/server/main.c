@@ -46,8 +46,9 @@ int server_run(void);
 int resource_add(const char *path, ec_method_mask_t methods, uint32_t ma, 
         const char *media_type, const uint8_t *data, size_t data_sz, 
         ec_server_cb_t cb);
-ec_cbrc_t resource_cb_test(ec_server_t *srv, void *u0, struct timeval *u1,
+ec_cbrc_t resource_cb_dft(ec_server_t *srv, void *u0, struct timeval *u1,
         bool u2);
+#if 0
 ec_cbrc_t resource_cb_seg(ec_server_t *srv, void *u0, struct timeval *u1,
         bool u2);
 ec_cbrc_t resource_cb_query(ec_server_t *srv, void *u0, struct timeval *u1,
@@ -64,6 +65,7 @@ ec_cbrc_t resource_cb_obs(ec_server_t *srv, void *u0, struct timeval *u1,
         bool u2);
 ec_cbrc_t resource_cb_wellknown(ec_server_t *srv, void *u0, struct timeval *u1,
         bool u2);
+#endif
 
 int main(int ac, char *av[])
 {
@@ -107,39 +109,39 @@ int main(int ac, char *av[])
     con_err_ifm (
             resource_add("/test", EC_METHOD_MASK_ALL, 0, "text/plain", 
                 (const uint8_t *) "Hello world!", strlen("Hello world!"),
-                &resource_cb_test) ||
+                &resource_cb_dft) ||
 
             resource_add("/seg1/seg2/seg3", EC_GET_MASK, 0, "text/plain",
                 (const uint8_t *) "Hello world!", strlen("Hello world!"),
-                &resource_cb_seg) ||
+                &resource_cb_dft) ||
 
             resource_add("/query", EC_GET_MASK, 0, "text/plain",
                 (const uint8_t *) "Hello world!", strlen("Hello world!"),
-                &resource_cb_query) ||
+                &resource_cb_dft) ||
 
             resource_add("/large", EC_GET_MASK, 0, "text/plain",
                 (const uint8_t *) "Hello world!", strlen("Hello world!"),
-                &resource_cb_large) ||
+                &resource_cb_dft) ||
 
             resource_add("/separate", EC_GET_MASK, 0, "text/plain",
                 (const uint8_t *) "Hello world!", strlen("Hello world!"),
-                &resource_cb_separate) ||
+                &resource_cb_dft) ||
 
             resource_add("/large_update", EC_PUT_MASK, 0, "text/plain",
                 (const uint8_t *) "Hello world!", strlen("Hello world!"),
-                &resource_cb_large_update) ||
+                &resource_cb_dft) ||
 
             resource_add("/large_create", EC_POST_MASK, 0, "text/plain",
                 (const uint8_t *) "Hello world!", strlen("Hello world!"),
-                &resource_cb_large_create) ||
+                &resource_cb_dft) ||
 
             resource_add("/obs", EC_GET_MASK, 0, "text/plain", 
                 (const uint8_t *) "Hello world!", strlen("Hello world!"),
-                &resource_cb_obs) ||
+                &resource_cb_dft) ||
 
             resource_add("/.well-known/core", EC_GET_MASK, 0,
                 "application/link-format", (const uint8_t *) "TODO",
-                strlen("TODO"), &resource_cb_wellknown),
+                strlen("TODO"), &resource_cb_dft),
 
         "failed adding resources");
     
@@ -299,7 +301,7 @@ err:
     return -1;
 }
 
-ec_cbrc_t resource_cb_test(ec_server_t *srv, void *u0, struct timeval *u1, 
+ec_cbrc_t resource_cb_dft(ec_server_t *srv, void *u0, struct timeval *u1, 
         bool u2)
 {
     ec_mt_t mta[16];
@@ -382,6 +384,7 @@ err:
     return EC_CBRC_ERROR;
 }
 
+#if 0
 ec_cbrc_t resource_cb_seg(ec_server_t *srv, void *u0, struct timeval *u1, 
         bool u2)
 {
@@ -475,3 +478,4 @@ ec_cbrc_t resource_cb_wellknown(ec_server_t *srv, void *u0, struct timeval *u1,
 
     return EC_CBRC_READY;
 }
+#endif

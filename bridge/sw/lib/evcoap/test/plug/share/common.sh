@@ -38,9 +38,9 @@ t_wrap()
 
     if [ "${VERBOSE}" = "1" ]; then
         if [ ${bg} -eq 1 ]; then
-            $@ ${post} &
+            $@ &
         else
-            $@ ${post}
+            $@
         fi
     else
         if [ ${bg} -eq 1 ]; then
@@ -54,7 +54,7 @@ t_wrap()
 # Compare two strings and fail if they are different.
 t_cmp()
 {
-    t_dbg "# checking value $1"
+    t_dbg "# checking value '$1'"
 
     if [ "$1" = "$2" ]; then
         return 0
@@ -140,9 +140,12 @@ t_get_field()
     id=$1
     srv=$2
     field=$3
+    dump="${id}-${srv}.dump"
+
+    [ -r "${dump}" ] || die 1 "could not find dump file (${dump})!"
 
     # retrived dumped value field
-    xval=`grep "${field}:" ${id}-${srv}.dump | cut -d ':' -f 2`
+    xval=`grep "${field}:" "${dump}" | cut -d ':' -f 2`
 
     # remove leading space
     ${ECHO} "${xval}" | sed 's/^ //'
@@ -154,10 +157,12 @@ t_get_field()
 # $2    expectes size of string
 t_check_len()
 {
+    [ "${DUMP_PDUS}" = "1" ] || return
+
     s=$1
     len=$2
 
-    t_dbg "# checking length of '${s}' (expected ${len})"
+    t_dbg "# checking length of '${s}' (expected '${len}')"
 
     xlen=`${ECHO} -n "${s}" | wc -c | sed -e 's/\ //g'`
 
@@ -178,14 +183,17 @@ t_check_field()
     srv=$2
     field=$3
     val=$4
+    dump="${id}-${srv}.dump"
+
+    [ -r "${dump}" ] || die 1 "could not find dump file (${dump})!"
 
     # retrived dumped value field
-    xval=`grep "${field}:" ${id}-${srv}.dump | cut -d ':' -f 2`
+    xval=`grep "${field}:" "${dump}" | cut -d ':' -f 2`
 
     # remove leading space
     xtrim=`${ECHO} ${xval} | sed 's/^ //'`
 
-    t_dbg "# checking message ${id}-${srv} field ${field}: ${xtrim}"
+    t_dbg "# checking message ${dump} field '${field}': '${xtrim}'"
 
     # compare result with value    
     [ "${xtrim}" = "${val}" ] || t_die 1 \
@@ -206,14 +214,17 @@ t_diff_field()
     srv=$2
     field=$3
     val=$4
+    dump="${id}-${srv}.dump"
+
+    [ -r "${dump}" ] || die 1 "could not find dump file (${dump})!"
 
     # retrived dumped value field
-    xval=`grep "${field}:" ${id}-${srv}.dump | cut -d ':' -f 2`
+    xval=`grep "${field}:" "${dump}" | cut -d ':' -f 2`
 
     # remove leading space
     xtrim=`${ECHO} ${xval} | sed 's/^ //'`
 
-    t_dbg "# checking message ${id}-${srv} field ${field} != ${xtrim}"
+    t_dbg "# checking message ${dump} field '${field}' != '${xtrim}'"
 
     # compare result with value    
     [ "${xtrim}" != "${val}" ] || t_die 1 \
