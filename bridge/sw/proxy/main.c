@@ -95,6 +95,10 @@ void process_http_request(struct evhttp_request *req, void *arg)
 
     con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_GET,
                     g_ctx.curi, EC_COAP_CON)) == NULL);
+
+	/* Add token option to allow for concurrent requests. */
+	con_err_if (ec_request_add_token(g_ctx.cli, NULL, 0));
+
     con_err_if (ec_request_send(g_ctx.cli, process_coap_response, req,
                 &g_ctx.tout));
 
