@@ -1,5 +1,6 @@
 ## TD_COAP_CORE_06
 ##
+## description: Perform POST transaction (NON mode)
 ## status: complete,tested
 
 . ../share/common.sh

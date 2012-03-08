@@ -1,5 +1,6 @@
 ## TD_COAP_CORE_08
 ##
+## description: Perform DELETE transaction (NON mode)
 ## status: complete,tested
 
 . ../share/common.sh

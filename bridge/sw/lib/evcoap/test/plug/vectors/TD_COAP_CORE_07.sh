@@ -1,5 +1,6 @@
 ## TD_COAP_CORE_07
 ##
+## description: Perform PUT transaction (NON mode)
 ## status: complete,tested
 
 . ../share/common.sh

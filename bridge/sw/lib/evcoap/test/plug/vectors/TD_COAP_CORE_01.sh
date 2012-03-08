@@ -1,5 +1,6 @@
 ## TD_COAP_CORE_01
 ##
+## description: Perform GET transaction (CON mode)
 ## status: complete,tested
 
 . ../share/common.sh

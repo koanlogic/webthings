@@ -1,5 +1,6 @@
 ## TD_COAP_CORE_03
 ##
+## description: Perform PUT transaction (CON mode)
 ## status: complete,tested
 
 . ../share/common.sh

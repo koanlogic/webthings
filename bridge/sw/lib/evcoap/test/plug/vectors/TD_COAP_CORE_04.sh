@@ -1,5 +1,6 @@
 ## TD_COAP_CORE_04
 ##
+## description: Perform DELETE transaction (CON mode)
 ## status: complete,tested
 
 . ../share/common.sh

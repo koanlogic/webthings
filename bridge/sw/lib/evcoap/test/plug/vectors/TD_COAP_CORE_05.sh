@@ -1,5 +1,6 @@
 ## TD_COAP_CORE_05
 ##
+## description: Perform GET transaction (NON mode)
 ## status: complete,tested
 
 . ../share/common.sh

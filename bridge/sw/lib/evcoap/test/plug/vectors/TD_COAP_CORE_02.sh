@@ -1,5 +1,6 @@
 ## TD_COAP_CORE_02
 ##
+## description: Perform POST transaction (CON mode)
 ## status: complete,tested
 
 . ../share/common.sh
