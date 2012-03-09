@@ -9,26 +9,29 @@
 # Init
 #
 t_init
-t_run_srv
+t_srv_run
 
 #
 # Step 1
 #
 t_dbg "# Step 1"
 
-# activate Token option
-out=`t_run_cli GET CON "" /test "" "1"`
+t_cli_set_type CON
+t_cli_set_method GET
+t_cli_set_token
+
+out=`t_cli_run`
 
 #
 # Step 2
 #
 t_dbg "# Step 2"
 
-t_check_field 1 srv T CON
-t_check_field 1 srv Code GET
+t_field_check 1 srv T CON
+t_field_check 1 srv Code GET
 
 # retrieve token received by server
-token1=`t_get_field 1 srv Token`
+token1=`t_field_get 1 srv Token`
 
 # check that size of Token is between 1B and 8B
 # (4 and 18 chars include 0x)
@@ -39,10 +42,10 @@ t_check_len "${token1}" 4 18
 #
 t_dbg "# Step 3"
 
-t_check_field 1 cli Code "2.05 (Content)"
+t_field_check 1 cli Code "2.05 (Content)"
 
 # retrieve token received by server
-token2=`t_get_field 1 cli Token`
+token2=`t_field_get 1 cli Token`
 
 # check that size of Token is between 1B and 8B
 # (4 and 18 chars include 0x)
@@ -52,9 +55,9 @@ t_check_len "${token2}" 4 18
 t_cmp "${token1}" "${token2}"
 
 # compare hex representations
-t_check_field 1 cli Payload `t_str2hex "Hello world!"`
+t_field_check 1 cli Payload `t_str2hex "Hello world!"`
 
-t_get_field 1 cli Content-Type 1>/dev/null
+t_field_get 1 cli Content-Type 1>/dev/null
 [ $? -ne 1 ] || t_die 1 "field should be defined!"
 
 #
@@ -63,7 +66,7 @@ t_get_field 1 cli Content-Type 1>/dev/null
 t_dbg "# Step 4"
 
 t_dbg "${out}"
-if [ "${MODE}" != "srv" ]; then
+if [ "${EC_PLUG_MODE}" != "srv" ]; then
     t_cmp "${out}" "Hello world!"
 fi
 

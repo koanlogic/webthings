@@ -67,10 +67,27 @@ ec_cbrc_t resource_cb_wellknown(ec_server_t *srv, void *u0, struct timeval *u1,
         bool u2);
 #endif
 
+/* Fill a string with char values looping from 'a' to 'z'. */
+static void init_str(char *s, size_t s_sz)
+{
+    size_t n;
+    char c = 'a';
+
+    for (n = 0; n < s_sz; n++,
+            c = (c == 'z' ? 'a' : 'b'))
+        s[n] = c;
+
+    s[s_sz-1] = '\0';
+}
+
 int main(int ac, char *av[])
 {
     int c, port;
     char a[U_URI_STRMAX];
+    char longstr[EC_COAP_BLOCK_MAX * 3];
+
+    /* Initalisations. */
+    init_str(longstr, sizeof(longstr));
 
     while ((c = getopt(ac, av, "u:b:hv")) != -1)
     {
@@ -120,7 +137,7 @@ int main(int ac, char *av[])
                 &resource_cb_dft) ||
 
             resource_add("/large", EC_GET_MASK, 0, "text/plain",
-                (const uint8_t *) "Hello world!", strlen("Hello world!"),
+                (const uint8_t *) longstr, strlen(longstr),
                 &resource_cb_dft) ||
 
             resource_add("/separate", EC_GET_MASK, 0, "text/plain",

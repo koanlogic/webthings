@@ -9,7 +9,7 @@
 # Init
 #
 t_init
-t_run_srv
+t_srv_run
 
 #
 # Step 1
@@ -21,9 +21,13 @@ pf=.`basename $0`.payload
 p="lots of cool stuff"
 ${ECHO} -n "${p}" > ${pf}
 
-out=`t_run_cli PUT CON "" /test ${pf}`
+t_cli_set_type CON
+t_cli_set_method PUT
+t_cli_set_payload ${pf}
 
-t_get_field 1 srv Content-Type 1>/dev/null
+out=`t_cli_run`
+
+t_field_get 1 srv Content-Type 1>/dev/null
 [ $? -ne 1 ] || t_die 1 "field should be defined!"
 
 #
@@ -31,8 +35,8 @@ t_get_field 1 srv Content-Type 1>/dev/null
 #
 t_dbg "# Step 2"
 
-t_check_field 1 srv T CON
-t_check_field 1 srv Code PUT
+t_field_check 1 srv T CON
+t_field_check 1 srv Code PUT
 
 #
 # Step 3
@@ -40,16 +44,16 @@ t_check_field 1 srv Code PUT
 t_dbg "# Step 3"
 
 # compare hex representations
-t_check_field 1 srv Payload `t_str2hex ${p}`
+t_field_check 1 srv Payload `t_str2hex ${p}`
 
 #
 # Step 4
 #
 t_dbg "# Step 4"
 
-t_check_field 1 cli Code "2.04 (Changed)"
-v=`t_get_field 1 srv MID`
-t_check_field 1 cli MID "${v}"
+t_field_check 1 cli Code "2.04 (Changed)"
+v=`t_field_get 1 srv MID`
+t_field_check 1 cli MID "${v}"
 
 #
 # Step 5
@@ -57,7 +61,7 @@ t_check_field 1 cli MID "${v}"
 t_dbg "# Step 5"
 
 t_dbg "${out}"
-if [ "${MODE}" != "srv" ]; then
+if [ "${EC_PLUG_MODE}" != "srv" ]; then
     t_cmp "${out}" "Hello world!"
 fi
 

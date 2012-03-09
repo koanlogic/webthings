@@ -1,18 +1,37 @@
-#VERBOSE=1
-SRV_ADDR="coap://[::1]:5683"
-CLI_CMD="../../client/coap-client"
-SRV_CMD="../server/coap-server"
-ECHO=/bin/echo
+# base address for clients and servers
+EC_PLUG_ADDR="coap://[::1]:5683"
+
+# server settings
+EC_PLUG_SRV_CMD="../server/coap-server"
+EC_PLUG_SRV_ARG_URI="${EC_PLUG_ADDR}"
+
+# client settings
+EC_PLUG_CLI_CMD="../../client/coap-client"
+EC_PLUG_CLI_ARG_URI="${EC_PLUG_ADDR}"
+EC_PLUG_CLI_ARG_PATH="/test"
+EC_PLUG_CLI_ARG_TYPE="CON"
+EC_PLUG_CLI_ARG_METHOD="GET"
+#EC_PLUG_CLI_ARG_PAYLOAD=""     # default: unset
+#EC_PLUG_CLI_ARG_TOKEN=""       # default: unset
+EC_PLUG_CLI_ARG_OUTPUT="-"
+
+# other settings
+#EC_PLUG_VERBOSE=1              # default: unset
+
+# custom commands 
+ECHO=/bin/echo      # default version on mac doesn't like '-n' arg
 
 [ "${DUMP_PDUS}" = "1" ] || \
         ${ECHO} "# [warn] DUMP_PDUS not set,"\
              "no 'check' steps will be performed"
 
 
-# If VERBOSE=1, debugs all strings to standard error.
+# If EC_PLUG_VERBOSE=1, debugs all strings to standard error.
 t_dbg()
 {
-    [ "${VERBOSE}" = "1" ] && ${ECHO} $@ 1>&2
+    [ "${EC_PLUG_VERBOSE}" = "1" ] && ${ECHO} $@ 1>&2
+    
+    return 0
 }
 
 # Print a message and exit with return code $1.
@@ -25,7 +44,7 @@ t_die()
     exit ${rc}
 }
 
-# Wrap a command by debugging it and showing stderr output only if VERBOSE=1.
+# Wrap a command by debugging it and showing stderr output only if EC_PLUG_VERBOSE=1.
 #
 # $1    whether to run the process in background
 # $@    rest of arguments
@@ -36,7 +55,7 @@ t_wrap()
 
     t_dbg "# $@ (bg=${bg})"
 
-    if [ "${VERBOSE}" = "1" ]; then
+    if [ "${EC_PLUG_VERBOSE}" = "1" ]; then
         if [ ${bg} -eq 1 ]; then
             $@ &
         else
@@ -77,55 +96,96 @@ t_term()
 }
 
 # Run a CoAP server.
-#
-# $1    address     <uri>                   (default is coap://[::1])
-t_run_srv()
+t_srv_run()
 {
-    [ "${MODE}" != "cli" ] || return 2
+    [ "${EC_PLUG_MODE}" != "cli" ] || return 2
 
-    addr=$1
-    [ -z ${addr} ] && addr="${SRV_ADDR}"
+    args=""
 
-    t_wrap 1 "${SRV_CMD}" -u "${addr}"
+    [ -z ${EC_PLUG_srv_ARG_URI} ] || \
+        args="${args} -u ${EC_PLUG_SRV_ARG_URI}"
+
+    t_wrap 1 "${EC_PLUG_SRV_CMD}" "${args}"
+    [ $? -eq 0 ] || t_die 1 "client failed! (rc=$?)"
 }
 
 # Run a CoAP client.
-#
-# $1    method          <GET|POST|PUT|DELETE>   (default is GET)
-# $2    message         <CON|NON>               (default is CON)
-# $3    address         <uri>                   (default is coap://[::1])
-# $4    resource        <rsrc>                  (default is /test)
-# $5    payload         <rsrc>                  (default is /test)
-# $6    token option    <1|0>                   (default is 0)
-#
-t_run_cli()
+t_cli_run()
 {
-    [ "${MODE}" != "srv" ] || return 2
+    [ "${EC_PLUG_MODE}" != "srv" ] || return 2
 
-    meth=$1
-    msg=$2
-    addr=$3
-    rsrc=$4
-    payload=$5
-    token=$6
+    args=""
 
-    # set defaults for empty string vals
-    [ "${meth}" = "" ] && meth="GET"
-    [ -z ${msg} ] && msg="CON"
-    [ -z ${addr} ] && addr="${SRV_ADDR}"
-    [ -z ${rsrc} ] && rsrc="/test"
+    [ -z ${EC_PLUG_CLI_ARG_URI} ] || \
+        args="${args} -u ${EC_PLUG_CLI_ARG_URI}${EC_PLUG_CLI_ARG_PATH}"
 
-    # initialise default arguments
-    args="-m ${meth} -M ${msg} -u ${addr}${rsrc} -o -"
+    [ -z ${EC_PLUG_CLI_ARG_TYPE} ] || \
+        args="${args} -M ${EC_PLUG_CLI_ARG_TYPE}"
 
-    # if specified, add optional payload
-    [ -z ${payload} ] || args="${args} -p ${payload}"
+    [ -z ${EC_PLUG_CLI_ARG_METHOD} ] || \
+        args="${args} -m ${EC_PLUG_CLI_ARG_METHOD}"
 
-    # if specified, enable Token option
-    [ "${token}" = "1" ] && args="${args} -T"
+    [ -z ${EC_PLUG_CLI_ARG_PAYLOAD} ] || \
+        args="${args} -p ${EC_PLUG_CLI_ARG_PAYLOAD}"
 
-    t_wrap 0 "${CLI_CMD}" "${args}"
+    [ -z ${EC_PLUG_CLI_ARG_TOKEN} ] || \
+        args="${args} -T"
+
+    [ -z ${EC_PLUG_CLI_ARG_OUTPUT} ] || \
+        args="${args} -o ${EC_PLUG_CLI_ARG_OUTPUT}"
+
+    t_wrap 0 "${EC_PLUG_CLI_CMD}" "${args}"
     [ $? -eq 0 ] || t_die 1 "client failed! (rc=$?)"
+}
+
+# Set client uri
+t_cli_set_uri()
+{
+    EC_PLUG_CLI_ARG_URI=$1
+}
+
+# Set client path
+t_cli_set_path()
+{
+    EC_PLUG_CLI_ARG_PATH=$1
+}
+
+# Set client message type
+t_cli_set_type()
+{
+    t=$1
+
+    case "${t}" in
+        CON|NON)
+            EC_PLUG_CLI_ARG_TYPE="${t}" ;;
+        *)
+            t_die 1 "bad type: ${t}" ;;
+    esac
+}
+
+# Set client method
+t_cli_set_method()
+{
+    m=$1
+
+    case "${m}" in
+        GET|POST|PUT|DELETE)
+            EC_PLUG_CLI_ARG_METHOD="${m}" ;;
+        *)
+            t_die 1 "bad method: ${m}" ;;
+    esac
+}
+
+# Set client payload
+t_cli_set_payload()
+{
+    EC_PLUG_CLI_ARG_PAYLOAD=$1
+}
+
+# Activate client Token option
+t_cli_set_token()
+{
+    EC_PLUG_CLI_ARG_TOKEN=1
 }
 
 # Get the value of a field.
@@ -133,7 +193,7 @@ t_run_cli()
 # $1    packet identifier
 # $2    srv|cli
 # $3    field name
-t_get_field()
+t_field_get()
 {
     [ "${DUMP_PDUS}" = "1" ] || return 2
 
@@ -163,7 +223,7 @@ t_get_field()
 # $2    srv|cli
 # $3    field name
 # $4    field value
-t_check_field()
+t_field_check()
 {
     [ "${DUMP_PDUS}" = "1" ] || return 2
 
@@ -198,7 +258,7 @@ t_check_field()
 # $2    srv|cli
 # $3    field name
 # $4    field value
-t_diff_field()
+t_field_diff()
 {
     [ "${DUMP_PDUS}" = "1" ] || return 2
 

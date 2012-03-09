@@ -9,26 +9,29 @@
 # Init
 #
 t_init
-t_run_srv
+t_srv_run
 
 #
 # Step 1
 #
 t_dbg "# Step 1"
 
+t_cli_set_type CON
+t_cli_set_method GET
 # no Token option (= default)
-out=`t_run_cli GET CON "" /test`
+
+out=`t_cli_run`
 
 #
 # Step 2
 #
 t_dbg "# Step 2"
 
-t_check_field 1 srv T CON
-t_check_field 1 srv Code GET
+t_field_check 1 srv T CON
+t_field_check 1 srv Code GET
 
 # make sure token is undefined
-t_get_field 1 srv Token 1>/dev/null
+t_field_get 1 srv Token 1>/dev/null
 [ $? -eq 0 ] && t_die 1 "field should be undefined!"
 
 #
@@ -36,16 +39,16 @@ t_get_field 1 srv Token 1>/dev/null
 #
 t_dbg "# Step 3"
 
-t_check_field 1 cli Code "2.05 (Content)"
+t_field_check 1 cli Code "2.05 (Content)"
 
 # make sure token is undefined
-t_get_field 1 cli Token 1>/dev/null
+t_field_get 1 cli Token 1>/dev/null
 [ $? -ne 0 ] || t_die 1 "field should be undefined!"
 
 # compare hex representations
-t_check_field 1 cli Payload `t_str2hex "Hello world!"`
+t_field_check 1 cli Payload `t_str2hex "Hello world!"`
 
-t_get_field 1 cli Content-Type 1>/dev/null
+t_field_get 1 cli Content-Type 1>/dev/null
 [ $? -ne 1 ] || t_die 1 "field should be defined!"
 
 #
@@ -54,7 +57,7 @@ t_get_field 1 cli Content-Type 1>/dev/null
 t_dbg "# Step 4"
 
 t_dbg "${out}"
-if [ "${MODE}" != "srv" ]; then
+if [ "${EC_PLUG_MODE}" != "srv" ]; then
     t_cmp "${out}" "Hello world!"
 fi
 

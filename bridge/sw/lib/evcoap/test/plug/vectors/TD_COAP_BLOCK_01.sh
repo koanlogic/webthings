@@ -1,9 +1,11 @@
-## TD_COAP_CORE_05
+## TD_COAP_BLOCK_01
 ##
-## description: Perform GET transaction (NON mode)
-## status: complete,tested
+## description: Handle GET blockwise transfer for large resource (early negotiation)
+## status: incomplete,untested
 
 . ../share/common.sh
+
+t_die 1 "# Unimplemented!"
 
 #
 # Init
@@ -16,17 +18,17 @@ t_srv_run
 #
 t_dbg "# Step 1"
 
-t_cli_set_type NON
-t_cli_set_method GET
+out=`t_cli_run GET CON "" /large`
 
-out=`t_cli_run`
+t_term
+exit 0
 
 #
 # Step 2
 #
 t_dbg "# Step 2"
 
-t_field_check 1 srv T NON
+t_field_check 1 srv T CON
 t_field_check 1 srv Code GET
 
 #
@@ -34,16 +36,15 @@ t_field_check 1 srv Code GET
 #
 t_dbg "# Step 3"
 
-t_field_check 1 cli T NON
 t_field_check 1 cli Code "2.05 (Content)"
 v=`t_field_get 1 srv MID`
-t_field_diff 1 cli MID "${v}"
+t_field_check 1 cli MID "${v}"
 
 t_field_get 1 cli Content-Type 1>/dev/null
 [ $? -ne 1 ] || t_die 1 "field should be defined!"
 
 #
-# Step 4 
+# Step 4
 #
 t_dbg "# Step 4"
 
@@ -56,3 +57,4 @@ fi
 # Cleanup
 #
 t_term
+

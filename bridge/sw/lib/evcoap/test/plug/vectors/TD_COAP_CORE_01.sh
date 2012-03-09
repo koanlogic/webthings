@@ -9,33 +9,36 @@
 # Init
 #
 t_init
-t_run_srv
+t_srv_run
 
 #
 # Step 1
 #
 t_dbg "# Step 1"
 
-out=`t_run_cli GET CON "" /test`
+t_cli_set_type CON
+t_cli_set_method GET
+
+out=`t_cli_run`
 
 #
 # Step 2
 #
 t_dbg "# Step 2"
 
-t_check_field 1 srv T CON
-t_check_field 1 srv Code GET
+t_field_check 1 srv T CON
+t_field_check 1 srv Code GET
 
 #
 # Step 3
 #
 t_dbg "# Step 3"
 
-t_check_field 1 cli Code "2.05 (Content)"
-v=`t_get_field 1 srv MID`
-t_check_field 1 cli MID "${v}"
+t_field_check 1 cli Code "2.05 (Content)"
+v=`t_field_get 1 srv MID`
+t_field_check 1 cli MID "${v}"
 
-t_get_field 1 cli Content-Type 1>/dev/null
+t_field_get 1 cli Content-Type 1>/dev/null
 [ $? -ne 1 ] || t_die 1 "field should be defined!"
 
 #
@@ -44,7 +47,7 @@ t_get_field 1 cli Content-Type 1>/dev/null
 t_dbg "# Step 4"
 
 t_dbg "${out}"
-if [ "${MODE}" != "srv" ]; then
+if [ "${EC_PLUG_MODE}" != "srv" ]; then
     t_cmp "${out}" "Hello world!"
 fi
 
