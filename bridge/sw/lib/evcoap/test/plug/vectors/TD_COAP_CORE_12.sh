@@ -27,13 +27,15 @@ t_check_field 1 srv T CON
 t_check_field 1 srv Code GET
 
 # check that we have all 3 URI-Path Options
-f="1-srv.dump"
-grep "URI-Path: seg1" "${f}" >/dev/null
-[ $? -eq 0 ] || t_die 1 "seg1 not found!"
-grep "URI-Path: seg2" "${f}" >/dev/null
-[ $? -eq 0 ] || t_die 1 "seg2 not found!"
-grep "URI-Path: seg3" "${f}" >/dev/null
-[ $? -eq 0 ] || t_die 1 "seg3 not found!"
+if [ "${DUMP_PDUS}" = "1" ]; then
+    f="1-srv.dump"
+    grep "URI-Path: seg1" "${f}" >/dev/null
+    [ $? -eq 0 ] || t_die 1 "seg1 not found!"
+    grep "URI-Path: seg2" "${f}" >/dev/null
+    [ $? -eq 0 ] || t_die 1 "seg2 not found!"
+    grep "URI-Path: seg3" "${f}" >/dev/null
+    [ $? -eq 0 ] || t_die 1 "seg3 not found!"
+fi
 
 #
 # Step 3
@@ -41,6 +43,12 @@ grep "URI-Path: seg3" "${f}" >/dev/null
 t_dbg "# Step 3"
 
 t_check_field 1 cli Code "2.05 (Content)"
+
+# compare hex representations
+t_check_field 1 cli Payload `t_str2hex "Hello world!"`
+
+t_get_field 1 cli Content-Type 1>/dev/null
+[ $? -ne 1 ] || t_die 1 "field should be defined!"
 
 #
 # Step 4

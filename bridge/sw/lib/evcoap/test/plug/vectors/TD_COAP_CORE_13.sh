@@ -35,6 +35,12 @@ t_dbg "# Step 3"
 
 t_check_field 1 cli Code "2.05 (Content)"
 
+# compare hex representations
+t_check_field 1 cli Payload `t_str2hex "Hello world!"`
+
+t_get_field 1 cli Content-Type 1>/dev/null
+[ $? -ne 1 ] || t_die 1 "field should be defined!"
+
 #
 # Step 4
 #

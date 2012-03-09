@@ -28,8 +28,8 @@ t_check_field 1 srv T CON
 t_check_field 1 srv Code GET
 
 # make sure token is undefined
-token1=`t_get_field 1 srv Token`
-t_cmp "${token1}" ""
+t_get_field 1 srv Token 1>/dev/null
+[ $? -eq 0 ] && t_die 1 "field should be undefined!"
 
 #
 # Step 3
@@ -39,8 +39,14 @@ t_dbg "# Step 3"
 t_check_field 1 cli Code "2.05 (Content)"
 
 # make sure token is undefined
-token2=`t_get_field 1 cli Token`
-t_cmp "${token2}" ""
+t_get_field 1 cli Token 1>/dev/null
+[ $? -ne 0 ] || t_die 1 "field should be undefined!"
+
+# compare hex representations
+t_check_field 1 cli Payload `t_str2hex "Hello world!"`
+
+t_get_field 1 cli Content-Type 1>/dev/null
+[ $? -ne 1 ] || t_die 1 "field should be defined!"
 
 #
 # Step 4

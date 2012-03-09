@@ -30,8 +30,9 @@ t_check_field 1 srv Code GET
 # retrieve token received by server
 token1=`t_get_field 1 srv Token`
 
-# check that size of Token is 8 (10 including '0x')
-t_check_len "${token1}" 18
+# check that size of Token is between 1B and 8B
+# (4 and 18 chars include 0x)
+t_check_len "${token1}" 4 18
 
 #
 # Step 3
@@ -43,11 +44,18 @@ t_check_field 1 cli Code "2.05 (Content)"
 # retrieve token received by server
 token2=`t_get_field 1 cli Token`
 
-# check that size of Token is 8B (8*2 + 2 including '0x')
-t_check_len "${token2}" 18
+# check that size of Token is between 1B and 8B
+# (4 and 18 chars include 0x)
+t_check_len "${token2}" 4 18
 
 # compare returned token with sent token
 t_cmp "${token1}" "${token2}"
+
+# compare hex representations
+t_check_field 1 cli Payload `t_str2hex "Hello world!"`
+
+t_get_field 1 cli Content-Type 1>/dev/null
+[ $? -ne 1 ] || t_die 1 "field should be defined!"
 
 #
 # Step 4

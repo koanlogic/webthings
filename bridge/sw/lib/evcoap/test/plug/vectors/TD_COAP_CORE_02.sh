@@ -19,9 +19,12 @@ t_dbg "# Step 1"
 # prepare arbitrary payload
 pf=.`basename $0`.payload
 p="lots of cool stuff"
-echo "${p}" > ${pf}
+${ECHO} -n "${p}" > ${pf}
 
 out=`t_run_cli POST CON "" /test ${pf}`
+
+t_get_field 1 srv Content-Type 1>/dev/null
+[ $? -ne 1 ] || t_die 1 "field should be defined!"
 
 #
 # Step 2

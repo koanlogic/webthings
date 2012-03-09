@@ -31,9 +31,13 @@ t_check_field 1 srv Code GET
 #
 t_dbg "# Step 3"
 
+t_check_field 1 cli T NON
 t_check_field 1 cli Code "2.05 (Content)"
 v=`t_get_field 1 srv MID`
 t_diff_field 1 cli MID "${v}"
+
+t_get_field 1 cli Content-Type 1>/dev/null
+[ $? -ne 1 ] || t_die 1 "field should be defined!"
 
 #
 # Step 4 

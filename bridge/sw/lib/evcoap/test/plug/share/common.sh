@@ -81,7 +81,7 @@ t_term()
 # $1    address     <uri>                   (default is coap://[::1])
 t_run_srv()
 {
-    [ "${MODE}" != "cli" ] || return 0
+    [ "${MODE}" != "cli" ] || return 2
 
     addr=$1
     [ -z ${addr} ] && addr="${SRV_ADDR}"
@@ -100,7 +100,7 @@ t_run_srv()
 #
 t_run_cli()
 {
-    [ "${MODE}" != "srv" ] || return 0
+    [ "${MODE}" != "srv" ] || return 2
 
     meth=$1
     msg=$2
@@ -135,38 +135,26 @@ t_run_cli()
 # $3    field name
 t_get_field()
 {
-    [ "${DUMP_PDUS}" = "1" ] || return
+    [ "${DUMP_PDUS}" = "1" ] || return 2
 
     id=$1
     srv=$2
     field=$3
     dump="${id}-${srv}.dump"
 
-    [ -r "${dump}" ] || die 1 "could not find dump file (${dump})!"
+    t_dbg "# retrieving field '${field}'"
 
-    # retrived dumped value field
-    xval=`grep "${field}:" "${dump}" | cut -d ':' -f 2`
+    [ -r "${dump}" ] || t_die 1 "could not find dump file (${dump})!"
+
+    # retrieve line
+    xval=`grep "${field}:" "${dump}"`
+    [  $? -eq 0 ] || return 1
+
+    # retrieve value
+    xval=`${ECHO} ${xval} | cut -d ':' -f 2`
 
     # remove leading space
     ${ECHO} "${xval}" | sed 's/^ //'
-}
-
-# Check the size of a string.
-#
-# $1    input string
-# $2    expectes size of string
-t_check_len()
-{
-    [ "${DUMP_PDUS}" = "1" ] || return
-
-    s=$1
-    len=$2
-
-    t_dbg "# checking length of '${s}' (expected '${len}')"
-
-    xlen=`${ECHO} -n "${s}" | wc -c | sed -e 's/\ //g'`
-
-    [ ${xlen} = ${len} ] || t_die 1 "# bad length!"
 }
 
 # Check that the value of a dumped field is equal to the expected value.
@@ -177,7 +165,7 @@ t_check_len()
 # $4    field value
 t_check_field()
 {
-    [ "${DUMP_PDUS}" = "1" ] || return
+    [ "${DUMP_PDUS}" = "1" ] || return 2
 
     id=$1
     srv=$2
@@ -185,10 +173,14 @@ t_check_field()
     val=$4
     dump="${id}-${srv}.dump"
 
-    [ -r "${dump}" ] || die 1 "could not find dump file (${dump})!"
+    [ -r "${dump}" ] || t_die 1 "could not find dump file (${dump})!"
 
-    # retrived dumped value field
-    xval=`grep "${field}:" "${dump}" | cut -d ':' -f 2`
+    # retrieve line
+    xval=`grep "${field}:" "${dump}"`
+    [  $? -eq 0 ] || return 1
+
+    # retrieve value
+    xval=`${ECHO} ${xval} | cut -d ':' -f 2`
 
     # remove leading space
     xtrim=`${ECHO} ${xval} | sed 's/^ //'`
@@ -208,7 +200,7 @@ t_check_field()
 # $4    field value
 t_diff_field()
 {
-    [ "${DUMP_PDUS}" = "1" ] || return
+    [ "${DUMP_PDUS}" = "1" ] || return 2
 
     id=$1
     srv=$2
@@ -216,10 +208,14 @@ t_diff_field()
     val=$4
     dump="${id}-${srv}.dump"
 
-    [ -r "${dump}" ] || die 1 "could not find dump file (${dump})!"
+    [ -r "${dump}" ] || t_die 1 "could not find dump file (${dump})!"
 
-    # retrived dumped value field
-    xval=`grep "${field}:" "${dump}" | cut -d ':' -f 2`
+    # retrieve line
+    xval=`grep "${field}:" "${dump}"`
+    [  $? -eq 0 ] || return 1
+
+    # retrieve value
+    xval=`${ECHO} ${xval} | cut -d ':' -f 2`
 
     # remove leading space
     xtrim=`${ECHO} ${xval} | sed 's/^ //'`
@@ -231,10 +227,31 @@ t_diff_field()
             "failed check! (found: '${xtrim}'. expected a different value')"
 }
 
+# Check the size of a string.
+#
+# $1    input string
+# $2    min size of string
+# $3    max size of string
+t_check_len()
+{
+    [ "${DUMP_PDUS}" = "1" ] || return 2
+
+    s=$1
+    min=$2
+    max=$3
+
+    t_dbg "# checking length of '${s}' (>=${min}, <=${max})"
+
+    xlen=`${ECHO} -n "${s}" | wc -c | sed -e 's/\ //g'`
+
+    [ ${xlen} -ge ${min} ] || t_die 1 "# bad length!"
+    [ ${xlen} -le ${max} ] || t_die 1 "# bad length!"
+}
+
 # Convert input string to hex representation.
 t_str2hex()
 {
-    hexval=`${ECHO} $@ | xxd -p`
+    hexval=`${ECHO} -n $@ | xxd -p`
 
     ${ECHO} "0x${hexval}"
 }
