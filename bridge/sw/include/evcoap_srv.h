@@ -16,6 +16,8 @@ struct ec_servers_s
 typedef struct ec_servers_s ec_servers_t;
 
 int ec_servers_init(ec_servers_t *srvs);
+void ec_servers_term(ec_servers_t *srvs);
+
 
 struct ec_server_s
 {

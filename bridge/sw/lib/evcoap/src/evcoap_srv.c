@@ -15,6 +15,7 @@ static int ec_server_check_transition(ec_srv_state_t cur, ec_srv_state_t next);
 static int ec_trim_payload_sz(ec_cfg_t *cfg, size_t *pl_sz);
 static int ec_server_add(ec_server_t *srv, ec_servers_t *srvs);
 static int ec_server_del(ec_server_t *srv, ec_servers_t *srvs);
+static bool ec_server_state_is_final(ec_srv_state_t state);
 
 int ec_servers_init(ec_servers_t *srvs)
 {
@@ -23,6 +24,22 @@ int ec_servers_init(ec_servers_t *srvs)
     TAILQ_INIT(&srvs->h);
 
     return 0;
+}
+
+void ec_servers_term(ec_servers_t *srvs)
+{
+    if (srvs != NULL)
+    {
+        ec_server_t *srv;
+
+        while ((srv = TAILQ_FIRST(&srvs->h)))
+        {
+            (void) ec_server_del(srv, srvs);
+            ec_server_free(srv);
+        }
+    }
+
+    return;
 }
 
 static int ec_server_add(ec_server_t *srv, ec_servers_t *srvs)
@@ -241,7 +258,7 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         {
             /* Invoke user callback. */
             dbg_err_if (ec_server_userfn(srv, r->cb, r->cb_args, &tv, false));
-            goto end;
+            return EC_NET_CBRC_SUCCESS;
         }
     }
 
@@ -249,31 +266,25 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     if (coap->fb)
     {
         dbg_err_if (ec_server_userfn(srv, coap->fb, coap->fb_args, &tv, false));
-        goto end;
+        return EC_NET_CBRC_SUCCESS;
     }
 
     /* Send 4.04 Not Found and fall through. */
     dbg_if (ec_server_reply(srv, EC_NOT_FOUND, NULL, 0));
     ec_server_set_state(srv, EC_SRV_STATE_RESP_DONE);
-
-    /* TODO check temp resources de-allocation */
-
-end:
     return EC_NET_CBRC_SUCCESS;
+
+    /* Fall through assuming that the right srv state has been set. */
 
 cleanup:
     ec_pdu_free(req);
-
     return EC_NET_CBRC_SUCCESS;
-
 err:
     /* Send the selected error (defaulting to 5.00 Internal Server Error.) */
     dbg_if (ec_server_reply(srv, rc ? rc : EC_INTERNAL_SERVER_ERROR, NULL, 0));
     ec_server_set_state(srv, EC_SRV_STATE_INTERNAL_ERR);
-
     if (req)
         ec_pdu_free(req);
-
     return EC_NET_CBRC_ERROR;
 }
 
@@ -369,20 +380,31 @@ static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args,
         struct timeval *interval, bool resched)
 {
     bool is_con = false;
+
+    /* We do trust the caller here. */
+
+    ec_t *coap = srv->base;
     ec_flow_t *flow = &srv->flow;
     ec_conn_t *conn = &flow->conn;
-    ec_t *coap = srv->base;
 
     dbg_err_if (ec_net_get_confirmable(conn, &is_con));
 
     switch (f(srv, args, interval, resched))
     {
         case EC_CBRC_READY:
-            u_dbg("TODO check if separate resp");
-            dbg_err_if (ec_server_send_resp(srv));
-            /* In case it is NON or CON piggybacked, we can set state 
-             * to RESP_DONE. */
-            ec_server_set_state(srv, EC_SRV_STATE_RESP_DONE);
+            if (srv->state == EC_SRV_STATE_ACK_SENT
+                    || srv->state == EC_SRV_STATE_REQ_OK)
+            {
+                /* Be it one-shot NON or CON w/piggyback ACK, or separate CON 
+                 * response or delayed NON, they are all handled the same way:
+                 * the ec_server_send_resp() function takes care of sending
+                 * what is needed depending on current FSM state. */
+                dbg_err_if (ec_server_send_resp(srv));
+                ec_server_set_state(srv, EC_SRV_STATE_RESP_DONE);
+            }
+            else
+                dbg_err("unexpected state: %s", ec_srv_state_str(srv->state));
+
             break;
 
         case EC_CBRC_WAIT:
@@ -390,17 +412,20 @@ static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args,
             {
                 if (is_con)
                     u_dbg("TODO send separate ACK");
-                /* Fake the ACK_SENT state for NON. */
+                /* Fake the ACK_SENT state for NON (this allows more uniform
+                 * handling of actions.) */
                 ec_server_set_state(srv, EC_SRV_STATE_ACK_SENT);
                 dbg_err_if (ec_server_add(srv, &coap->servers));
-                u_dbg("TODO start timer");
+                u_dbg("TODO start getback timer");
             }
             else if (srv->state == EC_SRV_STATE_ACK_SENT)
             {
-                dbg_err("TODO give it another chance or bailout here ?");
+                /* Bail out if user couldn't provide the requested resource
+                 * in the advertised time. */
+                dbg_err("user failed to provide separate response");
             }
             else
-                dbg_err("unexpected state: %s", ec_cli_state_str(srv->state));
+                dbg_err("unexpected state: %s", ec_srv_state_str(srv->state));
 
             break;
 
@@ -437,6 +462,26 @@ int ec_server_set_req(ec_server_t *srv, ec_pdu_t *req)
     return 0;
 }
 
+static bool ec_server_state_is_final(ec_srv_state_t state)
+{
+    switch (state)
+    {
+        case EC_SRV_STATE_INTERNAL_ERR:
+        case EC_SRV_STATE_DUP_REQ:
+        case EC_SRV_STATE_BAD_REQ:
+        case EC_SRV_STATE_RESP_ACK_TIMEOUT:
+        case EC_SRV_STATE_RESP_DONE:
+            return true;
+        case EC_SRV_STATE_NONE:
+        case EC_SRV_STATE_REQ_OK:
+        case EC_SRV_STATE_ACK_SENT:
+        case EC_SRV_STATE_WAIT_ACK:
+            return false;
+        default:
+            die(EXIT_FAILURE, "%s: no such state %u", __func__, state);
+    }
+}
+
 void ec_server_set_state(ec_server_t *srv, ec_srv_state_t state)
 {
     ec_srv_state_t cur = srv->state;
@@ -450,7 +495,11 @@ void ec_server_set_state(ec_server_t *srv, ec_srv_state_t state)
     /* TODO */
     u_dbg("TODO handle timers, etc.");
 
-    srv->state = state;
+    if (ec_server_state_is_final((srv->state = state)))
+    {
+        u_dbg("TODO destroy pending timers");
+        ec_server_free(srv);
+    }
 
     return;
 err:
