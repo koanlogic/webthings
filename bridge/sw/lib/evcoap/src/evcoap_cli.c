@@ -853,7 +853,7 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         (void) ec_pdu_set_payload(res, raw + EC_COAP_HDR_SIZE + olen, plen);
 
     /* If enabled, dump PDU (server=false). */
-    if (getenv("DUMP_PDUS"))
+    if (getenv("EC_PLUG_DUMP"))
         (void) ec_pdu_dump(res, false);
 
     /* If there is a token check if it matches the one we sent out with the

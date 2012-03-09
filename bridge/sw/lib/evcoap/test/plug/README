@@ -31,5 +31,5 @@ Environment variables
     EC_PLUG_MODE=srv
 
 * To activate dumping of input PDUs:
-    DUMP_PDUS=1
+    EC_PLUG_DUMP=1
 

@@ -31,7 +31,7 @@ t_field_check 1 srv T CON
 t_field_check 1 srv Code GET
 
 # check that we have all 3 URI-Path Options
-if [ "${DUMP_PDUS}" = "1" ]; then
+if [ "${EC_PLUG_DUMP}" = "1" ]; then
     f="1-srv.dump"
     grep "URI-Path: seg1" "${f}" >/dev/null
     [ $? -eq 0 ] || t_die 1 "seg1 not found!"

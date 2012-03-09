@@ -239,7 +239,7 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         (void) ec_pdu_set_payload(req, raw + EC_COAP_HDR_SIZE + olen, plen);
 
     /* If enabled, dump PDU (server=true).  Doing this here may miss RSTs. */
-    if (getenv("DUMP_PDUS")) (void) ec_pdu_dump(req, true);
+    if (getenv("EC_PLUG_DUMP")) (void) ec_pdu_dump(req, true);
 
     /* Save requested method. */
     dbg_err_if (ec_flow_set_method(flow, (ec_method_t) h->code));

@@ -17,12 +17,13 @@ EC_PLUG_CLI_ARG_OUTPUT="-"
 
 # other settings
 #EC_PLUG_VERBOSE=1              # default: unset
+#EC_PLUG_VERBOSE=1              # default: unset
 
 # custom commands 
 ECHO=/bin/echo      # default version on mac doesn't like '-n' arg
 
-[ "${DUMP_PDUS}" = "1" ] || \
-        ${ECHO} "# [warn] DUMP_PDUS not set,"\
+[ "${EC_PLUG_DUMP}" = "1" ] || \
+        ${ECHO} "# [warn] EC_PLUG_DUMP not set,"\
              "no 'check' steps will be performed"
 
 
@@ -195,7 +196,7 @@ t_cli_set_token()
 # $3    field name
 t_field_get()
 {
-    [ "${DUMP_PDUS}" = "1" ] || return 2
+    [ "${EC_PLUG_DUMP}" = "1" ] || return 2
 
     id=$1
     srv=$2
@@ -225,7 +226,7 @@ t_field_get()
 # $4    field value
 t_field_check()
 {
-    [ "${DUMP_PDUS}" = "1" ] || return 2
+    [ "${EC_PLUG_DUMP}" = "1" ] || return 2
 
     id=$1
     srv=$2
@@ -260,7 +261,7 @@ t_field_check()
 # $4    field value
 t_field_diff()
 {
-    [ "${DUMP_PDUS}" = "1" ] || return 2
+    [ "${EC_PLUG_DUMP}" = "1" ] || return 2
 
     id=$1
     srv=$2
@@ -294,7 +295,7 @@ t_field_diff()
 # $3    max size of string
 t_check_len()
 {
-    [ "${DUMP_PDUS}" = "1" ] || return 2
+    [ "${EC_PLUG_DUMP}" = "1" ] || return 2
 
     s=$1
     min=$2
