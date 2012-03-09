@@ -4,8 +4,6 @@
 #include <u/libu.h>
 #include <event2/event.h>
 
-#include "evcoap_base.h"
-
 struct ec_s;
 
 struct ec_timer_s

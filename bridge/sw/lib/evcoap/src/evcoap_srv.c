@@ -4,11 +4,23 @@
 #include "evcoap_base.h"
 #include "evcoap_flow.h"
 #include "evcoap_observe.h"
+#include "evcoap_timer.h"
+
+struct resched_userfn_args_s
+{
+    ec_server_t *srv;
+    ec_server_cb_t f;
+    void *f_args;
+};
+
+static struct resched_userfn_args_s *resched_userfn_args_new(ec_server_t *srv,
+        ec_server_cb_t f, void *f_args);
+static void resched_userfn_args_free(struct resched_userfn_args_s *a);
 
 static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         struct sockaddr_storage *peer, void *arg);
 static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args, 
-        struct timeval *interval, bool resched);
+        struct timeval *tv, bool resched);
 static int ec_server_reply(ec_server_t *srv, ec_rc_t rc, uint8_t *pl, 
         size_t pl_sz);
 static int ec_server_check_transition(ec_srv_state_t cur, ec_srv_state_t next);
@@ -16,6 +28,9 @@ static int ec_trim_payload_sz(ec_cfg_t *cfg, size_t *pl_sz);
 static int ec_server_add(ec_server_t *srv, ec_servers_t *srvs);
 static int ec_server_del(ec_server_t *srv, ec_servers_t *srvs);
 static bool ec_server_state_is_final(ec_srv_state_t state);
+static int ec_server_reschedule_userfn(ec_server_cb_t f, ec_server_t *srv,
+        void *args, const struct timeval *tv);
+static void resched_userfn(evutil_socket_t u0, short u1, void *a);
 
 int ec_servers_init(ec_servers_t *srvs)
 {
@@ -38,7 +53,6 @@ void ec_servers_term(ec_servers_t *srvs)
             ec_server_free(srv);
         }
     }
-
     return;
 }
 
@@ -275,7 +289,6 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     return EC_NET_CBRC_SUCCESS;
 
     /* Fall through assuming that the right srv state has been set. */
-
 cleanup:
     ec_pdu_free(req);
     return EC_NET_CBRC_SUCCESS;
@@ -377,7 +390,7 @@ err:
 }
 
 static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args, 
-        struct timeval *interval, bool resched)
+        struct timeval *tv, bool resched)
 {
     bool is_con = false;
 
@@ -389,7 +402,7 @@ static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args,
 
     dbg_err_if (ec_net_get_confirmable(conn, &is_con));
 
-    switch (f(srv, args, interval, resched))
+    switch (f(srv, args, tv, resched))
     {
         case EC_CBRC_READY:
             if (srv->state == EC_SRV_STATE_ACK_SENT
@@ -400,7 +413,11 @@ static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args,
                  * the ec_server_send_resp() function takes care of sending
                  * what is needed depending on current FSM state. */
                 dbg_err_if (ec_server_send_resp(srv));
-                ec_server_set_state(srv, EC_SRV_STATE_RESP_DONE);
+
+                ec_server_set_state(srv, 
+                        is_con && srv->state == EC_SRV_STATE_ACK_SENT
+                        ? EC_SRV_STATE_WAIT_ACK
+                        : EC_SRV_STATE_RESP_DONE);
             }
             else
                 dbg_err("unexpected state: %s", ec_srv_state_str(srv->state));
@@ -412,11 +429,11 @@ static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args,
             {
                 if (is_con)
                     u_dbg("TODO send separate ACK");
+                dbg_err_if (ec_server_add(srv, &coap->servers));
+                dbg_err_if (ec_server_reschedule_userfn(f, srv, args, tv));
                 /* Fake the ACK_SENT state for NON (this allows more uniform
                  * handling of actions.) */
                 ec_server_set_state(srv, EC_SRV_STATE_ACK_SENT);
-                dbg_err_if (ec_server_add(srv, &coap->servers));
-                u_dbg("TODO start getback timer");
             }
             else if (srv->state == EC_SRV_STATE_ACK_SENT)
             {
@@ -430,12 +447,12 @@ static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args,
             break;
 
         case EC_CBRC_POLL:
-            u_dbg("TODO handle client wait/poll");
-            break;
+            dbg_err("TODO handle client wait/poll");
 
         case EC_CBRC_ERROR:
             /* This gets mapped to an internal error. */
             goto err;
+
         default:
             dbg_err("unknown return code from client callback !");
     }
@@ -443,6 +460,72 @@ static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args,
     return 0;
 err:
     return -1;
+}
+
+static struct resched_userfn_args_s *resched_userfn_args_new(ec_server_t *srv,
+        ec_server_cb_t f, void *f_args)
+{
+    struct resched_userfn_args_s *a;
+ 
+    dbg_err_sif ((a = u_zalloc(sizeof(struct resched_userfn_args_s))) == NULL);
+
+    a->srv = srv;
+    a->f = f;
+    a->f_args = f_args;
+
+    return a;
+err:
+    return NULL;
+}
+
+static void resched_userfn_args_free(struct resched_userfn_args_s *a)
+{
+    if (a)
+        u_free(a);
+    return;
+}
+
+static int ec_server_reschedule_userfn(ec_server_cb_t f, ec_server_t *srv,
+        void *args, const struct timeval *tv)
+{
+    struct resched_userfn_args_s *a = NULL;
+
+    dbg_return_if (f == NULL, -1);
+    dbg_return_if (srv == NULL, -1);
+    dbg_return_if (tv == NULL, -1);
+
+    ec_t *coap = srv->base;
+    ec_timer_t *ti = &srv->timers.resched;
+
+    /* Pack arguments. */
+    dbg_err_if ((a = resched_userfn_args_new(srv, f, args)) == NULL);
+
+    /* Set reschedule timer and callback. */
+    ti->tout = *tv;
+    dbg_err_if (ec_timer_start(coap, ti, 1, resched_userfn, a));
+
+    return 0;
+err:
+    if (a)
+        resched_userfn_args_free(a);
+    return -1;
+}
+
+static void resched_userfn(evutil_socket_t u0, short u1, void *a)
+{
+    struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
+    struct resched_userfn_args_s *pack = (struct resched_userfn_args_s *) a;
+
+    /* Unroll arguments. */
+    ec_server_t *srv = pack->srv;
+    ec_server_cb_t f = pack->f;
+    void *f_args = pack->f_args;
+
+    if (ec_server_userfn(srv, f, f_args, &tv, true))
+        ec_server_set_state(srv, EC_SRV_STATE_INTERNAL_ERR);
+
+    resched_userfn_args_free(a);
+    return;
 }
 
 struct ec_s *ec_server_get_base(ec_server_t *srv)
@@ -535,7 +618,8 @@ static int ec_server_check_transition(ec_srv_state_t cur, ec_srv_state_t next)
 
         case EC_SRV_STATE_RESP_DONE:
             dbg_err_if (cur != EC_SRV_STATE_REQ_OK
-                    && cur != EC_SRV_STATE_WAIT_ACK);
+                    && cur != EC_SRV_STATE_WAIT_ACK
+                    && cur != EC_SRV_STATE_ACK_SENT);   /* XXX only for NON ! */
             break;
 
         case EC_SRV_STATE_NONE:

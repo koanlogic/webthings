@@ -10,7 +10,6 @@
 
 struct ec_s;
 struct ec_client_s;
-struct ec_timer_s;
 
 typedef void (*ec_client_cb_t)(struct ec_client_s *cli);
 

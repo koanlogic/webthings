@@ -21,6 +21,7 @@ typedef struct
     ec_filesys_t *fs;
     size_t block_sz;
     bool verbose;
+    struct timeval sep;
 } ctx_t;
 
 ctx_t g_ctx = { 
@@ -30,7 +31,8 @@ ctx_t g_ctx = {
     .conf = DEFAULT_CONF, 
     .fs = NULL,
     .block_sz = 0,  /* By default Block is fully under user control. */
-    .verbose = false
+    .verbose = false,
+    .sep = { .tv_sec = 0, .tv_usec = 0 }
 };
 
 int server_init(void);
@@ -55,7 +57,7 @@ int main(int ac, char *av[])
     int c, i;
     u_config_t *cfg = NULL, *vhost;
 
-    while ((c = getopt(ac, av, "b:hf:v")) != -1)
+    while ((c = getopt(ac, av, "b:hf:s:v")) != -1)
     {
         switch (c)
         {
@@ -68,6 +70,10 @@ int main(int ac, char *av[])
                 break;
             case 'v':
                 g_ctx.verbose = true;
+                break;
+            case 's':
+                if (sscanf(optarg, "%lld", (long long *)&g_ctx.sep.tv_sec) != 1)
+                    usage(av[0]);
                 break;
             case 'h':
             default: 
@@ -385,7 +391,8 @@ void usage(const char *prog)
         "       -h  this help                                           \n"
         "       -v  be verbose                                          \n"
         "       -f <conf file>      (default is "DEFAULT_CONF")         \n"
-        "       -b <block size>     (enables automatic Block handling)  \n"
+        "       -b <block size>     enables automatic Block handling    \n"
+        "       -s <num>            separate response after num seconds \n"
         "                                                               \n"
         ;
 
@@ -407,19 +414,27 @@ const uint8_t *ob_serve(const char *uri, ec_mt_t mt, size_t *p_sz, void *args)
     return (const uint8_t *) "hello observe";
 }
 
-ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
+ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
 {
     ec_mt_t mta[16];
     size_t mta_sz = sizeof mta / sizeof(ec_mt_t);
     ec_rep_t *rep;
     ec_res_t *res;
 
-    u_unused_args(u0, u1, u2);
+    u_unused_args(u0);
 
     /* Get the requested URI and method. */
-    const char *url = ec_server_get_url(srv);
+    const char *uri = ec_server_get_url(srv);
 
-    CHAT("GET %s", url);
+    CHAT("GET %s", uri);
+
+    if (resched == false && g_ctx.sep.tv_sec)
+    {
+        *tv = g_ctx.sep;
+        u_con("reschedule cb for %s in %llu seconds",
+                uri, (long long) g_ctx.sep.tv_sec);
+        return EC_CBRC_WAIT;
+    }
 
     /* Do not accept verbs different from GET (this may obviously change.) */
     if (ec_server_get_method(srv) != EC_COAP_GET)
@@ -432,7 +447,7 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
     con_err_if (ec_request_get_acceptable_media_types(srv, mta, &mta_sz));
 
     /* Try to retrieve a representation that fits client request. */
-    rep = ec_filesys_get_suitable_rep(g_ctx.fs, url, mta, mta_sz, NULL);
+    rep = ec_filesys_get_suitable_rep(g_ctx.fs, uri, mta, mta_sz, NULL);
 
     /* If found, craft the response. */
     if (rep)
@@ -476,6 +491,4 @@ end:
 err:
     return EC_CBRC_ERROR;
 }
-
-
 
