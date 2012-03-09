@@ -250,7 +250,7 @@ t_field_check()
 
     # compare result with value    
     [ "${xtrim}" = "${val}" ] || t_die 1 \
-            "failed check! (found: '${xtrim}'. expected: '${val}')"
+            "failed check! (found: '${xtrim}', expected: '${val}')"
 }
 
 # Check that the value of a dumped field is different from the given value.
@@ -285,7 +285,7 @@ t_field_diff()
 
     # compare result with value    
     [ "${xtrim}" != "${val}" ] || t_die 1 \
-            "failed check! (found: '${xtrim}'. expected a different value')"
+            "failed check! (found: '${xtrim}', expected: '${val}')"
 }
 
 # Check the size of a string.

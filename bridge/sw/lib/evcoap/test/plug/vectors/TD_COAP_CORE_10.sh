@@ -58,7 +58,7 @@ t_cmp "${token1}" "${token2}"
 t_field_check 1 cli Payload `t_str2hex "Hello world!"`
 
 t_field_get 1 cli Content-Type 1>/dev/null
-[ $? -ne 1 ] || t_die 1 "field should be defined!"
+[ $? -ne 1 ] || t_die 1 "field must be defined!"
 
 #
 # Step 4

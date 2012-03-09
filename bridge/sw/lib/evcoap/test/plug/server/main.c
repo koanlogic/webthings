@@ -48,14 +48,14 @@ int resource_add(const char *path, ec_method_mask_t methods, uint32_t ma,
         ec_server_cb_t cb);
 ec_cbrc_t resource_cb_dft(ec_server_t *srv, void *u0, struct timeval *u1,
         bool u2);
+ec_cbrc_t resource_cb_separate(ec_server_t *srv, void *u0, struct timeval *u1,
+        bool u2);
 #if 0
 ec_cbrc_t resource_cb_seg(ec_server_t *srv, void *u0, struct timeval *u1,
         bool u2);
 ec_cbrc_t resource_cb_query(ec_server_t *srv, void *u0, struct timeval *u1,
         bool u2);
 ec_cbrc_t resource_cb_large(ec_server_t *srv, void *u0, struct timeval *u1,
-        bool u2);
-ec_cbrc_t resource_cb_separate(ec_server_t *srv, void *u0, struct timeval *u1, 
         bool u2);
 ec_cbrc_t resource_cb_large_update(ec_server_t *srv, void *u0,
         struct timeval *u1, bool u2);
@@ -142,7 +142,7 @@ int main(int ac, char *av[])
 
             resource_add("/separate", EC_GET_MASK, 0, "text/plain",
                 (const uint8_t *) "Hello world!", strlen("Hello world!"),
-                &resource_cb_dft) ||
+                &resource_cb_separate) ||
 
             resource_add("/large_update", EC_PUT_MASK, 0, "text/plain",
                 (const uint8_t *) "Hello world!", strlen("Hello world!"),
@@ -401,6 +401,23 @@ err:
     return EC_CBRC_ERROR;
 }
 
+ec_cbrc_t resource_cb_separate(ec_server_t *srv, void *u0, struct timeval *u1,
+        bool u2)
+{
+    bool resched = u2;
+    struct timeval *tv = u1;
+
+    CHAT("[%s]", __FUNCTION__);
+
+    if (resched)
+        return resource_cb_dft(srv, u0, u1, u2);
+
+    /* !resched: just a sec! */
+    tv->tv_sec = 1;
+
+    return EC_CBRC_WAIT;
+}
+
 #if 0
 ec_cbrc_t resource_cb_seg(ec_server_t *srv, void *u0, struct timeval *u1, 
         bool u2)
@@ -430,30 +447,6 @@ ec_cbrc_t resource_cb_large(ec_server_t *srv, void *u0, struct timeval *u1,
     CHAT("[%s]", __FUNCTION__);
 
     return EC_CBRC_READY;
-}
-
-/* TODO */
-ec_cbrc_t resource_cb_separate(ec_server_t *srv, void *u0, struct timeval *u1, 
-        bool u2)
-{
-    bool resched = u2;
-    struct timeval *tv = u1;
-
-    u_unused_args(srv, u0);
-
-    CHAT("[%s]", __FUNCTION__);
-
-    if (!resched) {
-
-        /* Call me again in 2 seconds */
-        tv->tv_sec = 2;
-
-        return EC_CBRC_WAIT;
-
-    } else {
-
-        return EC_CBRC_READY;
-    }
 }
 
 ec_cbrc_t resource_cb_large_update(ec_server_t *srv, void *u0, struct timeval *u1, 

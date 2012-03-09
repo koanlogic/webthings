@@ -21,7 +21,7 @@ for v in ${vecs}; do
 
     # Run test.
     desc=`grep "## description: " "${f}" | cut -d ':' -f 2`
-    echo "# [test] ${v}:${desc}."
+    echo "# [test] `basename ${v}`:${desc}."
     sh "${f}"
 
     # Print exit status.

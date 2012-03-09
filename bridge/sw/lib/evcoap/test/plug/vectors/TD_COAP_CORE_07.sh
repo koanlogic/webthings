@@ -36,7 +36,7 @@ t_field_check 1 srv T NON
 t_field_check 1 srv Code PUT
 
 t_field_get 1 srv Content-Type 1>/dev/null
-[ $? -ne 1 ] || t_die 1 "field should be defined!"
+[ $? -ne 1 ] || t_die 1 "field must be defined!"
 
 #
 # Step 3
