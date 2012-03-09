@@ -292,6 +292,9 @@ int client_run(void)
         dbg_err_if (u_load_file(g_ctx.pfn, 0, (char **) &payload, &payload_sz));
         dbg_err_if (ec_request_set_payload(g_ctx.cli, payload, payload_sz));
         u_free(payload), payload = NULL;
+
+        /* Add Content-Type option */
+        dbg_err_if (ec_request_add_content_type(g_ctx.cli, EC_MT_TEXT_PLAIN));
     }
 
     CHAT("sending request to %s", g_ctx.uri);
