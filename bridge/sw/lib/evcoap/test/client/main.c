@@ -37,6 +37,7 @@ typedef struct
     blockopt_t bopt;
     bool fail;
     bool token;
+    size_t block_sz;
 } ctx_t;
 
 ctx_t g_ctx = {
@@ -54,7 +55,8 @@ ctx_t g_ctx = {
     .observe = 0,
     .verbose = false,
     .fail = false,
-    .token = false
+    .token = false,
+    .block_sz = 0
 };
 
 void usage(const char *prog);
@@ -75,7 +77,7 @@ int main(int ac, char *av[])
 {
     int c;
 
-    while ((c = getopt(ac, av, "hu:m:M:O:o:p:vt:T")) != -1)
+    while ((c = getopt(ac, av, "hu:m:M:O:o:p:vt:B:T")) != -1)
     {
         switch (c)
         {
@@ -112,6 +114,9 @@ int main(int ac, char *av[])
                 break;
             case 'T':
                 g_ctx.token = true;
+                break;
+            case 'B':
+                con_err_if (u_atol(optarg, (long *) &g_ctx.block_sz));
                 break;
             case 'h':
             default:
@@ -221,6 +226,8 @@ void usage(const char *prog)
         "       -u <uri>                         (default is "DEFAULT_URI") \n"
         "       -t <timeout>                     (default is %u sec)        \n"
         "       -T generate Token option         (default is no Token)      \n"
+        "       -B <block_sz>                    (default is no Block2 -    \n"
+        "          generate Block2 option        late negotiation only)     \n"
         "       -O <number of notifications> try to observe the resource    \n"
         "                                                                   \n"
         ;
@@ -266,23 +273,27 @@ int client_run(void)
     dbg_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, g_ctx.method, 
                     g_ctx.uri, g_ctx.model)) == NULL);
 
-    if (g_ctx.observe)
-        dbg_err_if (ec_request_add_observe(g_ctx.cli));
-
 	if (g_ctx.token)
         dbg_err_if (ec_request_add_token(g_ctx.cli, NULL, 0));
 
+    if (g_ctx.observe)
+        dbg_err_if (ec_request_add_observe(g_ctx.cli));
+
     /* Handle blockwise transfer. */
+	if (g_ctx.block_sz)
+        dbg_err_if (ec_request_add_block2(g_ctx.cli, 0, 0, g_ctx.block_sz));
+
     if (g_ctx.bopt.more)
     {
         g_ctx.bopt.block_no++;
+        g_ctx.bopt.block_sz = U_MIN(g_ctx.block_sz, g_ctx.bopt.block_sz);
 
         CHAT("requesting block n.%u (size: %u)", g_ctx.bopt.block_no,
                 g_ctx.bopt.block_sz);
 
         /* The client MUST set the M bit of a Block2 Option to zero. */
         dbg_err_if (ec_request_add_block2(g_ctx.cli, g_ctx.bopt.block_no,
-                    0, g_ctx.bopt.block_sz) == -1);
+                    0, g_ctx.bopt.block_sz));
     }
 
     /* In case of POST/PUT load payload from file (if not NULL). */
