@@ -361,11 +361,18 @@ void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
                 break;
 
             case EC_OPT_TYPE_UINT:
-                FWRITE_PRINT(f, "%lu", o->v);
+                {
+                    uint64_t ui;
+
+                    dbg_err_if (ec_opt_decode_uint(o->v, o->l, &ui));
+
+                    FWRITE_PRINT(f, "%"PRIu64"", ui);
+                }
                 break;
 
             case EC_OPT_TYPE_INVALID:
                 u_dbg("XXX should never reach here with EC_OPT_TYPE_INVALID");
+
             case EC_OPT_TYPE_EMPTY:
                 break;
 
