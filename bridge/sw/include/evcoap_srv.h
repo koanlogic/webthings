@@ -44,6 +44,7 @@ void ec_server_input(evutil_socket_t sd, short u, void *arg);
 void ec_server_set_state(ec_server_t *srv, ec_srv_state_t state);
 int ec_server_set_req(ec_server_t *srv, ec_pdu_t *req);
 int ec_server_send_resp(ec_server_t *srv);
+int ec_server_send_separate_ack(ec_server_t *srv);
 int ec_server_set_msg_model(ec_server_t *srv, bool is_confirmable);
 struct ec_s *ec_server_get_base(ec_server_t *srv);
 const char *ec_server_get_url(ec_server_t *srv);

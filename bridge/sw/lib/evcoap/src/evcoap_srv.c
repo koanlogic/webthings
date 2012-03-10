@@ -428,7 +428,7 @@ static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args,
             if (srv->state == EC_SRV_STATE_REQ_OK)
             {
                 if (is_con)
-                    u_dbg("TODO send separate ACK");
+                    dbg_err_if (ec_server_send_separate_ack(srv));
                 dbg_err_if (ec_server_add(srv, &coap->servers));
                 dbg_err_if (ec_server_reschedule_userfn(f, srv, args, tv));
                 /* Fake the ACK_SENT state for NON (this allows more uniform
@@ -632,7 +632,6 @@ err:
     return -1;
 }
 
-
 int ec_server_send_resp(ec_server_t *srv)
 {
     bool is_con;
@@ -662,6 +661,22 @@ int ec_server_send_resp(ec_server_t *srv)
         dbg_err_if (ec_pdu_encode_response_separate(res));
 
     /* Send response PDU. */
+    dbg_err_if (ec_pdu_send(res, dups));
+
+    return 0;
+err:
+    return -1;
+}
+
+int ec_server_send_separate_ack(ec_server_t *srv)
+{
+    dbg_return_if (srv == NULL, -1);
+    dbg_return_if (srv->state != EC_SRV_STATE_REQ_OK, -1);
+
+    ec_pdu_t *res = srv->res;
+    ec_dups_t *dups = &srv->base->dups;
+
+    dbg_err_if (ec_pdu_encode_response_ack(res));
     dbg_err_if (ec_pdu_send(res, dups));
 
     return 0;

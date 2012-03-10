@@ -309,13 +309,6 @@ int client_run(void)
     }
 
     CHAT("sending request to %s", g_ctx.uri);
-
-    /* 
-    dbg_err_if (ec_request_add_if_match(cli, etag, sizeof etag));
-    dbg_err_if (ec_request_add_accept(g_ctx.cli, EC_MT_TEXT_PLAIN));
-    dbg_err_if (ec_request_add_accept(g_ctx.cli, EC_MT_APPLICATION_JSON));
-    */
-
     dbg_err_if (ec_request_send(g_ctx.cli, cb, NULL, &g_ctx.app_tout));
 
     return event_base_dispatch(g_ctx.base);
