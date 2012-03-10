@@ -42,6 +42,7 @@ struct kache_history_record {
 } kache_request_t;*/
 
 kache_t *kache_init();
+int kache_init_data_structure(kache_t *kache);
 
 int kache_set_freefunc(kache_t *kache, void (*k_free)(void *obj));
 int kache_set_max_size(kache_t *kache, int max_size);
@@ -55,6 +56,8 @@ void *kache_get(kache_t *kache, const char *key);
 int kache_attach_set_procedure(kache_t *kache, 
                 void (*procedure)(kache_entry_t *entry,void *arg), 
                 void *arg);
+
+int kache_set_custom_discard_policy(kache_t *kache, int (*compare)(void *o1, void *o2));
 
 //int kache_foreach_arg(kache_t *kache, int f(const void *kache_entry, const void *arg), const void *arg);
 
