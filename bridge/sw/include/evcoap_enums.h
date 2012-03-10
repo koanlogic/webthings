@@ -14,11 +14,6 @@ extern "C" {
 #define EC_COAP_DEFAULT_PORT    5683
 #define EC_COAP_DEFAULT_SPORT   "5683"
 
-#define EC_COAP_CON    0
-#define EC_COAP_NON    1
-#define EC_COAP_ACK    2
-#define EC_COAP_RST    3
-
 #define EC_COAP_OPT_LEN_MAX 270
 #define EC_COAP_MAX_OPTIONS 15
 #define EC_COAP_HDR_SIZE    4
@@ -41,23 +36,46 @@ extern "C" {
 
 #define EC_URI_MAX  512
 
+/* CoAP Message Types. */
 typedef enum
 {
-    EC_CON = 0,
-    EC_NON = 1,
+    EC_COAP_CON = 0,
+    EC_COAP_NON = 1,
+    EC_COAP_ACK = 2,
+    EC_COAP_RST = 3
 } ec_msg_model_t;
 
+const char *ec_model_str(ec_msg_model_t model);
+
+/* CoAP Method Codes. */
 typedef enum
 {
     EC_METHOD_UNSET  = 0,
-    EC_GET           = 1,
-    EC_PUT           = 2,
-    EC_POST          = 3,
-    EC_DELETE        = 4,
-    EC_METHOD_MAX    = EC_DELETE + 1
+    EC_COAP_GET      = 1,
+    EC_COAP_POST     = 2,
+    EC_COAP_PUT      = 3,
+    EC_COAP_DELETE   = 4,
+    EC_METHOD_MAX    = EC_COAP_DELETE + 1
 } ec_method_t;
-
 #define EC_IS_METHOD(m) ((m) > EC_METHOD_UNSET && (m) < EC_METHOD_MAX)
+
+const char *ec_method_str(ec_method_t method);
+
+/* Evcoap method masks. */
+typedef enum
+{
+    EC_METHOD_MASK_UNSET    = 0,
+    EC_GET_MASK             = (1 << 0),
+    EC_PUT_MASK             = (1 << 1),
+    EC_POST_MASK            = (1 << 2),
+    EC_DELETE_MASK          = (1 << 3),
+    EC_METHOD_MASK_ALL      = (EC_GET_MASK | EC_PUT_MASK | EC_POST_MASK |
+                               EC_DELETE_MASK)
+} ec_method_mask_t;
+#define EC_IS_METHOD_MASK(m) ((m) > EC_METHOD_MASK_UNSET && \
+        (m) <= EC_METHOD_MASK_ALL)
+
+ec_method_mask_t ec_method_to_mask(ec_method_t method);
 
 /* Available Media types.
  * "The identifiers between 201 and 255 inclusive are reserved for Private Use."
@@ -117,10 +135,13 @@ typedef enum
     EC_PROXYING_NOT_SUPPORTED   = 165,  /* 5.05 */
     EC_500_UNKNOWN              = 191   /* Highest 5.xx */
 } ec_rc_t;
+#define EC_IS_OK(rc) \
+    ((rc) >= EC_CREATED && (rc) <= EC_200_UNKNOWN)
 #define EC_IS_RESP_CODE(rc) \
     ((rc) >= EC_CREATED && (rc) <= EC_500_UNKNOWN)
 
 const char *ec_rc_str(ec_rc_t rc);
+const char *ec_code_str(unsigned int rc);    /* full CoAP Code Registry */
 
 /* Client transaction states. */
 typedef enum
@@ -138,8 +159,9 @@ typedef enum
     EC_CLI_STATE_REQ_DONE,          /* F */
     EC_CLI_STATE_REQ_RST,           /* F */
     EC_CLI_STATE_WAIT_NFY,
+    EC_CLI_STATE_OBS_TIMEOUT,       /* F */
 
-    EC_CLI_STATE_MAX = EC_CLI_STATE_WAIT_NFY
+    EC_CLI_STATE_MAX = EC_CLI_STATE_OBS_TIMEOUT
 } ec_cli_state_t;
 
 const char *ec_cli_state_str(ec_cli_state_t s);

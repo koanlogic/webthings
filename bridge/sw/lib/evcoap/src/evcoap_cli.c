@@ -3,9 +3,11 @@
 #include <event2/event.h>
 #include <event2/util.h>
 #include <u/libu.h>
+#include "evcoap.h"
 #include "evcoap_cli.h"
 #include "evcoap_base.h"
 #include "evcoap_debug.h"
+#include "evcoap_timer.h"
 
 #define NO_STRING(s)  ((s) == NULL || *(s) == '\0')
 
@@ -16,13 +18,11 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
 static void ec_cli_app_timeout(evutil_socket_t u0, short u1, void *c);
 static void ec_cli_coap_timeout(evutil_socket_t u0, short u1, void *c);
 static void ec_cli_obs_timeout(evutil_socket_t u0, short u1, void *c);
+static int ec_client_handle_observation(ec_client_t *cli);
 static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a);
-static int ec_client_check_req_token(ec_client_t *cli);
 static int ec_client_invoke_user_callback(ec_client_t *cli);
-static int ec_cli_timer_start(ec_client_t *cli, ec_cli_timer_t *ti, 
-        size_t max_retry, void (*cb)(evutil_socket_t, short, void *));
-static int ec_cli_timer_remove(ec_cli_timer_t *ti);
-static int ec_cli_timer_restart(ec_cli_timer_t *ti);
+static int ec_cli_obs_init(ec_cli_obs_t *obs);
+static int ec_client_rst_peer(ec_client_t *cli);
 
 int ec_client_set_method(ec_client_t *cli, ec_method_t m)
 {
@@ -171,12 +171,16 @@ ec_client_t *ec_client_new(struct ec_s *coap, ec_method_t m, const char *uri,
     dbg_err_if (ec_pdu_init_options(&cli->req));
     dbg_err_if (ec_client_set_method(cli, m));
     dbg_err_ifm (ec_client_set_uri(cli, uri), "bad URI: %s", uri);
-    dbg_err_if (ec_client_set_msg_model(cli, mm == EC_CON ? true : false));
+    dbg_err_if (ec_client_set_msg_model(cli, mm == EC_COAP_CON ?
+                true : false));
     dbg_err_if (ec_pdu_set_flow(&cli->req, &cli->flow));
 
     /* Cache the base so that we don't need to pass it around every function
      * that manipulates the transaction. */
     cli->base = coap;
+
+    /* It will be possibly set in case response confirms the observation. */
+    ec_cli_obs_init(&cli->observe);
 
     return cli;
 err:
@@ -215,9 +219,6 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
     conn = &flow->conn;
 
     /* TODO Sanitize request. */ 
-
-    /* Add a Token option, if missing. */
-    dbg_err_if (ec_client_check_req_token(cli));
 
     /* Get destination for this flow. */
     if (conn->use_proxy)
@@ -268,6 +269,22 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
 err:
     (void) ec_client_set_state(cli, EC_CLI_STATE_INTERNAL_ERR);
     return -1;
+}
+
+bool ec_client_is_observing(ec_client_t *cli)
+{
+    dbg_return_if (cli == NULL, false);
+    
+    return cli->observe.on;
+}
+
+int ec_client_cancel_observation(ec_client_t *cli)
+{
+    dbg_return_if (cli == NULL, -1);
+
+    cli->observe.cancel = true;
+
+    return 0;
 }
 
 static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
@@ -372,9 +389,18 @@ static int ec_client_check_transition(ec_cli_state_t cur, ec_cli_state_t next)
         case EC_CLI_STATE_APP_TIMEOUT:
         case EC_CLI_STATE_REQ_DONE:
         case EC_CLI_STATE_REQ_RST:
-        case EC_CLI_STATE_WAIT_NFY:
             dbg_err_if (cur != EC_CLI_STATE_REQ_SENT
                     && cur != EC_CLI_STATE_REQ_ACKD);
+            break;
+
+        case EC_CLI_STATE_WAIT_NFY:
+            dbg_err_if (cur != EC_CLI_STATE_REQ_SENT
+                    && cur != EC_CLI_STATE_REQ_ACKD
+                    && cur != EC_CLI_STATE_WAIT_NFY);
+            break;
+
+        case EC_CLI_STATE_OBS_TIMEOUT:
+            dbg_err_if (cur != EC_CLI_STATE_WAIT_NFY);
             break;
 
         case EC_CLI_STATE_NONE:
@@ -400,6 +426,7 @@ static bool ec_client_state_is_final(ec_cli_state_t state)
         case EC_CLI_STATE_APP_TIMEOUT:
         case EC_CLI_STATE_REQ_DONE:
         case EC_CLI_STATE_REQ_RST:
+        case EC_CLI_STATE_OBS_TIMEOUT:
             return true;
         case EC_CLI_STATE_NONE:
         case EC_CLI_STATE_DNS_OK:
@@ -417,7 +444,7 @@ static void ec_cli_coap_timeout(evutil_socket_t u0, short u1, void *c)
 {
     ec_client_t *cli = (ec_client_t *) c;
     ec_dups_t *dups = &cli->base->dups;
-    ec_cli_timer_t *ti = &cli->timers.coap;
+    ec_timer_t *ti = &cli->timers.coap;
 
     /* First off: check if we've got here with all retransmit attempts 
      * depleted. */
@@ -439,73 +466,19 @@ static void ec_cli_coap_timeout(evutil_socket_t u0, short u1, void *c)
     return;
 }
 
-/* The 'ti' object shall enter here with the .tout field already set by the
- * caller. */
-static int ec_cli_timer_start(ec_client_t *cli, ec_cli_timer_t *ti, 
-        size_t max_retry, void (*cb)(evutil_socket_t, short, void *))
-{
-
-    dbg_return_if (cli == NULL, -1);
-    dbg_return_if (ti == NULL, -1);
-    dbg_return_if (cb == NULL, -1);
-    dbg_return_if (!max_retry, -1);
-
-    dbg_return_ifm (ti->evti != NULL, -1,
-            "timer %p already initialized !", ti->evti);
-
-    ec_t *coap = cli->base;   /* Shortcut. */
-
-    ti->retries_left = max_retry;
-
-    /* Create and start timer. */
-    dbg_err_if ((ti->evti = evtimer_new(coap->base, cb, cli)) == NULL);
-    dbg_err_if (evtimer_add(ti->evti, &ti->tout));
-
-    return 0;
-err:
-    ec_cli_timer_remove(ti);
-    return -1;
-}
-
-static int ec_cli_timer_remove(ec_cli_timer_t *ti)
-{
-    dbg_return_if (ti == NULL, -1);
-
-    if (ti->evti)
-    {
-        event_free(ti->evti);
-        ti->evti = NULL;
-        ti->retries_left = 0;
-        /* Don't cleanup .tout which may be reused. */
-    }
-
-    return 0;
-}
-
-static int ec_cli_timer_restart(ec_cli_timer_t *ti)
-{
-    dbg_return_if (ti == NULL, -1);
-
-    /* Drop it in case the old instance is pending in the base, and
-     * make it newly active with the configured timeout. */
-    dbg_return_if (evtimer_del(ti->evti), -1);
-    dbg_return_if (evtimer_add(ti->evti, &ti->tout), -1);
-
-    return 0;
-}
-
 int ec_cli_start_coap_timer(ec_client_t *cli)
 {
     dbg_return_if (cli == NULL, -1);
 
-    ec_cli_timer_t *ti = &cli->timers.coap;
+    ec_t *coap = cli->base;
+    ec_timer_t *ti = &cli->timers.coap;
 
     /* Should be randomized. */
     ti->tout = (struct timeval){ .tv_sec = EC_COAP_RESP_TIMEOUT, .tv_usec = 0 };
 
     /* Create new CoAP (non persistent) timeout event for this client. */
-    return ec_cli_timer_start(cli, ti, EC_COAP_MAX_RETRANSMIT, 
-            ec_cli_coap_timeout);
+    return ec_timer_start(coap, ti, EC_COAP_MAX_RETRANSMIT, 
+            ec_cli_coap_timeout, cli);
 }
 
 int ec_cli_stop_coap_timer(ec_client_t *cli)
@@ -514,7 +487,7 @@ int ec_cli_stop_coap_timer(ec_client_t *cli)
 
     ec_cli_timers_t *ti = &cli->timers;
 
-    return ec_cli_timer_remove(&ti->coap);
+    return ec_timer_remove(&ti->coap);
 }
 
 int ec_cli_restart_coap_timer(ec_client_t *cli)
@@ -522,7 +495,7 @@ int ec_cli_restart_coap_timer(ec_client_t *cli)
     dbg_return_if (cli == NULL, -1);
 
     ec_t *coap = cli->base;
-    ec_cli_timer_t *ti = &cli->timers.coap;
+    ec_timer_t *ti = &cli->timers.coap;
 
     dbg_return_ifm (ti->retries_left == 0, -1, "CoAP timer exhausted");
 
@@ -535,18 +508,19 @@ int ec_cli_restart_coap_timer(ec_client_t *cli)
     --ti->retries_left;
 
     /* Re-arm the CoAP timeout. */
-    return ec_cli_timer_restart(ti);
+    return ec_timer_restart(ti);
 }
 
 int ec_cli_start_app_timer(ec_client_t *cli)
 {
     dbg_return_if (cli == NULL, -1);
 
-    ec_cli_timer_t *ti = &cli->timers.app;
+    ec_t *coap = cli->base;
+    ec_timer_t *ti = &cli->timers.app;
 
     /* One-shot timer.  The timeout value has been already set, hence use
      * NULL here. */
-    return ec_cli_timer_start(cli, ti, 1, ec_cli_app_timeout);
+    return ec_timer_start(coap, ti, 1, ec_cli_app_timeout, cli);
 }
 
 int ec_cli_stop_app_timer(ec_client_t *cli)
@@ -555,7 +529,7 @@ int ec_cli_stop_app_timer(ec_client_t *cli)
 
     ec_cli_timers_t *ti = &cli->timers;
 
-    return ec_cli_timer_remove(&ti->app);
+    return ec_timer_remove(&ti->app);
 }
 
 static void ec_cli_app_timeout(evutil_socket_t u0, short u1, void *c)
@@ -575,7 +549,8 @@ int ec_cli_start_obs_timer(ec_client_t *cli)
 
     dbg_return_if (cli == NULL, -1);
 
-    ec_cli_timer_t *ti = &cli->timers.obs;
+    ec_t *coap = cli->base;
+    ec_timer_t *ti = &cli->timers.obs;
 
     ti->tout = (struct timeval){ .tv_sec = 0, .tv_usec = 0 };
 
@@ -586,8 +561,11 @@ int ec_cli_start_obs_timer(ec_client_t *cli)
     else
         ti->tout.tv_sec = max_age;
 
+    /* Add 1 sec of tolerance to accomodate network latency. */
+    ti->tout.tv_sec += 1;
+
     /* One-shot timer. */
-    return ec_cli_timer_start(cli, ti, 1, ec_cli_obs_timeout);
+    return ec_timer_start(coap, ti, 1, ec_cli_obs_timeout, cli);
 }
 
 int ec_cli_stop_obs_timer(ec_client_t *cli)
@@ -596,7 +574,7 @@ int ec_cli_stop_obs_timer(ec_client_t *cli)
 
     ec_cli_timers_t *ti = &cli->timers;
 
-    return ec_cli_timer_remove(&ti->obs);
+    return ec_timer_remove(&ti->obs);
 }
 
 int ec_cli_restart_obs_timer(ec_client_t *cli)
@@ -605,12 +583,19 @@ int ec_cli_restart_obs_timer(ec_client_t *cli)
 
     ec_cli_timers_t *ti = &cli->timers;
 
-    return ec_cli_timer_restart(&ti->obs);
+    return ec_timer_restart(&ti->obs);
 }
 
 static void ec_cli_obs_timeout(evutil_socket_t u0, short u1, void *c)
 {
-    u_dbg("TODO %s", __func__);
+    ec_client_t *cli = (ec_client_t *) c;
+
+    /* Remove the observe flag from the client context. */
+    cli->observe.on = false;
+
+    /* Set state to OBS_TIMEOUT. */
+    (void) ec_client_set_state(cli, EC_CLI_STATE_OBS_TIMEOUT);
+
     return;
 }
 
@@ -649,28 +634,50 @@ bool ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
     }
     else if (state == EC_CLI_STATE_WAIT_NFY)
     {
-        /* Start timeout counter based on requested resource's max-age. */
-        dbg_err_if (ec_cli_start_obs_timer(cli));
+        /* Start (or restart) timeout counter based on requested resource's 
+         * max-age. */
+        if (cur == EC_CLI_STATE_WAIT_NFY)
+            dbg_err_if (ec_cli_restart_obs_timer(cli));
+        else
+        {
+            /* In case we enter the WAIT_NFY through one of ACKD or SENT, stop 
+             * any running application and/or retransmit timers, then start 
+             * the observation timeout. */
+            dbg_if (ec_cli_stop_app_timer(cli));
+            dbg_if (is_con && ec_cli_stop_coap_timer(cli));
+            dbg_err_if (ec_cli_start_obs_timer(cli));
+        }
     }
-    else if ((is_final_state = ec_client_state_is_final(state)))
-    {
-        /* Any final state MUST destroy all pending timers. */
-        dbg_if (ec_cli_stop_app_timer(cli));
 
-        /* If CON also stop the retransmission timer. */
-        dbg_if (is_con && ec_cli_stop_coap_timer(cli));
-
-        /* Tear down any observe timeout. */
-        dbg_if (ec_cli_stop_obs_timer(cli));
-    }
-
-    /* Finally set state and, in case the state we've entered is final, 
-     * invoke the user callback. */
+    /* Finally set state and, in case the state we've entered is final, or
+     * we are (re)entering the WAIT_NFY state triggered by the arrival of a 
+     * notification, invoke the user callback. */
     cli->state = state;
+
+    if ((is_final_state = ec_client_state_is_final(state))
+            || cli->state == EC_CLI_STATE_WAIT_NFY)
+    {
+        (void) ec_client_invoke_user_callback(cli);
+
+        /* Check if the user has canceled the observation and in case set
+         * the "final state" indicator to allow clean disposal of the client
+         * context. */
+        if (cli->observe.cancel)
+        {
+            dbg_if (ec_client_rst_peer(cli));
+            is_final_state = true;
+        }
+    }
 
     if (is_final_state)
     {
-        (void) ec_client_invoke_user_callback(cli);
+        /* Any final state MUST destroy all pending timers:
+         * - application
+         * - if CON also stop the retransmission timer
+         * - any observe timeout */
+        dbg_if (ec_cli_stop_app_timer(cli));
+        dbg_if (is_con && ec_cli_stop_coap_timer(cli));
+        dbg_if (ec_cli_stop_obs_timer(cli));
 
         /* We can now finish off with this client. */
         ec_client_free(cli);
@@ -680,6 +687,40 @@ bool ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
 err:
     /* Should never happen ! */
     die(EXIT_FAILURE, "%s failed (see logs)", __func__);
+}
+
+static int ec_client_rst_peer(ec_client_t *cli)
+{
+    ec_flow_t flow;
+    ec_pdu_t *nfy, *rst = NULL;
+
+    dbg_return_if (cli == NULL, -1);
+
+    memset(&flow, 0, sizeof flow);
+
+    /* Create ad-hoc PDU. */
+    dbg_err_if ((rst = ec_pdu_new_empty()) == NULL);
+
+    /* Clone the connection data into the disposable flow object and
+     * attach it to the RST PDU. */
+    dbg_err_if (ec_conn_copy(&cli->flow.conn, &flow.conn));
+    dbg_err_if (ec_pdu_set_flow(rst, &flow));
+
+    /* Retrieve and attach sibling (needed for MID mirroring). */
+    dbg_err_if ((nfy = ec_client_get_response_pdu(cli)) == NULL);
+    dbg_err_if (ec_pdu_set_sibling(rst, nfy));
+
+    /* Encode PDU and send. */
+    dbg_err_if (ec_pdu_encode_response_rst(rst));
+    dbg_err_if (ec_pdu_send(rst, NULL));
+
+    ec_pdu_free(rst);
+
+    return 0;
+err:
+    if (rst)
+        ec_pdu_free(rst);
+    return -1;
 }
 
 int ec_client_register(ec_client_t *cli)
@@ -807,40 +848,139 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     dbg_err_ifm (ec_opts_decode(&res->opts, raw, raw_sz, h->oc, &olen),
             "CoAP options could not be parsed correctly");
 
-    /* Check that there is a token and it matches the one we sent out with the 
-     * request. */
-    dbg_err_if ((t = ec_opts_get(&res->opts, EC_OPT_TOKEN)) == NULL);
-    dbg_err_if (t->l != flow->token_sz || memcmp(t->v, flow->token, t->l));
-
-    /* Attach response code. */
-    dbg_err_if (ec_flow_set_resp_code(flow, (ec_rc_t) h->code));
-
-    /* Attach payload, if any. */
+    /* Attach payload, if any, to the client context. */
     if ((plen = raw_sz - (olen + EC_COAP_HDR_SIZE)))
         (void) ec_pdu_set_payload(res, raw + EC_COAP_HDR_SIZE + olen, plen);
+
+    /* If enabled, dump PDU (server=false). */
+    if (getenv("EC_PLUG_DUMP"))
+        (void) ec_pdu_dump(res, false);
+
+    /* If there is a token check if it matches the one we sent out with the
+     * request. */
+    t = ec_opts_get(&res->opts, EC_OPT_TOKEN);
+    if (t)
+        dbg_err_ifm (t->l != flow->token_sz || memcmp(t->v, flow->token, t->l),
+                "received token mismatch");
+
+    /* Attach response code to the client context. */
+    dbg_err_if (ec_flow_set_resp_code(flow, (ec_rc_t) h->code));
 
     /* TODO fill in the residual info (e.g. socket...). */
 
     /* Add response PDU to the client response set. */
     dbg_err_if (ec_res_set_add(&cli->res_set, res));
+    res = NULL;
 
-    /* Just before invoking the client callback, set state to DONE.
-     * If state is final, make the caller aware through EC_NET_CBRC_DEAD
-     * which signals that the client context is not available anymore. */
-    if (ec_client_set_state(cli, EC_CLI_STATE_REQ_DONE) == true)
-        return EC_NET_CBRC_DEAD;
+    /* Check if a (possibly) requested observation has been accepted by the
+     * end node and set the client->obs flag in case.  Do this *after* 
+     * the 'res' PDU is added to the response set in client context. */
+    dbg_err_if (ec_client_handle_observation(cli));
 
-    return EC_NET_CBRC_SUCCESS;
+    /* Just before invoking the client callback, set state to one of DONE or
+     * WAIT_NFY (observer).  If state is final, make the caller aware of that 
+     * through EC_NET_CBRC_DEAD which signals that the client context is not 
+     * available anymore. */
+    ec_cli_state_t next = ec_client_is_observing(cli)
+        ? EC_CLI_STATE_WAIT_NFY 
+        : EC_CLI_STATE_REQ_DONE;
+
+    if (ec_client_set_state(cli, next) == true)
+        return EC_NET_CBRC_DEAD;    /* final */
+    else
+    {
+        /* In case the client context holds an observation, cleanup the
+         * response set so that it can be reused on next notification. */
+        if (ec_client_is_observing(cli))
+            ec_res_set_clear(&cli->res_set);
+        return EC_NET_CBRC_SUCCESS; /* non-final */
+    }
 
 cleanup:
+    u_dbg("TODO check this cleanup: label");
     ec_pdu_free(res);
-
     return EC_NET_CBRC_SUCCESS;
 err:
     if (res)
         ec_pdu_free(res);
-
     return EC_NET_CBRC_ERROR;
+}
+
+/* Decide if the .observe.on flag has to be asserted or not. */
+/* TODO handle "ok", "generic error", "refused", "stale notification", and
+ * TODO explicit "cancellation" states. */
+static int ec_client_handle_observation(ec_client_t *cli)
+{
+    bool obs_ack;
+    uint16_t o_cnt;
+    ec_opt_t *req_obs;
+    ec_opts_t *res_opts, *req_opts;
+
+    dbg_return_if (cli == NULL, -1);
+
+    dbg_err_if ((req_opts = ec_client_get_request_options(cli)) == NULL);
+    dbg_err_if ((res_opts = ec_client_get_response_options(cli)) == NULL);
+
+    /* Lookup the Observe options in both request and response. */
+    req_obs = ec_opts_get(req_opts, EC_OPT_OBSERVE);
+    obs_ack = ec_opts_get_observe(res_opts, &o_cnt) == 0 ? true : false;
+
+    /* 
+     * In case we get here on subsequent notifications, check consistency.
+     */
+    if (cli->observe.on)
+    {
+        /* XXX Is it correct to reset the observe flag here, or should we 
+         * XXX return specific code to the caller so that more sophisticated
+         * XXX actions can be taken accordingly ? */
+
+        time_t now = time(NULL);
+
+        /* 1) "If the server is unable to continue sending notifications using 
+         *     this media type, it SHOULD send a 5.00 (Internal Server Error) 
+         *     notification and MUST empty the list of observers of the 
+         *     resource." */
+        if (ec_response_get_code(cli) == EC_INTERNAL_SERVER_ERROR)
+        {
+            u_dbg("observation canceled by the server");
+
+            cli->observe.on = false;
+            return 0;
+        }
+
+        /* 2) "Each such notification response MUST include an Observe Option 
+         *     and MUST echo the token specified by the client in the GET 
+         *     request" */
+        if (obs_ack == false)
+        {
+            u_dbg("Observe opt missing in notification !");
+
+            cli->observe.on = false;
+            return 0;
+        }
+
+        /* 3) Check stale notification. */
+        if (((uint32_t) (cli->observe.last_cnt - o_cnt)) % (1 << 16) < (1 << 15)
+                && now < cli->observe.last_ts + (1 << 14))
+        {
+            u_dbg("stale (or duplicate) notification (last=%u, curr=%u)",
+                    cli->observe.last_cnt, o_cnt);
+            goto err;
+        }
+
+        cli->observe.last_cnt = o_cnt;
+        cli->observe.last_ts = now;
+
+        return 0;
+    }
+
+    /* Try to see if we have asked for an Observe on the remote resource, and 
+     * in case assert the .observe.on flag if the server has acknowledged. */
+    cli->observe.on = (req_obs && obs_ack) ? true : false;
+
+    return 0;
+err:
+    return -1;
 }
 
 static int ec_client_invoke_user_callback(ec_client_t *cli)
@@ -880,36 +1020,6 @@ void *ec_client_get_args(ec_client_t *cli)
     return cli->cb_args;
 }
 
-static int ec_client_check_req_token(ec_client_t *cli)
-{
-    ec_opt_t *t;
-    ec_flow_t *flow;
-    ec_pdu_t *req;
-    uint8_t tok[8];
-    const size_t tok_sz = sizeof tok;
-
-    dbg_return_if (cli == NULL, -1);
-
-    req = &cli->req;    /* shortcut */
-    flow = &cli->flow;  /* ditto */
-
-    if ((t = ec_opts_get(&req->opts, EC_OPT_TOKEN)) == NULL)
-    {
-        evutil_secure_rng_get_bytes(tok, tok_sz);
-        dbg_err_if (ec_opts_add_token(&req->opts, tok, tok_sz));
-    }
-
-    /* Cache the token value into the flow. */
-    dbg_err_if (ec_flow_save_token(flow, t ? t->v : tok, t ? t->l : tok_sz));
- 
-    return 0;
-err:
-    /* Since failure is critical remove all added opts. */
-    ec_opts_clear(&req->opts);
-
-    return -1;
-}
-
 int ec_res_set_add(ec_res_set_t *rset, ec_pdu_t *pdu)
 {
     dbg_return_if (rset == NULL, -1);
@@ -931,7 +1041,7 @@ int ec_res_set_init(ec_res_set_t *rset)
     return 0;
 }
 
-int ec_res_set_clear(ec_res_set_t *rset)
+void ec_res_set_clear(ec_res_set_t *rset)
 {
     if (rset)
     {
@@ -946,8 +1056,6 @@ int ec_res_set_clear(ec_res_set_t *rset)
 
         (void) ec_res_set_init(rset);
     }
-
-    return 0;
 }
 
 ec_pdu_t *ec_client_get_request_pdu(ec_client_t *cli)
@@ -1005,5 +1113,16 @@ ec_opts_t *ec_client_get_response_options(ec_client_t *cli)
     return &res->opts;
 err:
     return NULL;
+}
+
+static int ec_cli_obs_init(ec_cli_obs_t *obs)
+{
+    dbg_return_if (obs == NULL, -1);
+
+    obs->on = false;
+    obs->last_cnt = 0;
+    obs->last_ts = 0;
+
+    return 0;
 }
 

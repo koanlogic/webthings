@@ -42,7 +42,7 @@ Contents
   a messaging model (confirmable or non-confirmable):
 
       const char *uri = "coap://[::1]:56565/a/b/res";
-      ec_client_t *cli = ec_request_new(coap, EC_GET, uri, EC_NON);
+      ec_client_t *cli = ec_request_new(coap, EC_COAP_GET, uri, EC_COAP_NON);
 
   If the request needs to pass through a CoAP intermediary, then its address
   must be explicitly supplied using the following specialized creation 

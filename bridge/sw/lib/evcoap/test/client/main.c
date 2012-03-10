@@ -32,9 +32,12 @@ typedef struct
     uint8_t etag[4];
     const char *ofn;
     const char *pfn;
-    bool observe;
+    uint32_t observe;
     bool verbose;
     blockopt_t bopt;
+    bool fail;
+    bool token;
+    size_t block_sz;
 } ctx_t;
 
 ctx_t g_ctx = {
@@ -43,14 +46,17 @@ ctx_t g_ctx = {
     .base = NULL,
     .dns = NULL,
     .uri = DEFAULT_URI,
-    .method = EC_GET,
-    .model = EC_NON,
+    .method = EC_COAP_GET,
+    .model = EC_COAP_NON,
     .app_tout = { .tv_sec = DEFAULT_TOUT, .tv_usec = 0 },
     .etag = { 0xde, 0xad, 0xbe, 0xef },
     .ofn = DEFAULT_OFN,
     .pfn = NULL,
-    .observe = false,
-    .verbose = false
+    .observe = 0,
+    .verbose = false,
+    .fail = false,
+    .token = false,
+    .block_sz = 0
 };
 
 void usage(const char *prog);
@@ -60,6 +66,7 @@ void client_term(void);
 int client_set_uri(const char *s);
 int client_set_method(const char *s);
 int client_set_model(const char *s);
+int client_set_observe(const char *s);
 int client_set_output_file(const char *s);
 int client_set_payload_file(const char *s);
 int client_set_app_timeout(const char *s);
@@ -70,7 +77,7 @@ int main(int ac, char *av[])
 {
     int c;
 
-    while ((c = getopt(ac, av, "hu:m:M:Oo:p:vt:")) != -1)
+    while ((c = getopt(ac, av, "hu:m:M:O:o:p:vt:B:T")) != -1)
     {
         switch (c)
         {
@@ -87,7 +94,8 @@ int main(int ac, char *av[])
                     usage(av[0]);
                 break;
             case 'O':
-                g_ctx.observe = true;
+                if (client_set_observe(optarg))
+                    usage(av[0]);
                 break;
             case 'o':
                 if (client_set_output_file(optarg))
@@ -104,6 +112,12 @@ int main(int ac, char *av[])
                 if (client_set_app_timeout(optarg))
                     usage(av[0]);
                 break;
+            case 'T':
+                g_ctx.token = true;
+                break;
+            case 'B':
+                con_err_if (u_atol(optarg, (long *) &g_ctx.block_sz));
+                break;
             case 'h':
             default:
                 usage(av[0]);
@@ -114,7 +128,9 @@ int main(int ac, char *av[])
     con_err_if (client_init());
 
     /* Run, and keep on doing it until all blocks are exhausted. */
-    do { con_err_if (client_run()); } while (g_ctx.bopt.more);
+    do { con_err_if (client_run()); } while (g_ctx.bopt.more && !g_ctx.fail);
+
+    con_err_if (g_ctx.fail);
 
     client_term();
     return EXIT_SUCCESS;
@@ -127,63 +143,71 @@ void cb(ec_client_t *cli)
 {
     ec_rc_t rc;
     ec_cli_state_t s;
+    uint8_t *pl;
+    size_t pl_sz;
+    uint32_t bnum, max_age;
    
-    /* Get FSM final state, bail out on !REQ_DONE. */
-    con_err_ifm ((s = ec_client_get_state(cli)) != EC_CLI_STATE_REQ_DONE, 
-            "request failed: %s", ec_cli_state_str(s));
-
-    /* Get response code. */
-    con_err_ifm ((rc = ec_response_get_code(cli)) == EC_RC_UNSET,
-           "could not get response code");
-
-    /* TODO replace with coap_hdr_pretty_print() or similar. */
-    u_con("%s", ec_rc_str(rc));
-
-    if (rc == EC_CONTENT)
+    /* 
+     * Get FSM final state, bail out on !REQ_DONE (or observe).
+     */
+    switch ((s = ec_client_get_state(cli)))
     {
-        uint8_t *pl;
-        uint16_t o_serial;
-        uint32_t bnum, max_age;
-        size_t pl_sz;
-
-        /* Get response payload. */
-        con_err_ifm ((pl = ec_response_get_payload(cli, &pl_sz)) == NULL,
-                    "empty payload");
-
-        /* If fragmented will set g_ctx.bopt. */
-        if ((ec_response_get_block2(cli, &bnum, &g_ctx.bopt.more,
-                    &g_ctx.bopt.block_sz) == 0) && g_ctx.bopt.more)
-        {
-            /* Blockwise transfer - make sure requested block was returned. */
-            dbg_err_if (bnum != g_ctx.bopt.block_no);
-
-            g_ctx.bopt.block_no = bnum;
-        }
-
-        /* Save payload to file. */
-        con_err_sifm (client_save_to_file(pl, pl_sz),
-                "payload could not be saved");
-
-        /* See if we've been added to the notification list for the
-         * requested resource. */
-        if (g_ctx.observe)
-        {
-            if (ec_response_get_observe(cli, &o_serial) == 0)
-            {
-                dbg_err_if (ec_response_get_max_age(cli, &max_age));
-                CHAT("waiting next notification in %u seconds", max_age);
-
-                /* Return here, without breaking the event loop since we
-                 * need to be called back again on next notification. */
-                return;
-            }
-            
-            CHAT("Observation could not be established");
-        }
+        case EC_CLI_STATE_REQ_DONE:
+        case EC_CLI_STATE_WAIT_NFY:
+            break;
+        default:
+            con_err("request failed: %s", ec_cli_state_str(s));
     }
 
-    /* Fall through. */
+    /* 
+     * Get response code.
+     */
+    u_con("%s", ec_rc_str((rc = ec_response_get_code(cli))));
+    con_err_ifm (!EC_IS_OK(rc), "request failed");
+
+	/* Always check content for OK codes */
+
+    /* Get response payload. */
+    dbg_ifm ((pl = ec_response_get_payload(cli, &pl_sz)) == NULL,
+			"empty payload");
+
+    /* Save payload to file. */
+    con_err_sifm (pl && client_save_to_file(pl, pl_sz),
+            "payload could not be saved");
+
+    /* If fragmented will set g_ctx.bopt. */
+    if ((ec_response_get_block2(cli, &bnum, &g_ctx.bopt.more,
+                &g_ctx.bopt.block_sz) == 0) && g_ctx.bopt.more)
+    {
+        /* Blockwise transfer - make sure requested block was returned. */
+        dbg_err_if (bnum != g_ctx.bopt.block_no);
+
+        g_ctx.bopt.block_no = bnum;
+    }
+
+    /* In case we've requested an observation on the resource, see if we've
+     * been added to the notification list. */
+    if (g_ctx.observe && ec_client_is_observing(cli))
+    {
+        if (ec_response_get_max_age(cli, &max_age) == 0)
+            CHAT("notifications expected every %u second(s)", max_age);
+
+        if (--g_ctx.observe == 0)
+        {
+            (void) ec_client_cancel_observation(cli);
+            goto end;
+        }
+
+        /* Return here, without breaking the event loop since we
+         * need to be called back again on next notification. */
+        return;
+    }
+
+end:
+    ec_loopbreak(ec_client_get_base(cli));
+    return;
 err:
+    g_ctx.fail = true;
     ec_loopbreak(ec_client_get_base(cli));
     return;
 }
@@ -191,18 +215,21 @@ err:
 void usage(const char *prog)
 {
     const char *us = 
-        "Usage: %s [opts]                                                  \n"
-        "                                                                  \n"
-        "   where opts is one of:                                          \n"
-        "       -h  this help                                              \n"
-        "       -m <GET|POST|PUT|DELETE>    (default is GET)               \n"
-        "       -M <CON|NON>                (default is NON)               \n"
-        "       -O                          observe the requested resource \n"
-        "       -o <file>                   (default is "DEFAULT_OFN")     \n"
-        "       -p <file>                   (default is NULL)              \n"
-        "       -u <uri>                    (default is "DEFAULT_URI")     \n"
-        "       -t <timeout>                (default is %u sec)            \n"
-        "                                                                  \n"
+        "Usage: %s [opts]                                                   \n"
+        "                                                                   \n"
+        "   where opts is one of:                                           \n"
+        "       -h this help                                                \n"
+        "       -m <GET|POST|PUT|DELETE>         (default is GET)           \n"
+        "       -M <CON|NON>                     (default is NON)           \n"
+        "       -o <file>                        (default is "DEFAULT_OFN") \n"
+        "       -p <file>                        (default is NULL)          \n"
+        "       -u <uri>                         (default is "DEFAULT_URI") \n"
+        "       -t <timeout>                     (default is %u sec)        \n"
+        "       -T generate Token option         (default is no Token)      \n"
+        "       -B <block_sz>                    (default is no Block2 -    \n"
+        "          generate Block2 option        late negotiation only)     \n"
+        "       -O <number of notifications> try to observe the resource    \n"
+        "                                                                   \n"
         ;
 
     u_con(us, prog, DEFAULT_TOUT);
@@ -240,31 +267,45 @@ int client_run(void)
     uint8_t *payload = NULL;
     size_t payload_sz;
 
+    /* Initialisations */
+    g_ctx.fail = false;
+
     dbg_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, g_ctx.method, 
                     g_ctx.uri, g_ctx.model)) == NULL);
+
+	if (g_ctx.token)
+        dbg_err_if (ec_request_add_token(g_ctx.cli, NULL, 0));
 
     if (g_ctx.observe)
         dbg_err_if (ec_request_add_observe(g_ctx.cli));
 
     /* Handle blockwise transfer. */
+	if (g_ctx.block_sz)
+        dbg_err_if (ec_request_add_block2(g_ctx.cli, 0, 0, g_ctx.block_sz));
+
     if (g_ctx.bopt.more)
     {
         g_ctx.bopt.block_no++;
+        g_ctx.bopt.block_sz = U_MIN(g_ctx.block_sz, g_ctx.bopt.block_sz);
 
         CHAT("requesting block n.%u (size: %u)", g_ctx.bopt.block_no,
                 g_ctx.bopt.block_sz);
 
         /* The client MUST set the M bit of a Block2 Option to zero. */
         dbg_err_if (ec_request_add_block2(g_ctx.cli, g_ctx.bopt.block_no,
-                    0, g_ctx.bopt.block_sz) == -1);
+                    0, g_ctx.bopt.block_sz));
     }
 
     /* In case of POST/PUT load payload from file (if not NULL). */
-    if ((g_ctx.method == EC_POST || g_ctx.method == EC_PUT) && g_ctx.pfn)
+    if ((g_ctx.method == EC_COAP_POST || g_ctx.method == EC_COAP_PUT) &&
+            g_ctx.pfn)
     {
         dbg_err_if (u_load_file(g_ctx.pfn, 0, (char **) &payload, &payload_sz));
         dbg_err_if (ec_request_set_payload(g_ctx.cli, payload, payload_sz));
         u_free(payload), payload = NULL;
+
+        /* Add Content-Type option */
+        dbg_err_if (ec_request_add_content_type(g_ctx.cli, EC_MT_TEXT_PLAIN));
     }
 
     CHAT("sending request to %s", g_ctx.uri);
@@ -298,10 +339,10 @@ int client_set_method(const char *s)
         ec_method_t m;
         const char *s;  
     } methmap[4] = {
-        { EC_GET, "get" }, 
-        { EC_POST, "post" }, 
-        { EC_PUT, "put" }, 
-        { EC_DELETE, "delete" }
+        { EC_COAP_GET, "get" }, 
+        { EC_COAP_POST, "post" }, 
+        { EC_COAP_PUT, "put" }, 
+        { EC_COAP_DELETE, "delete" }
     };
 
     dbg_return_if (s == NULL, -1);
@@ -319,18 +360,32 @@ int client_set_method(const char *s)
     return -1;
 }
 
+int client_set_observe(const char *s)
+{
+    int tmp;
+
+    dbg_return_if (s == NULL, -1);
+
+    con_return_ifm (u_atoi(s, &tmp) || tmp <= 0, -1,
+            "bad observe notification counter '%s'", s);
+
+    g_ctx.observe = (uint32_t) tmp;
+
+    return 0;
+}
+
 int client_set_model(const char *s)
 {
     dbg_return_if (s == NULL, -1);
 
     if (!strcasecmp(s, "non"))
     {
-        g_ctx.model = EC_NON; 
+        g_ctx.model = EC_COAP_NON; 
         return 0;
     }
     else if (!strcasecmp(s, "con"))
     {
-        g_ctx.model = EC_CON; 
+        g_ctx.model = EC_COAP_CON; 
         return 0;
     }
 

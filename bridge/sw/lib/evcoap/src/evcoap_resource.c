@@ -5,14 +5,17 @@
 
 static bool ec_mt_matches(ec_mt_t mt, ec_mt_t *mta, size_t mta_sz);
 
-ec_res_t *ec_resource_new(const char *uri, uint32_t max_age)
+ec_res_t *ec_resource_new(const char *uri, ec_method_mask_t methods, 
+        uint32_t max_age)
 {
     ec_res_t *res = NULL;
 
     dbg_return_if (uri == NULL, NULL);
+    dbg_return_if (!(EC_IS_METHOD_MASK(methods)), NULL);
 
     dbg_err_sif ((res = u_zalloc(sizeof *res)) == NULL);
     dbg_err_if (u_strlcpy(res->uri, uri, sizeof res->uri));
+    res->methods = methods;
     res->max_age = max_age ? max_age : EC_COAP_DEFAULT_MAX_AGE;
     TAILQ_INIT(&res->reps);
 
@@ -49,14 +52,11 @@ int ec_resource_add_rep(ec_res_t *res, const uint8_t *data, size_t data_sz,
     dbg_return_if (res == NULL, -1);
 
     /* Create new representation. */
-    dbg_err_if ((rep = ec_rep_new(data, data_sz, media_type)) == NULL);
+    dbg_err_if ((rep = ec_rep_new(res, data, data_sz, media_type)) == NULL);
 
     /* Return the ETag to the caller. */
     if (etag)
         memcpy(etag, rep->etag, EC_ETAG_SZ);
-
-    /* Clone the max_age attribute from the parent resource. */
-    rep->max_age = res->max_age;
 
     /* Stick the created representation to its parent resource. */
     TAILQ_INSERT_TAIL(&res->reps, rep, next);
@@ -68,11 +68,12 @@ err:
     return -1;
 }
 
-ec_rep_t *ec_rep_new(const uint8_t *data, size_t data_sz, ec_mt_t media_type)
+ec_rep_t *ec_rep_new(ec_res_t *res, const uint8_t *data, size_t data_sz, ec_mt_t media_type)
 {
     ec_rep_t *rep = NULL;
 
     dbg_err_sif ((rep = u_zalloc(sizeof *rep)) == NULL);
+    rep->res = res;
 
     if (data && data_sz)
     {
@@ -90,6 +91,13 @@ err:
     if (rep)
         ec_rep_free(rep); 
     return NULL;
+}
+
+ec_res_t *ec_rep_get_res(ec_rep_t *rep)
+{
+    dbg_return_if (rep == NULL, NULL);
+
+    return rep->res;
 }
 
 /* 'etag' is optional (set it to NULL if you don't want it to be used as
@@ -150,6 +158,18 @@ static bool ec_mt_matches(ec_mt_t mt, ec_mt_t *mta, size_t mta_sz)
     }
 
     return false;
+}
+
+int ec_resource_check_method(ec_res_t *res, ec_method_t method)
+{
+    ec_method_mask_t mmask;
+
+    dbg_return_if (res == NULL, -1);
+    dbg_return_if (!EC_IS_METHOD(method), -1);
+
+    mmask = ec_method_to_mask(method);
+
+    return ec_method_to_mask(res->methods & mmask) ? 0 : -1;
 }
 
 void ec_rep_free(ec_rep_t *rep)

@@ -6,6 +6,7 @@
 
 #include "evcoap_enums.h"
 #include "evcoap_pdu.h"
+#include "evcoap_timer.h"
 
 struct ec_s;
 struct ec_client_s;
@@ -19,23 +20,24 @@ typedef struct ec_res_set_s
     TAILQ_HEAD(, ec_pdu_s) bundle;
 } ec_res_set_t;
 
-struct ec_cli_timer_s
-{
-    size_t retries_left;    /* >1 for counted timer (decremented when fires.) */
-    struct event *evti;     /* timer event. */
-    struct timeval tout;    /* timer interval. */
-};
-typedef struct ec_cli_timer_s ec_cli_timer_t;
-
 /* Client timers. */
 struct ec_cli_timers_s
 {
 #define EC_TIMERS_APP_TOUT  60  /* Default is one minute. */
-    ec_cli_timer_t app;         /* Application level timer. */
-    ec_cli_timer_t coap;        /* CoAP internal retransmission timers. */
-    ec_cli_timer_t obs;         /* Observe timer -- driven by the server. */
+    ec_timer_t app;         /* Application level timer. */
+    ec_timer_t coap;        /* CoAP internal retransmission timers. */
+    ec_timer_t obs;         /* Observe timer -- driven by the server. */
 };
 typedef struct ec_cli_timers_s ec_cli_timers_t;
+
+struct ec_cli_obs_s
+{
+    bool on;            /* True if this ctx is associated to an observation. */
+    bool cancel;        /* Set by client via ec_client_delete_observation. */
+    uint16_t last_cnt;  /* Last counter received. */
+    time_t last_ts;     /* Timestamp of last received notification. */
+};
+typedef struct ec_cli_obs_s ec_cli_obs_t;
 
 /* Client transaction context. */
 struct ec_client_s
@@ -45,6 +47,7 @@ struct ec_client_s
     ec_client_cb_t cb;
     void *cb_args;
     ec_cli_state_t state;
+    ec_cli_obs_t observe;
     ec_cli_timers_t timers;
     ec_flow_t flow;
     ec_pdu_t req;
@@ -90,6 +93,10 @@ int ec_cli_stop_coap_timer(ec_client_t *cli);
 /* Response set handling. */
 int ec_res_set_add(ec_res_set_t *rset, ec_pdu_t *pdu);
 int ec_res_set_init(ec_res_set_t *rset);
-int ec_res_set_clear(ec_res_set_t *rset);
+void ec_res_set_clear(ec_res_set_t *rset);
+
+/* Observe'r interfaces. */
+bool ec_client_is_observing(ec_client_t *cli);
+int ec_client_cancel_observation(ec_client_t *cli);
 
 #endif  /* !_EC_CLI_H_ */

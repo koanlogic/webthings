@@ -21,6 +21,7 @@ typedef struct
     ec_filesys_t *fs;
     size_t block_sz;
     bool verbose;
+    struct timeval sep;
 } ctx_t;
 
 ctx_t g_ctx = { 
@@ -30,7 +31,8 @@ ctx_t g_ctx = {
     .conf = DEFAULT_CONF, 
     .fs = NULL,
     .block_sz = 0,  /* By default Block is fully under user control. */
-    .verbose = false
+    .verbose = false,
+    .sep = { .tv_sec = 0, .tv_usec = 0 }
 };
 
 int server_init(void);
@@ -55,7 +57,7 @@ int main(int ac, char *av[])
     int c, i;
     u_config_t *cfg = NULL, *vhost;
 
-    while ((c = getopt(ac, av, "b:hf:v")) != -1)
+    while ((c = getopt(ac, av, "b:hf:s:v")) != -1)
     {
         switch (c)
         {
@@ -68,6 +70,10 @@ int main(int ac, char *av[])
                 break;
             case 'v':
                 g_ctx.verbose = true;
+                break;
+            case 's':
+                if (sscanf(optarg, "%lld", (long long *)&g_ctx.sep.tv_sec) != 1)
+                    usage(av[0]);
                 break;
             case 'h':
             default: 
@@ -221,7 +227,7 @@ int vhost_load_resource(u_config_t *resource, const char *origin)
     CHAT("adding resource %s", uri);
 
     /* Create FS resource. */
-    con_err_ifm ((res = ec_resource_new(uri, ma)) == NULL,
+    con_err_ifm ((res = ec_resource_new(uri, EC_METHOD_MASK_ALL, ma)) == NULL,
             "resource creation failed");
 
     /* Load each resource representation. */
@@ -385,7 +391,8 @@ void usage(const char *prog)
         "       -h  this help                                           \n"
         "       -v  be verbose                                          \n"
         "       -f <conf file>      (default is "DEFAULT_CONF")         \n"
-        "       -b <block size>     (enables automatic Block handling)  \n"
+        "       -b <block size>     enables automatic Block handling    \n"
+        "       -s <num>            separate response after num seconds \n"
         "                                                               \n"
         ;
 
@@ -398,25 +405,39 @@ void usage(const char *prog)
 /* Payload serving callback. */
 const uint8_t *ob_serve(const char *uri, ec_mt_t mt, size_t *p_sz, void *args)
 {
+    u_unused_args(mt, args);
+
     u_con("TODO produce resource for %s", uri);
-    return NULL;
+
+    *p_sz = strlen("hello observe");
+
+    return (const uint8_t *) "hello observe";
 }
 
-ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
+ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
 {
     ec_mt_t mta[16];
     size_t mta_sz = sizeof mta / sizeof(ec_mt_t);
     ec_rep_t *rep;
+    ec_res_t *res;
 
-    u_unused_args(u0, u1, u2);
+    u_unused_args(u0);
 
     /* Get the requested URI and method. */
-    const char *url = ec_server_get_url(srv);
+    const char *uri = ec_server_get_url(srv);
 
-    CHAT("GET %s", url);
+    CHAT("GET %s", uri);
+
+    if (resched == false && g_ctx.sep.tv_sec)
+    {
+        *tv = g_ctx.sep;
+        u_con("reschedule cb for %s in %llu seconds",
+                uri, (long long) g_ctx.sep.tv_sec);
+        return EC_CBRC_WAIT;
+    }
 
     /* Do not accept verbs different from GET (this may obviously change.) */
-    if (ec_server_get_method(srv) != EC_GET)
+    if (ec_server_get_method(srv) != EC_COAP_GET)
     {
         (void) ec_response_set_code(srv, EC_NOT_IMPLEMENTED); 
         goto end;
@@ -426,11 +447,14 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
     con_err_if (ec_request_get_acceptable_media_types(srv, mta, &mta_sz));
 
     /* Try to retrieve a representation that fits client request. */
-    rep = ec_filesys_get_suitable_rep(g_ctx.fs, url, mta, mta_sz, NULL);
+    rep = ec_filesys_get_suitable_rep(g_ctx.fs, uri, mta, mta_sz, NULL);
 
     /* If found, craft the response. */
     if (rep)
     {
+        res = ec_rep_get_res(rep);
+        dbg_err_if (res == NULL);
+
         /* Set response code, payload, etag and content-type. */
         (void) ec_response_set_code(srv, EC_CONTENT);
         (void) ec_response_set_payload(srv, rep->data, rep->data_sz);
@@ -438,8 +462,8 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
         (void) ec_response_add_content_type(srv, rep->media_type);
 
         /* Add max-age if != from default. */
-        if (rep->max_age != EC_COAP_DEFAULT_MAX_AGE)
-            (void) ec_response_add_max_age(srv, rep->max_age);
+        if (res->max_age != EC_COAP_DEFAULT_MAX_AGE)
+            (void) ec_response_add_max_age(srv, res->max_age);
 
         /* See if the client asked for Observing the resource. */
         if (ec_request_get_observe(srv) == 0)
@@ -447,10 +471,11 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
             uint16_t o_cnt;
 
             /* Add a NON notifier attached to ob_serve callback. */
-            if (!ec_add_observer(srv, ob_serve, NULL, rep->max_age, 
-                        rep->media_type, EC_NON, rep->etag, sizeof rep->etag))
+            if (!ec_add_observer(srv, ob_serve, NULL, res->max_age,
+                        rep->media_type, EC_COAP_NON, rep->etag, 
+                        sizeof rep->etag))
             {
-                /* TODO get counter from time */
+                /* Get counter from time */
                 (void) ec_get_observe_counter(&o_cnt);
                 (void) ec_response_add_observe(srv, o_cnt);
             }
@@ -466,6 +491,4 @@ end:
 err:
     return EC_CBRC_ERROR;
 }
-
-
 

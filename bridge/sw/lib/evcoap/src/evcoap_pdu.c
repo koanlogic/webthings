@@ -169,9 +169,12 @@ int ec_pdu_encode_response_separate(ec_pdu_t *pdu)
 
     ec_hdr_t *h = &pdu->hdr_bits;
 
-    /* Create new MID */
+    /* Create new MID in case it is not already set. */
     if (!h->mid)
+    {
         evutil_secure_rng_get_bytes(&mid, sizeof mid);
+        h->mid = mid;
+    }
 
     /* Get requested messaging semantics. */
     ec_flow_t *flow = pdu->flow;
@@ -193,13 +196,16 @@ static int encode_response(ec_pdu_t *pdu, uint8_t t, ec_rc_t rc,
     ec_flow_t *flow = pdu->flow;
     ec_opts_t *opts = &pdu->opts;
 
-    /* TODO Check that no token has been set in options. */
-    if (flow->token_sz)
-        dbg_err_if (ec_opts_add_token(opts, flow->token, flow->token_sz));
+    if (t != EC_COAP_RST && t != EC_COAP_CON && rc != EC_RC_UNSET)
+    {
+        /* TODO Check that no token has been set in options. */
+        if (flow->token_sz)
+            dbg_err_if (ec_opts_add_token(opts, flow->token, flow->token_sz));
 
-    /* Encode options.  This is needed before header encoding because it sets
-     * the 'oc' field. */
-    dbg_err_if (ec_opts_encode(&pdu->opts));
+        /* Encode options.  This is needed before header encoding because it 
+         * sets the 'oc' field. */
+        dbg_err_if (ec_opts_encode(&pdu->opts));
+    }
 
     /* Encode header. */
     encode_header(pdu, rc, t, mid);
@@ -276,6 +282,126 @@ static void encode_header(ec_pdu_t *pdu, uint8_t code, uint8_t t,
     pdu->hdr[3] = htons(mid) & 0x00ff;
 
     return;
+}
+
+static const char *wrap_null_str(char *buf, size_t buf_sz, const char *prefix,
+        const char *strfunc(unsigned int c), int c)
+{
+    const char *s;
+
+    /* If string is not NULL simply return it. */
+    s = strfunc(c);
+    if (s)
+        return s;
+
+    /* Otherwise return buf with a string-representation of the code. */
+    u_snprintf(buf, sizeof buf, "%s%d", prefix, c);
+    u_warn("BUF: %s", buf);
+    return buf;
+}
+
+void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
+{
+#define FWRITE_STR(f, str) (fwrite(str, strlen(str), 1, f) < 1)
+#define FWRITE_PRINT(f, ...) do { \
+        dbg_err_if (u_snprintf(_buf, sizeof _buf, __VA_ARGS__)); \
+        dbg_err_if (FWRITE_STR(f, _buf)); \
+    } while (0);
+#define FWRITE_HEX(f, b, sz) do { \
+        FWRITE_PRINT(f, "0x"); \
+        for (_bi = 0; _bi < sz; _bi++) \
+            FWRITE_PRINT(f, "%02x", b[_bi]); \
+    } while (0);
+
+    enum { MAX_STR = 256 };
+    FILE *f = NULL;
+    char fname[U_PATH_MAX];
+    const char *prefix = ".";
+    char _buf[MAX_STR];
+    char buf[MAX_STR];
+    static int pnum = 1;
+    ec_hdr_t *h;
+    ec_opt_t *o;
+    uint8_t _bi;
+
+    dbg_ifb (pdu == NULL || pdu->hdr == NULL)
+        return;
+
+    h = &pdu->hdr_bits;
+
+    dbg_err_if (u_snprintf(fname, sizeof fname, "%s/%d-%s.dump", prefix,
+                pnum++, srv ? "srv" : "cli"));
+
+    f = fopen(fname, "w+");
+    dbg_err_sif (f == NULL);
+
+    FWRITE_STR(f, "\n");
+    FWRITE_STR(f, "Header: ");
+    FWRITE_HEX(f, pdu->hdr, EC_COAP_HDR_SIZE);
+    FWRITE_STR(f, "\n");
+    FWRITE_PRINT(f, "  T: %s\n", wrap_null_str(buf, sizeof buf, "t",
+                &ec_model_str, h->t));
+    FWRITE_PRINT(f, "  OC: %u\n", h->oc);
+    FWRITE_PRINT(f, "  Code: %s\n", wrap_null_str(buf, sizeof buf, "c",
+                &ec_code_str, h->code));
+    FWRITE_PRINT(f, "  MID: 0x%02x\n", h->mid);
+    FWRITE_PRINT(f, "\n");
+
+    FWRITE_STR(f, "Options:\n");
+
+    TAILQ_FOREACH(o, &pdu->opts.bundle, next)
+    {
+        FWRITE_PRINT(f, "  %s: ", wrap_null_str(buf, sizeof buf, "o",
+                    &ec_opt_sym2str, o->sym));
+
+        switch (o->t) 
+        {
+            case EC_OPT_TYPE_STRING:
+                FWRITE_PRINT(f, "%s", o->v);
+                break;
+
+            case EC_OPT_TYPE_UINT:
+                {
+                    uint64_t ui;
+
+                    dbg_err_if (ec_opt_decode_uint(o->v, o->l, &ui));
+
+                    FWRITE_PRINT(f, "%"PRIu64"", ui);
+                }
+                break;
+
+            case EC_OPT_TYPE_INVALID:
+                u_dbg("XXX should never reach here with EC_OPT_TYPE_INVALID");
+
+            case EC_OPT_TYPE_EMPTY:
+                break;
+
+            case EC_OPT_TYPE_OPAQUE:
+            default:
+                FWRITE_HEX(f, o->v, o->l);
+                break;
+        }
+
+        FWRITE_PRINT(f, "\n");
+    }
+    FWRITE_PRINT(f, "\n");
+
+    if (pdu->payload_sz)
+    {
+        FWRITE_STR(f, "Payload: ");
+        FWRITE_HEX(f, pdu->payload, pdu->payload_sz);
+        FWRITE_PRINT(f, "\n\n");
+    }
+
+    /* Fall through. */
+err:
+    if (f)
+        fclose(f);
+    return;
+
+#undef FWRITE_STR
+#undef FWRITE_PRINT
+#undef FWRITE_HEX
 }
 
 ec_pdu_t *ec_pdu_new_empty(void)

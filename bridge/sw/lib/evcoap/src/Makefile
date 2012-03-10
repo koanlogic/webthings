@@ -15,6 +15,8 @@ SRCS += evcoap_base.c
 SRCS += evcoap_flow.c
 SRCS += evcoap_resource.c
 SRCS += evcoap_observe.c
+SRCS += evcoap_timer.c
+SRCS += evcoap_filesys.c
 
 CFLAGS += $(LIBU_CFLAGS)
 CFLAGS += $(LIBEVENT_CFLAGS)

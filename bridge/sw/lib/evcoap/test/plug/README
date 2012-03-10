@@ -18,11 +18,18 @@ Set environment variables then,
 Environment variables
 ---------------------
 
+* To disable plugtests
+    EC_PLUG_DISABLE=1
+
 * To activate verbose logging:
-    VERBOSE=1
+    EC_PLUG_VERBOSE=1
 
 * To run client only:
-    MODE=cli
+    EC_PLUG_MODE=cli
 
 * To run server only:
-    MODE=srv
+    EC_PLUG_MODE=srv
+
+* To activate dumping of input PDUs:
+    EC_PLUG_DUMP=1
+

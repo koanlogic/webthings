@@ -31,7 +31,7 @@ makl_set_var_mk "SRCDIR" "`pwd`"
 makl_add_var_mk "CFLAGS" "-I\$(SRCDIR)"
 
 # log facility
-makl_set_var "LF_WT_DEMO" "LOG_LOCAL0"
+makl_set_var "LF_WTDEMO" "LOG_LOCAL0"
 
 # -fstack-protector-all (needs gcc >= 4)
 # makl_append_var_mk "CFLAGS" "-fstack-protector-all"

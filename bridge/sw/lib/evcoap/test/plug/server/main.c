@@ -14,16 +14,6 @@ int facility = LOG_LOCAL0;
 
 #define DEFAULT_URI "coap://[::1]:"EC_COAP_DEFAULT_SPORT
 
-typedef enum
-{
-    METHOD_NONE     = 0,
-    METHOD_GET      = (1 << 0),
-    METHOD_PUT      = (1 << 1),
-    METHOD_POST     = (1 << 2),
-    METHOD_DELETE   = (1 << 3),
-    METHOD_ALL      = (METHOD_GET | METHOD_PUT | METHOD_POST | METHOD_DELETE)
-} method_t;
-
 typedef struct
 {
     ec_t *coap;
@@ -53,10 +43,14 @@ int server_set_uri(const char *a);
 void server_term(void);
 int server_run(void);
 
-int resource_add(const char *path, method_t method, uint32_t ma, 
-        ec_server_cb_t cb, void *arg);
-ec_cbrc_t resource_cb_test(ec_server_t *srv, void *u0, struct timeval *u1,
+int resource_add(const char *path, ec_method_mask_t methods, uint32_t ma, 
+        const char *media_type, const uint8_t *data, size_t data_sz, 
+        ec_server_cb_t cb);
+ec_cbrc_t resource_cb_dft(ec_server_t *srv, void *u0, struct timeval *u1,
         bool u2);
+ec_cbrc_t resource_cb_separate(ec_server_t *srv, void *u0, struct timeval *u1,
+        bool u2);
+#if 0
 ec_cbrc_t resource_cb_seg(ec_server_t *srv, void *u0, struct timeval *u1,
         bool u2);
 ec_cbrc_t resource_cb_query(ec_server_t *srv, void *u0, struct timeval *u1,
@@ -71,11 +65,29 @@ ec_cbrc_t resource_cb_obs(ec_server_t *srv, void *u0, struct timeval *u1,
         bool u2);
 ec_cbrc_t resource_cb_wellknown(ec_server_t *srv, void *u0, struct timeval *u1,
         bool u2);
+#endif
+
+/* Fill a string with char values looping from 'a' to 'z'. */
+static void init_str(char *s, size_t s_sz)
+{
+    size_t n;
+    char c = 'a';
+
+    for (n = 0; n < s_sz; n++,
+            c = (c == 'z' ? 'a' : 'b'))
+        s[n] = c;
+
+    s[s_sz-1] = '\0';
+}
 
 int main(int ac, char *av[])
 {
     int c, port;
     char a[U_URI_STRMAX];
+    char longstr[EC_COAP_BLOCK_MAX * 3];
+
+    /* Initalisations. */
+    init_str(longstr, sizeof(longstr));
 
     while ((c = getopt(ac, av, "u:b:hv")) != -1)
     {
@@ -112,26 +124,42 @@ int main(int ac, char *av[])
 
     /* Add plugtest resources. */
     con_err_ifm (
-            resource_add("/test", METHOD_ALL, 0, &resource_cb_test, NULL) ||
+            resource_add("/test", EC_METHOD_MASK_ALL, 0, "text/plain", 
+                (const uint8_t *) "Hello world!", strlen("Hello world!"),
+                &resource_cb_dft) ||
 
-            resource_add("/seg1/seg2/seg3", METHOD_GET, 0, &resource_cb_seg,
-                NULL) ||
+            resource_add("/seg1/seg2/seg3", EC_GET_MASK, 0, "text/plain",
+                (const uint8_t *) "Hello world!", strlen("Hello world!"),
+                &resource_cb_dft) ||
 
-            resource_add("/query", METHOD_GET, 0, &resource_cb_query, NULL) ||
+            resource_add("/query", EC_GET_MASK, 0, "text/plain",
+                (const uint8_t *) "Hello world!", strlen("Hello world!"),
+                &resource_cb_dft) ||
 
-            resource_add("/large", METHOD_GET, 0, &resource_cb_large, NULL) ||
+            resource_add("/large", EC_GET_MASK, 0, "text/plain",
+                (const uint8_t *) longstr, strlen(longstr),
+                &resource_cb_dft) ||
 
-            resource_add("/large_update", METHOD_PUT, 0,
-                &resource_cb_large_update, NULL) ||
+            resource_add("/separate", EC_GET_MASK, 0, "text/plain",
+                (const uint8_t *) "Hello world!", strlen("Hello world!"),
+                &resource_cb_separate) ||
 
-            resource_add("/large_create", METHOD_POST, 0,
-                &resource_cb_large_create, NULL) ||
+            resource_add("/large_update", EC_PUT_MASK, 0, "text/plain",
+                (const uint8_t *) "Hello world!", strlen("Hello world!"),
+                &resource_cb_dft) ||
 
-            resource_add("/obs", METHOD_GET, 0, &resource_cb_obs, NULL) ||
+            resource_add("/large_create", EC_POST_MASK, 0, "text/plain",
+                (const uint8_t *) "Hello world!", strlen("Hello world!"),
+                &resource_cb_dft) ||
 
-            resource_add("/.well-known/core", METHOD_GET, 0,
-                &resource_cb_wellknown, NULL
-                ), 
+            resource_add("/obs", EC_GET_MASK, 0, "text/plain", 
+                (const uint8_t *) "Hello world!", strlen("Hello world!"),
+                &resource_cb_dft) ||
+
+            resource_add("/.well-known/core", EC_GET_MASK, 0,
+                "application/link-format", (const uint8_t *) "TODO",
+                strlen("TODO"), &resource_cb_dft),
+
         "failed adding resources");
     
     con_err_ifm (server_run(), "server run failed");
@@ -249,13 +277,13 @@ void usage(const char *prog)
     return;
 }
 
-int resource_add(const char *path, method_t method, uint32_t ma, 
-        ec_server_cb_t cb, void *arg)
+int resource_add(const char *path, ec_method_mask_t methods, uint32_t ma, 
+        const char *media_type, const uint8_t *data, size_t data_sz, 
+        ec_server_cb_t cb)
 {
     char uri[U_URI_STRMAX];
     ec_res_t *res = NULL;
-
-    u_unused_args(method);  /* TODO */
+    ec_mt_t mt;
 
     CHAT("adding resource for: %s", path);
 
@@ -264,15 +292,22 @@ int resource_add(const char *path, method_t method, uint32_t ma,
             "could not create uri for path %s and origin %s", path, g_ctx.uri);
 
     /* Create resource. */
-    con_err_ifm ((res = ec_resource_new(uri, ma)) == NULL,
+    con_err_ifm ((res = ec_resource_new(uri, methods, ma)) == NULL,
             "resource creation failed");
+
+    /* Convert representation type. */
+    con_err_ifm (ec_mt_from_string(media_type, &mt), "media type map error");
+
+    /* Each resource only has one representation in this implementation. */
+    con_err_ifm (ec_resource_add_rep(res, data, data_sz, mt, NULL),
+                "error adding representation for %s", uri);
 
     /* Attach resource to FS. */
     con_err_ifm (ec_filesys_put_resource(g_ctx.fs, res),
             "adding resource failed");
 
     /* Register the callback that will serve this URI. */
-    con_err_ifm (ec_register_cb(g_ctx.coap, uri, cb, arg),
+    con_err_ifm (ec_register_cb(g_ctx.coap, uri, cb, NULL),
             "registering callback for %s failed", path);
             
     return 0;
@@ -283,21 +318,107 @@ err:
     return -1;
 }
 
-ec_cbrc_t resource_cb_test(ec_server_t *srv, void *u0, struct timeval *u1, 
+ec_cbrc_t resource_cb_dft(ec_server_t *srv, void *u0, struct timeval *u1, 
         bool u2)
 {
-    char *s = "Hello World!";
+    ec_mt_t mta[16];
+    size_t mta_sz = sizeof mta / sizeof(ec_mt_t);
+    ec_rep_t *rep;
+    ec_res_t *res;
+    const char *url;
+    ec_method_t method;
+    uint8_t *payload;
+    size_t payload_sz;
 
-    u_unused_args(srv, u0, u1, u2);
+    con_err_if (srv == NULL);
+
+    u_unused_args(u0, u1, u2);
 
     CHAT("[%s]", __FUNCTION__);
 
-    (void) ec_response_set_code(srv, EC_CONTENT);
-    (void) ec_response_set_payload(srv, s, strlen(s));
+    url = ec_server_get_url(srv);
+    method = ec_server_get_method(srv);
 
+    /* Get Accept'able media types. */
+    con_err_if (ec_request_get_acceptable_media_types(srv, mta, &mta_sz));
+
+    /* Try to retrieve a representation that fits client request. */
+    rep = ec_filesys_get_suitable_rep(g_ctx.fs, url, mta, mta_sz, NULL);
+    if (rep == NULL) {
+        (void) ec_response_set_code(srv, EC_NOT_FOUND);
+        goto end;
+    }
+
+    /* Get parent resource. */
+    res = ec_rep_get_res(rep);
+    dbg_err_if (res == NULL);
+
+    /* Make sure resource supports requested method. */
+    if (ec_resource_check_method(res, method))
+    {
+        (void) ec_response_set_code(srv, EC_METHOD_NOT_ALLOWED);
+        goto end;
+    }
+
+    /* Always return current representation. */
+    (void) ec_response_set_payload(srv, rep->data, rep->data_sz);
+    (void) ec_response_add_content_type(srv, rep->media_type);
+
+    /* Add max-age if != from default. */
+    if (res->max_age != EC_COAP_DEFAULT_MAX_AGE)
+        (void) ec_response_add_max_age(srv, res->max_age);
+
+    /* Display payload if available. */
+    payload = ec_request_get_payload(srv, &payload_sz);
+    if (payload)
+        u_info("payload: %*s", payload_sz, payload);
+
+    switch (method)
+    {
+        case EC_COAP_GET:
+            (void) ec_response_set_code(srv, EC_CONTENT);
+            break;
+
+        case EC_COAP_POST:
+            (void) ec_response_set_code(srv, EC_CREATED);  /* fake */
+            break;
+
+        case EC_COAP_PUT:
+            (void) ec_response_set_code(srv, EC_CHANGED);  /* fake */
+            break;
+
+        case EC_COAP_DELETE:
+            (void) ec_response_set_code(srv, EC_DELETED);  /* fake */
+            break;
+
+        default:
+            con_err("unsupported method: %d", method);
+    }
+
+end:
     return EC_CBRC_READY;
+err:
+    return EC_CBRC_ERROR;
 }
 
+ec_cbrc_t resource_cb_separate(ec_server_t *srv, void *u0, struct timeval *u1,
+        bool u2)
+{
+    bool resched = u2;
+    struct timeval *tv = u1;
+
+    CHAT("[%s]", __FUNCTION__);
+
+    if (resched)
+        return resource_cb_dft(srv, u0, u1, u2);
+
+    /* !resched: just a sec! */
+    tv->tv_sec = 1;
+
+    return EC_CBRC_WAIT;
+}
+
+#if 0
 ec_cbrc_t resource_cb_seg(ec_server_t *srv, void *u0, struct timeval *u1, 
         bool u2)
 {
@@ -367,3 +488,4 @@ ec_cbrc_t resource_cb_wellknown(ec_server_t *srv, void *u0, struct timeval *u1,
 
     return EC_CBRC_READY;
 }
+#endif

@@ -3,15 +3,80 @@
 #include "evcoap_srv.h"
 #include "evcoap_base.h"
 #include "evcoap_flow.h"
+#include "evcoap_observe.h"
+#include "evcoap_timer.h"
+
+struct resched_userfn_args_s
+{
+    ec_server_t *srv;
+    ec_server_cb_t f;
+    void *f_args;
+};
+
+static struct resched_userfn_args_s *resched_userfn_args_new(ec_server_t *srv,
+        ec_server_cb_t f, void *f_args);
+static void resched_userfn_args_free(struct resched_userfn_args_s *a);
 
 static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         struct sockaddr_storage *peer, void *arg);
 static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args, 
-        struct timeval *interval, bool resched);
+        struct timeval *tv, bool resched);
 static int ec_server_reply(ec_server_t *srv, ec_rc_t rc, uint8_t *pl, 
         size_t pl_sz);
 static int ec_server_check_transition(ec_srv_state_t cur, ec_srv_state_t next);
 static int ec_trim_payload_sz(ec_cfg_t *cfg, size_t *pl_sz);
+static int ec_server_add(ec_server_t *srv, ec_servers_t *srvs);
+static int ec_server_del(ec_server_t *srv, ec_servers_t *srvs);
+static bool ec_server_state_is_final(ec_srv_state_t state);
+static int ec_server_reschedule_userfn(ec_server_cb_t f, ec_server_t *srv,
+        void *args, const struct timeval *tv);
+static void resched_userfn(evutil_socket_t u0, short u1, void *a);
+
+int ec_servers_init(ec_servers_t *srvs)
+{
+    dbg_return_if (srvs == NULL, -1);
+
+    TAILQ_INIT(&srvs->h);
+
+    return 0;
+}
+
+void ec_servers_term(ec_servers_t *srvs)
+{
+    if (srvs != NULL)
+    {
+        ec_server_t *srv;
+
+        while ((srv = TAILQ_FIRST(&srvs->h)))
+        {
+            (void) ec_server_del(srv, srvs);
+            ec_server_free(srv);
+        }
+    }
+    return;
+}
+
+static int ec_server_add(ec_server_t *srv, ec_servers_t *srvs)
+{
+    dbg_return_if (srv == NULL, -1);
+    dbg_return_if (srvs == NULL, -1);
+
+    TAILQ_INSERT_TAIL(&srvs->h, srv, next);
+    srv->parent = srvs;
+
+    return 0;
+}
+
+static int ec_server_del(ec_server_t *srv, ec_servers_t *srvs)
+{
+    dbg_return_if (srv == NULL, -1);
+    dbg_return_if (srvs == NULL, -1);
+
+    TAILQ_REMOVE(&srvs->h, srv, next);
+    srv->parent = NULL;
+
+    return 0;
+}
 
 ec_server_t *ec_server_new(struct ec_s *coap, evutil_socket_t sd)
 {
@@ -19,7 +84,9 @@ ec_server_t *ec_server_new(struct ec_s *coap, evutil_socket_t sd)
     ec_server_t *srv = NULL;
 
     dbg_err_sif ((srv = u_zalloc(sizeof *srv)) == NULL);
+
     srv->base = coap;
+    srv->parent = NULL;
 
     ec_flow_t *flow = &srv->flow;
     ec_conn_t *conn = &flow->conn;
@@ -47,6 +114,8 @@ void ec_server_free(ec_server_t *srv)
             ec_pdu_free(srv->res);
         if (srv->req)
             ec_pdu_free(srv->req);
+        if (srv->parent)
+            ec_server_del(srv, srv->parent);
         u_free(srv);
     }
 }
@@ -60,8 +129,6 @@ void ec_server_input(evutil_socket_t sd, short u, void *arg)
     ec_net_pullup_all(sd, ec_server_handle_pdu, coap);
 }
 
-/* TODO factor out common code with ec_client_handle_pdu, namely the PDU 
- *      decoding */
 static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         struct sockaddr_storage *peer, void *arg)
 {
@@ -80,7 +147,6 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     dbg_return_if (sd == -1, EC_NET_CBRC_ERROR);
     dbg_return_if (peer == NULL, EC_NET_CBRC_ERROR);
 
-    /* Make room for the new PDU. */
     dbg_err_sif ((req = ec_pdu_new_empty()) == NULL);
 
     ec_hdr_t *h = &req->hdr_bits;    /* shortcut */
@@ -115,15 +181,51 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
             goto err;
     }
 
+    /* Create a new server context. */
+    dbg_err_if ((srv = ec_server_new(coap, sd)) == NULL);
 
-    /* If PDU is a request, create a new server context. */
-    if (h->code)
+    ec_pdu_t *res = srv->res;       /* shortcut */
+    ec_flow_t *flow = &srv->flow;   /* ditto */
+    ec_conn_t *conn = &flow->conn;  /* ditto */
+
+    /* Save destination and source addresses in the server context. */
+    dbg_err_if (ec_net_save_us(conn, sd));
+    dbg_err_if (ec_pdu_set_peer(res, peer));
+
+    /* The response payload has been allocated by ec_server_new(), hence we
+     * can take its reference and pair it to the corresponding request PDU. */
+    dbg_err_if (ec_pdu_set_sibling(res, req));
+    dbg_err_if (ec_pdu_set_flow(req, flow));
+
+    /* Check if its a "control" message. */
+    if (!h->code)
     {
-        dbg_err_if ((srv = ec_server_new(coap, sd)) == NULL);
-        (void) ec_server_set_msg_model(srv, h->t == EC_CON ? true : false);
+        /* Check if RST. */
+        if (h->t == EC_COAP_RST)
+        {
+            /* Observations may be removed by RST'ing a notification message
+             * so check whether this RST comes in response to an nfy PDU. */
+            switch (ec_observe_canceled_by_rst(coap, req))
+            {
+                case 0:
+                    /* Not an active observation, proceed. */
+                    break;
+                case 1:
+                    /* Active observer removed. */
+                    goto cleanup;
+                default:
+                    /* Internal error. */
+                    u_dbg("Observe handling machinery failed !");
+                    goto err;
+            }
+
+            u_dbg("TODO handle RST (!observe-deletion)");
+        }
+        else
+            u_dbg("TODO handle separate ACK");
     }
     else
-        u_dbg("TODO handle incoming RST and/or ACK");
+        (void) ec_server_set_msg_model(srv, h->t == EC_COAP_CON ? true : false);
 
     /* Decode options. */
     if (h->oc)
@@ -132,8 +234,12 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         dbg_err_ifm (rc, "CoAP options could not be parsed correctly");
     }
 
-    ec_flow_t *flow = &srv->flow;   /* shortcut */
-    ec_conn_t *conn = &flow->conn;  /* shortcut */
+    /* Attach payload, if any, to the server context. */
+    if ((plen = raw_sz - (olen + EC_COAP_HDR_SIZE)))
+        (void) ec_pdu_set_payload(req, raw + EC_COAP_HDR_SIZE + olen, plen);
+
+    /* If enabled, dump PDU (server=true).  Doing this here may miss RSTs. */
+    if (getenv("EC_PLUG_DUMP")) (void) ec_pdu_dump(req, true);
 
     /* Save requested method. */
     dbg_err_if (ec_flow_set_method(flow, (ec_method_t) h->code));
@@ -141,15 +247,6 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     /* Save token into context. */
     ec_opt_t *t = ec_opts_get(&req->opts, EC_OPT_TOKEN);
     dbg_err_if (ec_flow_save_token(flow, t ? t->v : NULL, t ? t->l : 0));
-
-    /* Response payload has been allocated by ec_server_new(), so we can
-     * take its reference and pair it to the corresponding request PDU. */
-    ec_pdu_t *res = srv->res;   /* shortcut */
-    dbg_err_if (ec_pdu_set_sibling(res, req));
-
-    /* Save dst and src addresses in srv context. */
-    dbg_err_if (ec_net_save_us(conn, sd));
-    dbg_err_if (ec_pdu_set_peer(res, peer));
 
     /* Recompose the requested URI and save it into the server context.
      * XXX Assume NoSec is the sole supported mode. */
@@ -160,7 +257,9 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     (void) ec_server_set_req(srv, req);
     ec_server_set_state(srv, EC_SRV_STATE_REQ_OK);
 
-/* u_dbg("requested URI: %s", flow->urlstr); */
+    /* Observations may be removed by GET'ing the observed resource with
+     * no Observe option. */
+    dbg_if (ec_observe_canceled_by_get(srv) == -1);
 
     /* Initialize the poll/wait timeout. */
     struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
@@ -173,7 +272,7 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         {
             /* Invoke user callback. */
             dbg_err_if (ec_server_userfn(srv, r->cb, r->cb_args, &tv, false));
-            goto end;
+            return EC_NET_CBRC_SUCCESS;
         }
     }
 
@@ -181,31 +280,24 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     if (coap->fb)
     {
         dbg_err_if (ec_server_userfn(srv, coap->fb, coap->fb_args, &tv, false));
-        goto end;
+        return EC_NET_CBRC_SUCCESS;
     }
 
     /* Send 4.04 Not Found and fall through. */
     dbg_if (ec_server_reply(srv, EC_NOT_FOUND, NULL, 0));
     ec_server_set_state(srv, EC_SRV_STATE_RESP_DONE);
-
-    /* TODO check temp resources de-allocation */
-
-end:
     return EC_NET_CBRC_SUCCESS;
 
+    /* Fall through assuming that the right srv state has been set. */
 cleanup:
     ec_pdu_free(req);
-
     return EC_NET_CBRC_SUCCESS;
-
 err:
     /* Send the selected error (defaulting to 5.00 Internal Server Error.) */
     dbg_if (ec_server_reply(srv, rc ? rc : EC_INTERNAL_SERVER_ERROR, NULL, 0));
     ec_server_set_state(srv, EC_SRV_STATE_INTERNAL_ERR);
-
     if (req)
         ec_pdu_free(req);
-
     return EC_NET_CBRC_ERROR;
 }
 
@@ -298,23 +390,69 @@ err:
 }
 
 static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args, 
-        struct timeval *interval, bool resched)
+        struct timeval *tv, bool resched)
 {
-    switch (f(srv, args, interval, resched))
+    bool is_con = false;
+
+    /* We do trust the caller here. */
+
+    ec_t *coap = srv->base;
+    ec_flow_t *flow = &srv->flow;
+    ec_conn_t *conn = &flow->conn;
+
+    dbg_err_if (ec_net_get_confirmable(conn, &is_con));
+
+    switch (f(srv, args, tv, resched))
     {
         case EC_CBRC_READY:
-            dbg_err_if (ec_server_send_resp(srv));
-            /* In case it is NON or CON piggybacked, we can set state 
-             * to RESP_DONE. */
-            ec_server_set_state(srv, EC_SRV_STATE_RESP_DONE);
+            if (srv->state == EC_SRV_STATE_ACK_SENT
+                    || srv->state == EC_SRV_STATE_REQ_OK)
+            {
+                /* Be it one-shot NON or CON w/piggyback ACK, or separate CON 
+                 * response or delayed NON, they are all handled the same way:
+                 * the ec_server_send_resp() function takes care of sending
+                 * what is needed depending on current FSM state. */
+                dbg_err_if (ec_server_send_resp(srv));
+
+                ec_server_set_state(srv, 
+                        is_con && srv->state == EC_SRV_STATE_ACK_SENT
+                        ? EC_SRV_STATE_WAIT_ACK
+                        : EC_SRV_STATE_RESP_DONE);
+            }
+            else
+                dbg_err("unexpected state: %s", ec_srv_state_str(srv->state));
+
             break;
+
         case EC_CBRC_WAIT:
-        case EC_CBRC_POLL:
-            u_dbg("TODO handle client wait/poll");
+            if (srv->state == EC_SRV_STATE_REQ_OK)
+            {
+                if (is_con)
+                    u_dbg("TODO send separate ACK");
+                dbg_err_if (ec_server_add(srv, &coap->servers));
+                dbg_err_if (ec_server_reschedule_userfn(f, srv, args, tv));
+                /* Fake the ACK_SENT state for NON (this allows more uniform
+                 * handling of actions.) */
+                ec_server_set_state(srv, EC_SRV_STATE_ACK_SENT);
+            }
+            else if (srv->state == EC_SRV_STATE_ACK_SENT)
+            {
+                /* Bail out if user couldn't provide the requested resource
+                 * in the advertised time. */
+                dbg_err("user failed to provide separate response");
+            }
+            else
+                dbg_err("unexpected state: %s", ec_srv_state_str(srv->state));
+
             break;
+
+        case EC_CBRC_POLL:
+            dbg_err("TODO handle client wait/poll");
+
         case EC_CBRC_ERROR:
             /* This gets mapped to an internal error. */
             goto err;
+
         default:
             dbg_err("unknown return code from client callback !");
     }
@@ -322,6 +460,72 @@ static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args,
     return 0;
 err:
     return -1;
+}
+
+static struct resched_userfn_args_s *resched_userfn_args_new(ec_server_t *srv,
+        ec_server_cb_t f, void *f_args)
+{
+    struct resched_userfn_args_s *a;
+ 
+    dbg_err_sif ((a = u_zalloc(sizeof(struct resched_userfn_args_s))) == NULL);
+
+    a->srv = srv;
+    a->f = f;
+    a->f_args = f_args;
+
+    return a;
+err:
+    return NULL;
+}
+
+static void resched_userfn_args_free(struct resched_userfn_args_s *a)
+{
+    if (a)
+        u_free(a);
+    return;
+}
+
+static int ec_server_reschedule_userfn(ec_server_cb_t f, ec_server_t *srv,
+        void *args, const struct timeval *tv)
+{
+    struct resched_userfn_args_s *a = NULL;
+
+    dbg_return_if (f == NULL, -1);
+    dbg_return_if (srv == NULL, -1);
+    dbg_return_if (tv == NULL, -1);
+
+    ec_t *coap = srv->base;
+    ec_timer_t *ti = &srv->timers.resched;
+
+    /* Pack arguments. */
+    dbg_err_if ((a = resched_userfn_args_new(srv, f, args)) == NULL);
+
+    /* Set reschedule timer and callback. */
+    ti->tout = *tv;
+    dbg_err_if (ec_timer_start(coap, ti, 1, resched_userfn, a));
+
+    return 0;
+err:
+    if (a)
+        resched_userfn_args_free(a);
+    return -1;
+}
+
+static void resched_userfn(evutil_socket_t u0, short u1, void *a)
+{
+    struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
+    struct resched_userfn_args_s *pack = (struct resched_userfn_args_s *) a;
+
+    /* Unroll arguments. */
+    ec_server_t *srv = pack->srv;
+    ec_server_cb_t f = pack->f;
+    void *f_args = pack->f_args;
+
+    if (ec_server_userfn(srv, f, f_args, &tv, true))
+        ec_server_set_state(srv, EC_SRV_STATE_INTERNAL_ERR);
+
+    resched_userfn_args_free(a);
+    return;
 }
 
 struct ec_s *ec_server_get_base(ec_server_t *srv)
@@ -341,6 +545,26 @@ int ec_server_set_req(ec_server_t *srv, ec_pdu_t *req)
     return 0;
 }
 
+static bool ec_server_state_is_final(ec_srv_state_t state)
+{
+    switch (state)
+    {
+        case EC_SRV_STATE_INTERNAL_ERR:
+        case EC_SRV_STATE_DUP_REQ:
+        case EC_SRV_STATE_BAD_REQ:
+        case EC_SRV_STATE_RESP_ACK_TIMEOUT:
+        case EC_SRV_STATE_RESP_DONE:
+            return true;
+        case EC_SRV_STATE_NONE:
+        case EC_SRV_STATE_REQ_OK:
+        case EC_SRV_STATE_ACK_SENT:
+        case EC_SRV_STATE_WAIT_ACK:
+            return false;
+        default:
+            die(EXIT_FAILURE, "%s: no such state %u", __func__, state);
+    }
+}
+
 void ec_server_set_state(ec_server_t *srv, ec_srv_state_t state)
 {
     ec_srv_state_t cur = srv->state;
@@ -354,7 +578,11 @@ void ec_server_set_state(ec_server_t *srv, ec_srv_state_t state)
     /* TODO */
     u_dbg("TODO handle timers, etc.");
 
-    srv->state = state;
+    if (ec_server_state_is_final((srv->state = state)))
+    {
+        u_dbg("TODO destroy pending timers");
+        ec_server_free(srv);
+    }
 
     return;
 err:
@@ -390,7 +618,8 @@ static int ec_server_check_transition(ec_srv_state_t cur, ec_srv_state_t next)
 
         case EC_SRV_STATE_RESP_DONE:
             dbg_err_if (cur != EC_SRV_STATE_REQ_OK
-                    && cur != EC_SRV_STATE_WAIT_ACK);
+                    && cur != EC_SRV_STATE_WAIT_ACK
+                    && cur != EC_SRV_STATE_ACK_SENT);   /* XXX only for NON ! */
             break;
 
         case EC_SRV_STATE_NONE:
@@ -459,4 +688,11 @@ int ec_server_set_msg_model(ec_server_t *srv, bool is_con)
     dbg_return_if (srv == NULL, -1);
 
     return ec_net_set_confirmable(&srv->flow.conn, is_con);
+}
+
+ec_pdu_t *ec_server_get_request_pdu(ec_server_t *srv)
+{
+    dbg_return_if (srv == NULL, NULL);
+
+    return srv->req;
 }

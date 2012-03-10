@@ -15,7 +15,6 @@ typedef ec_cbrc_t (*ec_server_cb_t)(ec_server_t *, void *, struct timeval *,
         bool);
 
 /* An hosted resource. */
-/* TODO busy flag + resched timer */
 struct ec_rescb_s
 {
     char *path;
@@ -79,8 +78,8 @@ typedef struct ec_cfg_s ec_cfg_t;
 struct ec_s
 {
     /* Currently active client, server and observe transactions. */
+    ec_servers_t servers;
     TAILQ_HEAD(, ec_client_s) clients;
-    TAILQ_HEAD(, ec_server_s) servers;
     TAILQ_HEAD(, ec_observation_s) observing;
 
     /* Bound sockets. */

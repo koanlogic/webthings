@@ -85,6 +85,7 @@ int ec_response_get_max_age(ec_client_t *cli, uint32_t *max_age);
 
 uint8_t *ec_response_get_payload(ec_client_t *cli, size_t *sz);
 
+uint8_t *ec_request_get_payload(ec_server_t *srv, size_t *sz);
 int ec_request_get_observe(ec_server_t *srv);
 int ec_request_get_acceptable_media_types(ec_server_t *srv, ec_mt_t *mta,
         size_t *mta_sz);

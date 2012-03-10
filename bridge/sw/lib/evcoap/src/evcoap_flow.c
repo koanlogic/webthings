@@ -1,6 +1,6 @@
 #include "evcoap_flow.h"
 
-int ec_flow_save_token(ec_flow_t *flow, uint8_t *tok, size_t tok_sz)
+int ec_flow_save_token(ec_flow_t *flow, const uint8_t *tok, size_t tok_sz)
 {
     dbg_return_if (flow == NULL, -1);
 
@@ -22,6 +22,9 @@ int ec_flow_save_url(ec_flow_t *flow, u_uri_t *url)
 {
     dbg_return_if (flow == NULL, -1);
     dbg_return_if (url == NULL, -1);
+
+    /* Strip out query params for path matching. */
+    dbg_return_if (u_uri_set_query(url, ""), -1);
 
     /* Also save a string copy of the URL. */
     dbg_return_if (u_uri_knead(url, flow->urlstr), -1);

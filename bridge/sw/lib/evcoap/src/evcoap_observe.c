@@ -2,6 +2,7 @@
 #include "evcoap_base.h"
 #include "evcoap_observe.h"
 
+/* ec_observer_t private interfaces. */
 static ec_observer_t *ec_observer_new(const uint8_t *token, size_t token_sz, 
         const uint8_t *etag, size_t etag_sz, ec_mt_t media_type, 
         ec_msg_model_t msg_model, const ec_conn_t *conn, ec_observe_cb_t cb, 
@@ -10,17 +11,21 @@ static int ec_observer_add(ec_observation_t *obs, const uint8_t *tok,
         size_t tok_sz, const uint8_t *etag, size_t etag_sz, ec_mt_t mt, 
         ec_msg_model_t mm, const ec_conn_t *conn, ec_observe_cb_t cb, 
         void *args);
-static ec_observer_t *ec_observer_search(ec_observation_t *obs, ec_conn_t *cn);
+static ec_observer_t *ec_observer_search(ec_observation_t *obs, ec_conn_t *cn,
+        uint16_t mid);
 static void ec_observer_free(ec_observer_t *ovr);
+static int ec_observer_remove(ec_t *coap, ec_observation_t *obs, 
+        ec_observer_t *ovr);
+
+/* ec_observation_t private interfaces. */
 static ec_observation_t *ec_observation_search(ec_t *coap, const char *uri);
 static ec_observation_t *ec_observation_add(ec_t *coap, const char *uri, 
         uint32_t max_age);
 static ec_observation_t *ec_observation_new(ec_t *coap, const char *uri, 
         uint32_t max_age);
 static void ec_observation_free(ec_observation_t *obs);
-static int ec_observation_start(ec_observation_t *obs);
+static int ec_observation_start_countdown(ec_observation_t *obs);
 static bool ec_source_match(const ec_conn_t *req_src, const ec_conn_t *obs_src);
-static int ec_source_copy(const ec_conn_t *src, ec_conn_t *dst);
 
 /* 
  * TODO: The callback should produce all the requested representations in one 
@@ -64,17 +69,31 @@ static void ec_ob_cb(evutil_socket_t u0, short u1, void *c)
         /* Stick the token sent by the client on the original request. */
         dbg_err_if (ec_opts_add_token(&nfy->opts, ovr->token, ovr->token_sz));
 
-        /* Encode PDU. */
-        dbg_err_if (ec_source_copy(&ovr->conn, &flow.conn));
+        /* Add Observe option with counter. */
+        dbg_err_if (ec_opts_add_observe(&nfy->opts, o_cnt));
+
+        /* Encode PDU (NON). */
+        dbg_err_if (ec_conn_copy(&ovr->conn, &flow.conn));
         dbg_err_if (ec_net_set_confirmable(&flow.conn, false));
         dbg_err_if (ec_pdu_encode_response_separate(nfy));
 
         /* Send PDU (ignore ovr->msg_model for now, go NON all the way.)
          * 'NULL' means, don't go through the duplicate handling machinery. */
         dbg_err_if (ec_pdu_send(nfy, NULL));
+
+        /* Retrieve MID and save it in the observer context, so that we can 
+         * identify it in case the observer RST's it. */
+        ovr->last_mid = nfy->hdr_bits.mid;
+
+        ec_pdu_free(nfy), nfy = NULL;
     }
 
+    /* Rearm the notification countdown. */
+    dbg_err_if (ec_observation_start_countdown(obs));
+
 err:
+    if (nfy)
+        ec_pdu_free(nfy);
     return;
 }
 
@@ -108,7 +127,7 @@ static ec_observer_t *ec_observer_new(const uint8_t *token, size_t token_sz,
     ovr->msg_model = msg_model;
 
     /* Copy-in the needed bits from the connection object. */
-    dbg_err_if (ec_source_copy(conn, &ovr->conn));
+    dbg_err_if (ec_conn_copy(conn, &ovr->conn));
 
     /* Attach user provided callback that will create the updated resource
      * representation. */
@@ -142,20 +161,6 @@ static int ec_observer_add(ec_observation_t *obs, const uint8_t *tok,
     return 0;
 }
 
-/* Duplicate the bits needed to identify the observer. */
-static int ec_source_copy(const ec_conn_t *src, ec_conn_t *dst)
-{
-    dbg_return_if (src == NULL, -1);
-    dbg_return_if (dst == NULL, -1);
-
-    dst->socket = src->socket;
-    memcpy(&dst->peer, &src->peer, sizeof dst->peer);
-
-    /* TODO copy in security context. */
-
-    return 0;
-}
-
 /* See if the supplied requester matches an already active observer. */
 static bool ec_source_match(const ec_conn_t *req_src, const ec_conn_t *obs_src)
 {
@@ -180,7 +185,8 @@ err:
 }
 
 /* Try to find an observer matching the given address/security context. */
-static ec_observer_t *ec_observer_search(ec_observation_t *obs, ec_conn_t *conn)
+static ec_observer_t *ec_observer_search(ec_observation_t *obs, ec_conn_t *conn,
+        uint16_t mid)
 {
     ec_observer_t *ovr;
 
@@ -190,7 +196,13 @@ static ec_observer_t *ec_observer_search(ec_observation_t *obs, ec_conn_t *conn)
     TAILQ_FOREACH(ovr, &obs->observers, next)
     {
         if (ec_source_match(conn, &ovr->conn))
+        {
+            /* If mid != 0, try to match also the last sent MID. */
+            if (mid && ovr->last_mid != mid)
+                continue;
+
             return ovr;
+        }
     }
 
     return NULL;
@@ -252,7 +264,7 @@ static ec_observation_t *ec_observation_add(ec_t *coap, const char *uri,
     dbg_err_ifm (obs == NULL, "observation creation failure");
 
     /* Start the countdown based on supplied resource max-age. */
-    dbg_err_if (ec_observation_start(obs));
+    dbg_err_if (ec_observation_start_countdown(obs));
 
     TAILQ_INSERT_TAIL(&coap->observing, obs, next);
 
@@ -264,7 +276,7 @@ err:
 }
 
 /* Fire the observation countdown. */
-static int ec_observation_start(ec_observation_t *obs)
+static int ec_observation_start_countdown(ec_observation_t *obs)
 {
     dbg_return_if (obs == NULL, -1);
 
@@ -292,6 +304,9 @@ static void ec_observation_free(ec_observation_t *obs)
         /* Drop resource representations. */
         if (obs->cached_res)
             ec_resource_free(obs->cached_res);
+
+        /* Cancel countdown timer. */
+        evtimer_del(obs->notify);
 
         u_free(obs); 
     }
@@ -333,6 +348,88 @@ err:
     return -1;
 }
 
+/* TODO The lookup strategy is very inefficient: we should index observers by 
+ * TODO addr and/or last sent MID to allow O(1) access. */
+/* 
+ *  0: not an active observer
+ *  1: active observer deleted
+ * -1: error (removal, param sanitization)
+ */
+int ec_observe_canceled_by_rst(ec_t *coap, ec_pdu_t *rst)
+{
+    ec_observation_t *obs;
+    ec_observer_t *ovr = NULL;
+
+    dbg_return_if (coap == NULL, -1);
+    dbg_return_if (rst == NULL, -1);
+
+    ec_flow_t *flow = rst->flow;
+    ec_hdr_t *h = &rst->hdr_bits;
+
+    /* Search each and every active observer. */
+    TAILQ_FOREACH(obs, &coap->observing, next)
+    {
+        if ((ovr = ec_observer_search(obs, &flow->conn, h->mid)))
+            break;
+    }
+
+    /* If found remove it (this also removes the parent observation in 
+     * case it is the last observer.) */
+    dbg_err_if (ovr && ec_observer_remove(coap, obs, ovr));
+
+    return ovr ? 1 : 0;
+err:
+    return -1;
+}
+
+/* Same return codes as ec_observe_canceled_by_rst() */
+int ec_observe_canceled_by_get(ec_server_t *srv)
+{
+    ec_observer_t *ovr;
+    ec_observation_t *obs;
+
+    dbg_return_if (srv == NULL, -1);
+
+    ec_flow_t *flow = &srv->flow;
+    ec_pdu_t *req = srv->req;
+    ec_t *coap = srv->base;
+
+    if (flow->method != EC_COAP_GET
+            || (obs = ec_observation_search(coap, flow->urlstr)) == NULL)
+        return 0;
+
+    /* Delete observer (in case the Observe option has been set, the user
+     * will later decide if an observation can be installed.) */
+    if ((ovr = ec_observer_search(obs, &flow->conn, 0)))
+        dbg_err_if (ec_observer_remove(coap, obs, ovr));
+
+    return 1;
+err:
+    return -1;
+}
+
+static int ec_observer_remove(ec_t *coap, ec_observation_t *obs, 
+        ec_observer_t *ovr)
+{
+    dbg_return_if (coap == NULL, -1);
+    dbg_return_if (obs == NULL, -1);
+    dbg_return_if (ovr == NULL, -1);
+
+    /* Remove the observer and free memory. */
+    TAILQ_REMOVE(&obs->observers, ovr, next);
+    ec_observer_free(ovr);
+
+    /* Also remove the observation in case there are no observers left. */
+    if (TAILQ_EMPTY(&obs->observers))
+    {
+        u_dbg("removing empty parent observation %p", obs);
+        TAILQ_REMOVE(&coap->observing, obs, next)
+        ec_observation_free(obs);
+    }
+
+    return 0;
+}
+
 int ec_rem_observer(ec_server_t *srv)
 {
     ec_observer_t *ovr;
@@ -346,20 +443,10 @@ int ec_rem_observer(ec_server_t *srv)
     /* It's fine if the requested observation is not active, or there is no
      * such observer.  Just leave a trace in the (debug) log. */
     dbg_return_if (!(obs = ec_observation_search(coap, flow->urlstr)), 0);
-    dbg_return_if (!(ovr = ec_observer_search(obs, &flow->conn)), 0);
+    dbg_return_if (!(ovr = ec_observer_search(obs, &flow->conn, 0)), 0);
 
     /* Remove the observer and free memory. */
-    TAILQ_REMOVE(&obs->observers, ovr, next);
-    ec_observer_free(ovr);
-
-    /* Also remove the observation in case there are no observers left. */
-    if (TAILQ_EMPTY(&obs->observers))
-    {
-        TAILQ_REMOVE(&coap->observing, obs, next)
-        ec_observation_free(obs);
-    }
-
-    return 0;
+    return ec_observer_remove(coap, obs, ovr);
 }
 
 int ec_trigger_notification(ec_server_t *srv)
@@ -371,7 +458,7 @@ int ec_trigger_notification(ec_server_t *srv)
 
 int ec_observation_chores(void)
 {
-    u_con("TODO I don't remember :-)");
+    u_con("Pass over all the observations and remove those likely to be stale");
     return 0;
 }
 

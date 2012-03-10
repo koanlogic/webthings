@@ -6,8 +6,24 @@
 
 #include "evcoap_enums.h"
 #include "evcoap_pdu.h"
+#include "evcoap_timer.h"
 
 struct ec_s;
+
+struct ec_servers_s
+{
+    TAILQ_HEAD(, ec_server_s) h;
+};
+typedef struct ec_servers_s ec_servers_t;
+
+int ec_servers_init(ec_servers_t *srvs);
+void ec_servers_term(ec_servers_t *srvs);
+
+struct ec_srv_timers_s
+{
+    ec_timer_t resched;
+};
+typedef struct ec_srv_timers_s ec_srv_timers_t;
 
 struct ec_server_s
 {
@@ -16,9 +32,10 @@ struct ec_server_s
     ec_flow_t flow;
     ec_pdu_t *req;
     ec_pdu_t *res;
+    ec_servers_t *parent;
+    ec_srv_timers_t timers;
     TAILQ_ENTRY(ec_server_s) next;
 };
-
 typedef struct ec_server_s ec_server_t;
 
 ec_server_t *ec_server_new(struct ec_s *coap, evutil_socket_t sd);
@@ -31,5 +48,6 @@ int ec_server_set_msg_model(ec_server_t *srv, bool is_confirmable);
 struct ec_s *ec_server_get_base(ec_server_t *srv);
 const char *ec_server_get_url(ec_server_t *srv);
 ec_method_t ec_server_get_method(ec_server_t *srv);
+ec_pdu_t *ec_server_get_request_pdu(ec_server_t *srv);
 
 #endif  /* !_EC_SRV_H_ */

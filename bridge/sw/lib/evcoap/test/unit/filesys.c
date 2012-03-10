@@ -42,7 +42,7 @@ static int put_res(ec_filesys_t *fs, u_test_case_t *tc, const char *uri,
     ec_res_t *res = NULL;
     
     /* Create new resource. */
-    u_test_err_ifm(!(res = ec_resource_new(uri, max_age)),
+    u_test_err_ifm(!(res = ec_resource_new(uri, EC_METHOD_MASK_ALL, max_age)),
             "resource creation failed");
 
     /* Add representation to resource. */

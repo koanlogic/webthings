@@ -25,7 +25,8 @@ ec_t *ec_init(struct event_base *base, struct evdns_base *dns)
     coap->dns = dns;
 
     TAILQ_INIT(&coap->clients);
-    TAILQ_INIT(&coap->servers);
+    (void) ec_servers_init(&coap->servers);
+
     TAILQ_INIT(&coap->observing);
     TAILQ_INIT(&coap->listeners);
     TAILQ_INIT(&coap->resources);
@@ -392,6 +393,21 @@ err:
     return -1;
 }
 
+uint8_t *ec_request_get_payload(ec_server_t *srv, size_t *sz)
+{
+    ec_pdu_t *req;
+
+    dbg_return_if (srv == NULL, NULL);
+    dbg_return_if (sz == NULL, NULL);
+
+    dbg_return_if ((req = ec_server_get_request_pdu(srv)) == NULL, NULL);
+
+    /* Return payload and size. */
+    *sz = req->payload_sz;
+
+    return req->payload;
+}
+
 /* Works for unicast exchanges only. */
 uint8_t *ec_response_get_payload(ec_client_t *cli, size_t *sz)
 {
@@ -523,11 +539,31 @@ int ec_request_add_uri_path(ec_client_t *cli, const char *up)
  */
 int ec_request_add_token(ec_client_t *cli, const uint8_t *t, size_t t_len)
 {
+    uint8_t tok[8];
+    const size_t tok_sz = sizeof tok;
+    ec_opts_t *opts = &cli->req.opts;
+    ec_flow_t *flow;
+
     dbg_return_if (cli == NULL, -1);
     
-    ec_opts_t *opts = &cli->req.opts;
+    opts = &cli->req.opts;
+    flow = &cli->flow;
 
-    return ec_opts_add_token(opts, t, t_len);
+    /* If no Token was passed by user, generate it */
+    if (t == NULL || t_len == 0) {
+        t = tok;
+        t_len = tok_sz;
+        evutil_secure_rng_get_bytes(tok, tok_sz);
+    }
+
+    dbg_err_if (ec_opts_add_token(opts, t, t_len));
+
+    /* Cache the token value into the flow. */
+    dbg_err_if (ec_flow_save_token(flow, t, t_len));
+
+    return 0;
+err:
+    return -1;
 }
 
 /**
@@ -733,7 +769,8 @@ static ec_client_t *ec_observer_new(ec_t *coap, const char *uri,
         ec_msg_model_t mm, const char *p_host, uint16_t p_port)
 {
     /* Create new GET-er client. */
-    ec_client_t *cli = ec_client_new(coap, EC_GET, uri, mm, p_host, p_port);
+    ec_client_t *cli = ec_client_new(coap, EC_COAP_GET, uri, mm, p_host,
+            p_port);
 
     dbg_return_if (cli == NULL, NULL);
 
@@ -745,4 +782,3 @@ err:
     ec_client_free(cli);
     return NULL;
 }
-
