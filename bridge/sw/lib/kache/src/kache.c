@@ -8,7 +8,12 @@
 #define DEFAULT_EXPIRATION_TIME 100
 #define DEFAULT_HISTORY_LEN 5
 
-
+//TODO add errors in case the hmap in NULL
+//TODO remove NULL control in free history
+//TODO line 625
+// if (hmap->opts->options & U_HMAP_OPTS_OWNSDATA)
+// segfault if kay is not allocated dynamically
+// TODO leak on history record
 void kache_free_kache_entry(void *obj);
 void kache_free_kache_entry_history(kache_entry_t *kache_entry);
 
@@ -17,7 +22,6 @@ kache_t *kache_init()
     kache_t *kache;
     dbg_err_if((kache = u_zalloc(sizeof(kache_t))) == NULL);
     u_hmap_opts_t *opts;
-    u_hmap_t *hmap = NULL;
     
     
 
@@ -31,9 +35,8 @@ kache_t *kache_init()
     dbg_err_if (u_hmap_opts_set_max (opts, DEFAULT_MAX));
     dbg_err_if (u_hmap_opts_unset_option(opts,U_HMAP_OPTS_NO_OVERWRITE));
     dbg_err_if (u_hmap_opts_unset_option(opts,U_HMAP_OPTS_OWNSDATA));
-    dbg_err_if(u_hmap_new(opts, &hmap));
 
-    kache->hmap = hmap;
+    kache->hmap = NULL;
     kache->hmap_opts = opts;
     kache->history_length = DEFAULT_HISTORY_LEN;
     kache->k_free = NULL;
@@ -45,9 +48,28 @@ kache_t *kache_init()
 err:
     return NULL;
 }
+
+int kache_init_data_structure(kache_t *kache)
+{
+    u_hmap_t *hmap = NULL;
+    dbg_err_if(u_hmap_new(kache->hmap_opts, &hmap));
+    kache->hmap = hmap;
+    return 0;
+err:
+    return -1;
+}
+
 /*
 */
 
+int kache_set_custom_discard_policy(kache_t *kache, int (*compare)(void *o1, void *o2))
+{
+    dbg_err_if (u_hmap_opts_set_policy(kache->hmap_opts, U_HMAP_PCY_CUSTOM)); 
+    dbg_err_if (u_hmap_opts_set_policy_cmp(kache->hmap_opts, compare));
+    return 0;
+err:
+    return -1;
+}
 void kache_free_kache_entry(void *obj)
 {
     kache_entry_t *k_obj = (kache_entry_t*)obj;
@@ -59,8 +81,8 @@ void kache_free_kache_entry(void *obj)
     else
         k_obj->kache->k_free(k_obj->resource);
     kache_free_kache_entry_history(k_obj);
-
-
+    u_free(k_obj->insert_time);
+    u_free(k_obj);
 }
 
 int kache_set_freefunc(kache_t *kache, void (*k_free)(void *obj))
@@ -73,6 +95,7 @@ err:
 }
 int kache_set_max_size(kache_t *kache, int max_size)
 {
+    dbg_err_if (u_hmap_opts_set_size (kache->hmap_opts, max_size));
     dbg_err_if (u_hmap_opts_set_max (kache->hmap_opts, max_size));
     return 0;
 err:
@@ -86,14 +109,17 @@ int kache_set_history_length(kache_t *kache, int history_length)
 }
 void kache_free_history_record(kache_history_record_t *record)
 {
-        u_free(record->insert_time);
-        u_free(record);
+    if(record == NULL)
+        return;
+    u_free(record->insert_time);
+    u_free(record);
 }
 void kache_free_kache_entry_history(kache_entry_t *kache_entry)
 {
 
     int i;
-    for(i=0;i<kache_entry->kache->history_length;i++)
+
+    for(i=0;i<kache_entry->history_size;i++)
     {
         kache_free_history_record(kache_entry->history[i]);
     }
@@ -109,8 +135,9 @@ void kache_free_kache_entry_history(kache_entry_t *kache_entry)
 
 void kache_free(kache_t *kache)
 {
+    u_hmap_opts_set_option(kache->hmap_opts,U_HMAP_OPTS_OWNSDATA);
+    u_hmap_free(kache->hmap);
     u_hmap_opts_free(kache->hmap_opts);
-    u_hmap_easy_free(kache->hmap);
     u_free(kache);
 }
 
@@ -138,7 +165,7 @@ kache_history_record_t *kache_init_history_record()
 {
     kache_history_record_t *record;
     dbg_err_if( (record = u_zalloc(sizeof(kache_history_record_t))) == NULL);
-    dbg_err_if( (record->insert_time = u_zalloc(sizeof(struct timeval))) == NULL);
+    //dbg_err_if( (record->insert_time = u_zalloc(sizeof(struct timeval))) == NULL);
     return record;
 err:
     return NULL;
@@ -176,42 +203,55 @@ err:
 
 }
 
+/* key is copied, must be freed by user
+ *
+ */
+
 int kache_set(kache_t *kache, const char *key, const void *content)
 {
+    char *newkey = malloc(strlen(key)+1);
+    dbg_err_if(strcpy(newkey,key)==NULL);
     kache_entry_t *kache_entry;
     u_hmap_o_t *tmp;
+    unsigned int overwrite = 0;
     //object already in, update history
-    if(u_hmap_get(kache->hmap,key,&tmp) == U_HMAP_ERR_NONE)
+    if(u_hmap_get(kache->hmap,newkey,&tmp) == U_HMAP_ERR_NONE)
     {
+        overwrite = 1;
         kache_entry = (kache_entry_t*) u_hmap_o_get_val(tmp);
         kache_history_record_t *record;
         dbg_err_if( (record = kache_init_history_record()) == NULL);
         record->insert_time = kache_entry->insert_time;
         record->access_counter = kache_entry->access_counter;
         kache_push_history_record(kache_entry,record);
-        //TAILQ_INSERT_HEAD(&kache_entry->history, record, next);
-
-
         dbg_err_if( (kache_entry->insert_time = u_zalloc(sizeof(struct timeval))) == NULL);
         kache_entry->access_counter = 0;
     }
     else
         dbg_err_if( (kache_entry = kache_init_kache_entry(kache)) == NULL);
-
     dbg_err_if( gettimeofday(kache_entry->insert_time,NULL));
     void *tmpres = kache_entry->resource;
     kache_entry->resource = (void*)content;
     u_hmap_o_t *obj;
-    dbg_err_if( (obj = u_hmap_o_new (kache->hmap, key, kache_entry)) == NULL);
+    dbg_err_if( (obj = u_hmap_o_new (kache->hmap, newkey, kache_entry)) == NULL);
     dbg_err_if( u_hmap_put (kache->hmap, obj, &tmp));
     if( tmp != NULL )
-    {
-        //free old resource
-        if(kache->k_free!=NULL)
-            kache->k_free(tmpres);
-        else
-            free(tmpres);
-        u_free(tmp);//free hmap object
+    {   //free old resource (in case of overwrite)
+        if(tmpres != kache_entry->resource)
+        {//to avoid free when overwriting the same value
+            if(kache->k_free!=NULL)
+                kache->k_free(tmpres);
+            else
+                free(tmpres);
+        }
+        // if tmp is an entry popped because 
+        // cache is full, free kache entry
+        if(overwrite==0)
+        {
+            kache_free_kache_entry(u_hmap_o_get_val(tmp));
+        }
+        u_free(u_hmap_o_get_key(tmp));
+        u_hmap_o_free(tmp);//free hmap object
     }
     if(kache->set_procedure != NULL)
         kache->set_procedure(kache_entry,kache->set_procedure_arg);
@@ -223,7 +263,8 @@ int kache_unset(kache_t *kache, const char *key)
 {
     u_hmap_o_t *obj;
     dbg_err_if(u_hmap_del (kache->hmap, key, &obj));
-    u_free(u_hmap_o_get_val(obj));
+    kache_free_kache_entry(u_hmap_o_get_val(obj));
+    u_free(u_hmap_o_get_key(obj));
     u_hmap_o_free(obj);
 
     return 0;

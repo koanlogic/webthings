@@ -25,6 +25,13 @@ Contents
 
   void kache_free(kache_t *kache);
 
+  You can also assign a function, that can be used to compare two stored objects, in order to 
+  define a custom discard policy when the cache is full. This is expecially useful if you want to
+  discard first the objects that are more likely to result stale.
+
+  int kache_set_custom_discard_policy(kache_t *kache, int (*compare)(void *o1, void *o2))
+  
+  int kache_init_data_structure(kache_t *kache)
 3 Kache API
 
 
