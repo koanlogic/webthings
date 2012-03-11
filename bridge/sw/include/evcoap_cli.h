@@ -48,13 +48,23 @@ struct ec_client_s
     void *cb_args;
     ec_cli_state_t state;
     ec_cli_obs_t observe;
-    ec_cli_timers_t timers;
     ec_flow_t flow;
     ec_pdu_t req;
     ec_res_set_t res_set;
+    struct ec_clients_s *parent;
+    ec_cli_timers_t timers;
     TAILQ_ENTRY(ec_client_s) next;
 };
 typedef struct ec_client_s ec_client_t;
+
+struct ec_clients_s
+{
+    TAILQ_HEAD(, ec_client_s) h;
+};
+typedef struct ec_clients_s ec_clients_t;
+
+int ec_clients_init(ec_clients_t *clts);
+void ec_clients_term(ec_clients_t *clts);
 
 ec_client_t *ec_client_new(struct ec_s *coap, ec_method_t m, const char *uri, 
         ec_msg_model_t mm, const char *proxy_host, uint16_t proxy_port);

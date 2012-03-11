@@ -23,6 +23,56 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a);
 static int ec_client_invoke_user_callback(ec_client_t *cli);
 static int ec_cli_obs_init(ec_cli_obs_t *obs);
 static int ec_client_rst_peer(ec_client_t *cli);
+static int ec_client_add(ec_client_t *cli, ec_clients_t *clts);
+static int ec_client_del(ec_client_t *cli, ec_clients_t *clts);
+
+
+int ec_clients_init(ec_clients_t *clts)
+{
+    dbg_return_if (clts == NULL, -1);
+
+    TAILQ_INIT(&clts->h);
+
+    return 0;
+}
+
+void ec_clients_term(ec_clients_t *clts)
+{
+    if (clts != NULL)
+    {
+        ec_client_t *cli;
+
+        while ((cli = TAILQ_FIRST(&clts->h)))
+        {
+            (void) ec_client_del(cli, clts);
+            ec_client_free(cli);
+        }
+    }
+    return;
+
+}
+
+static int ec_client_add(ec_client_t *cli, ec_clients_t *clts)
+{
+    dbg_return_if (cli == NULL, -1);
+    dbg_return_if (clts == NULL, -1);
+
+    TAILQ_INSERT_TAIL(&clts->h, cli, next);
+    cli->parent = clts;
+
+    return 0;
+}
+
+static int ec_client_del(ec_client_t *cli, ec_clients_t *clts)
+{
+    dbg_return_if (cli == NULL, -1);
+    dbg_return_if (clts == NULL, -1);
+
+    TAILQ_REMOVE(&clts->h, cli, next);
+    cli->parent = NULL;
+
+    return 0;
+}
 
 int ec_client_set_method(ec_client_t *cli, ec_method_t m)
 {
@@ -648,6 +698,17 @@ bool ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
             dbg_err_if (ec_cli_start_obs_timer(cli));
         }
     }
+    else if (state == EC_CLI_STATE_REQ_ACKD)
+    {
+        /* Server has ACK'd our request: quench the retransmission timer. */
+        dbg_if (is_con && ec_cli_stop_coap_timer(cli));
+    }
+    else if (state == EC_CLI_STATE_REQ_DONE)
+    {
+        /* In case we reach DONE via a ACK the separate response. */
+        if (cur == EC_CLI_STATE_REQ_ACKD && is_con)
+            u_dbg("TODO ack the separate response");
+    }
 
     /* Finally set state and, in case the state we've entered is final, or
      * we are (re)entering the WAIT_NFY state triggered by the arrival of a 
@@ -744,7 +805,8 @@ int ec_client_register(ec_client_t *cli)
     /* Attach input event on this socket. */
     conn->ev_input = ev_input, ev_input = NULL;
 
-    TAILQ_INSERT_HEAD(&coap->clients, cli, next);
+    /* Stick client to the base. */
+    dbg_err_if (ec_client_add(cli, &coap->clients));
 
     return 0;
 err:
@@ -767,7 +829,7 @@ int ec_client_unregister(ec_client_t *cli)
         event_free(conn->ev_input);
 
     if (coap)
-        TAILQ_REMOVE(&coap->clients, cli, next);
+        (void) ec_client_del(cli, &coap->clients);
 
     return 0;
 }
@@ -999,8 +1061,23 @@ static int ec_client_invoke_user_callback(ec_client_t *cli)
 
 int ec_client_handle_empty_pdu(ec_client_t *cli, uint8_t t, uint16_t mid)
 {
-    /* TODO */
+    dbg_return_if (cli == NULL, -1);
+
+    switch (t)
+    {
+        case EC_COAP_ACK:
+            ec_client_set_state(cli, EC_CLI_STATE_REQ_ACKD);
+            break;
+        case EC_COAP_RST:
+           u_dbg("TODO handle RST"); 
+           break;
+        default:
+           dbg_err("unexpected T: %u here !", t);
+    }
+
     return 0;
+err:
+    return -1;
 }
 
 /* Just a wrapper around ec_net_pullup_all(). */

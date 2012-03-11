@@ -24,8 +24,8 @@ ec_t *ec_init(struct event_base *base, struct evdns_base *dns)
     coap->base = base;
     coap->dns = dns;
 
-    TAILQ_INIT(&coap->clients);
     (void) ec_servers_init(&coap->servers);
+    (void) ec_clients_init(&coap->clients);
 
     TAILQ_INIT(&coap->observing);
     TAILQ_INIT(&coap->listeners);

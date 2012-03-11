@@ -32,6 +32,10 @@ static int ec_server_reschedule_userfn(ec_server_cb_t f, ec_server_t *srv,
         void *args, const struct timeval *tv);
 static void resched_userfn(evutil_socket_t u0, short u1, void *a);
 
+static int ec_srv_start_coap_timer(ec_server_t *srv);
+static int ec_srv_restart_coap_timer(ec_server_t *srv);
+static int ec_srv_stop_coap_timer(ec_server_t *srv);
+
 int ec_servers_init(ec_servers_t *srvs)
 {
     dbg_return_if (srvs == NULL, -1);
@@ -559,6 +563,7 @@ static bool ec_server_state_is_final(ec_srv_state_t state)
         case EC_SRV_STATE_REQ_OK:
         case EC_SRV_STATE_ACK_SENT:
         case EC_SRV_STATE_WAIT_ACK:
+        case EC_SRV_STATE_COAP_RETRY:
             return false;
         default:
             die(EXIT_FAILURE, "%s: no such state %u", __func__, state);
@@ -575,18 +580,93 @@ void ec_server_set_state(ec_server_t *srv, ec_srv_state_t state)
     /* Check that the requested state transition is valid. */
     dbg_err_if (ec_server_check_transition(cur, state));
 
-    /* TODO */
-    u_dbg("TODO handle timers, etc.");
+    /* Start retransmit timer after sending the separate CON response. */
+    if (state == EC_SRV_STATE_WAIT_ACK)
+    {
+        if (cur == EC_SRV_STATE_ACK_SENT)
+            dbg_if (ec_srv_start_coap_timer(srv));
+        else if (cur == EC_SRV_STATE_COAP_RETRY)
+            dbg_if (ec_srv_restart_coap_timer(srv));
+    }
 
     if (ec_server_state_is_final((srv->state = state)))
     {
-        u_dbg("TODO destroy pending timers");
+        dbg_if (ec_srv_stop_coap_timer(srv));
         ec_server_free(srv);
     }
 
     return;
 err:
     die(EXIT_FAILURE, "%s failed (see logs)", __func__);
+}
+
+static void ec_srv_coap_timeout(evutil_socket_t u0, short u1, void *s)
+{
+    ec_server_t *srv = (ec_server_t *) s;
+    ec_dups_t *dups = &srv->base->dups;
+    ec_timer_t *ti = &srv->timers.coap;
+
+    if (ti->retries_left == 0)
+        ec_server_set_state(srv, EC_SRV_STATE_RESP_ACK_TIMEOUT);
+    else
+    {
+        /* Enter the RETRY state and re-send the separate response. */
+        ec_server_set_state(srv, EC_SRV_STATE_COAP_RETRY);
+
+        /* Send again and, if successful, re-enter the WAIT_ACK state. */
+        dbg_err_if (ec_server_send_resp(srv));
+        ec_server_set_state(srv, EC_SRV_STATE_WAIT_ACK);
+    }
+
+    return;
+err:
+    ec_server_set_state(srv, EC_SRV_STATE_INTERNAL_ERR);
+    return;
+}
+
+static int ec_srv_start_coap_timer(ec_server_t *srv)
+{
+    dbg_return_if (srv == NULL, -1);
+
+    ec_t *coap = srv->base;
+    ec_timer_t *ti = &srv->timers.coap;
+
+    /* Should be randomized. */
+    ti->tout = (struct timeval){ .tv_sec = EC_COAP_RESP_TIMEOUT, .tv_usec = 0 };
+
+    /* Create new CoAP (non persistent) timeout event for this client. */
+    return ec_timer_start(coap, ti, EC_COAP_MAX_RETRANSMIT, 
+            ec_srv_coap_timeout, srv);
+}
+
+static int ec_srv_restart_coap_timer(ec_server_t *srv)
+{
+    dbg_return_if (srv == NULL, -1);
+
+    ec_t *coap = srv->base;
+    ec_timer_t *ti = &srv->timers.coap;
+
+    dbg_return_ifm (ti->retries_left == 0, -1, "CoAP timer exhausted");
+
+    /* Double timeout value. */
+    ti->tout.tv_sec *= 2;
+
+    u_dbg("exp timeout = %ds", ti->tout.tv_sec);
+
+    /* Decrement the retries left. */
+    --ti->retries_left;
+
+    /* Re-arm the CoAP timeout. */
+    return ec_timer_restart(ti);
+}
+
+static int ec_srv_stop_coap_timer(ec_server_t *srv)
+{
+    dbg_return_if (srv == NULL, -1);
+
+    ec_srv_timers_t *ti = &srv->timers;
+
+    return ec_timer_remove(&ti->coap);
 }
 
 static int ec_server_check_transition(ec_srv_state_t cur, ec_srv_state_t next)
@@ -609,7 +689,8 @@ static int ec_server_check_transition(ec_srv_state_t cur, ec_srv_state_t next)
             break;
 
         case EC_SRV_STATE_WAIT_ACK:
-            dbg_err_if (cur != EC_SRV_STATE_ACK_SENT);
+            dbg_err_if (cur != EC_SRV_STATE_ACK_SENT
+                    && cur != EC_SRV_STATE_COAP_RETRY);
             break;
 
         case EC_SRV_STATE_RESP_ACK_TIMEOUT:
@@ -620,6 +701,10 @@ static int ec_server_check_transition(ec_srv_state_t cur, ec_srv_state_t next)
             dbg_err_if (cur != EC_SRV_STATE_REQ_OK
                     && cur != EC_SRV_STATE_WAIT_ACK
                     && cur != EC_SRV_STATE_ACK_SENT);   /* XXX only for NON ! */
+            break;
+
+        case EC_SRV_STATE_COAP_RETRY:
+            dbg_err_if (cur != EC_SRV_STATE_WAIT_ACK);
             break;
 
         case EC_SRV_STATE_NONE:

@@ -79,7 +79,7 @@ struct ec_s
 {
     /* Currently active client, server and observe transactions. */
     ec_servers_t servers;
-    TAILQ_HEAD(, ec_client_s) clients;
+    ec_clients_t clients;
     TAILQ_HEAD(, ec_observation_s) observing;
 
     /* Bound sockets. */

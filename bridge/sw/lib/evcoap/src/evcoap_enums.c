@@ -84,7 +84,8 @@ static const char *g_server_states[] =
     [EC_SRV_STATE_ACK_SENT]         = "ACK SENT",
     [EC_SRV_STATE_WAIT_ACK]         = "WAIT ACK",
     [EC_SRV_STATE_RESP_ACK_TIMEOUT] = "ACK TIMEDOUT",
-    [EC_SRV_STATE_RESP_DONE]        = "RESP DONE"
+    [EC_SRV_STATE_RESP_DONE]        = "RESP DONE",
+    [EC_SRV_STATE_COAP_RETRY]       = "COAP RETRY"
 };
 
 const char *ec_srv_state_str(ec_srv_state_t s)

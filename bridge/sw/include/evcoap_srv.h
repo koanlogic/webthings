@@ -10,17 +10,9 @@
 
 struct ec_s;
 
-struct ec_servers_s
-{
-    TAILQ_HEAD(, ec_server_s) h;
-};
-typedef struct ec_servers_s ec_servers_t;
-
-int ec_servers_init(ec_servers_t *srvs);
-void ec_servers_term(ec_servers_t *srvs);
-
 struct ec_srv_timers_s
 {
+    ec_timer_t coap;
     ec_timer_t resched;
 };
 typedef struct ec_srv_timers_s ec_srv_timers_t;
@@ -32,11 +24,20 @@ struct ec_server_s
     ec_flow_t flow;
     ec_pdu_t *req;
     ec_pdu_t *res;
-    ec_servers_t *parent;
+    struct ec_servers_s *parent;
     ec_srv_timers_t timers;
     TAILQ_ENTRY(ec_server_s) next;
 };
 typedef struct ec_server_s ec_server_t;
+
+struct ec_servers_s
+{
+    TAILQ_HEAD(, ec_server_s) h;
+};
+typedef struct ec_servers_s ec_servers_t;
+
+int ec_servers_init(ec_servers_t *srvs);
+void ec_servers_term(ec_servers_t *srvs);
 
 ec_server_t *ec_server_new(struct ec_s *coap, evutil_socket_t sd);
 void ec_server_free(ec_server_t *srv);
