@@ -1,0 +1,14 @@
+Connects to the service database and fetch the service list (possibly filered by attribute name
+and/or attribute value substring).
+
+- all services:
+    ./cpubapi example.conf
+
+- all services that exports the 'type' attribute
+
+    ./cpubapi example.conf type 
+
+- all sensors
+
+    ./cpubapi example.conf type sensor
+
