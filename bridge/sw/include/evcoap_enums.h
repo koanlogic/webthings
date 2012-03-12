@@ -179,8 +179,9 @@ typedef enum
     EC_SRV_STATE_RESP_ACK_TIMEOUT,  /* F */
     EC_SRV_STATE_RESP_DONE,         /* F */
     EC_SRV_STATE_COAP_RETRY,
+    EC_SRV_STATE_CLIENT_RST,        /* F */
 
-    EC_SRV_STATE_MAX = EC_SRV_STATE_COAP_RETRY
+    EC_SRV_STATE_MAX = EC_SRV_STATE_CLIENT_RST
 } ec_srv_state_t;
 
 const char *ec_srv_state_str(ec_srv_state_t s);

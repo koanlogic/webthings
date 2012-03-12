@@ -171,6 +171,20 @@ err:
     return -1;
 }
 
+int ec_net_save_peer(ec_conn_t *conn, const struct sockaddr_storage *peer)
+{
+    uint8_t peer_len;
+
+    dbg_return_if (conn == NULL, -1);
+    dbg_return_if (peer == NULL, -1);
+
+    dbg_return_if (ec_net_socklen(peer, &peer_len), -1);
+
+    memcpy(&conn->peer, peer, peer_len);
+
+    return 0;
+}
+
 int ec_net_set_confirmable(ec_conn_t *conn, bool is_con)
 {
     dbg_return_if (conn == NULL, -1);
@@ -239,4 +253,3 @@ int ec_conn_copy(const ec_conn_t *src, ec_conn_t *dst)
 
     return 0;
 }
-
