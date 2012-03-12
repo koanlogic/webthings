@@ -289,11 +289,11 @@ int client_run(void)
     if (g_ctx.bopt.more)
     {
         g_ctx.bopt.block_no++;
-        g_ctx.bopt.block_sz = U_MIN(g_ctx.block_sz, g_ctx.bopt.block_sz);
+
+        g_ctx.bopt.block_sz = g_ctx.block_sz ?
+            U_MIN(g_ctx.block_sz, g_ctx.bopt.block_sz) : g_ctx.bopt.block_sz;
 
         CHAT("requesting block n.%u (size: %u)", g_ctx.bopt.block_no,
-                g_ctx.bopt.block_sz);
-        u_warn("requesting block n.%u (size: %u)", g_ctx.bopt.block_no,
                 g_ctx.bopt.block_sz);
 
         /* The client MUST set the M bit of a Block2 Option to zero. */
