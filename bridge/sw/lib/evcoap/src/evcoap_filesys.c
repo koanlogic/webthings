@@ -67,7 +67,7 @@ int ec_filesys_del_resource(ec_filesys_t *filesys, const char *uri)
 
     dbg_return_if (u_hmap_easy_del(filesys->map, uri), -1);
 
-    return -1;
+    return 0;
 }
 
 /* 'etag' is optional (set it to NULL if you don't want it to be used as
