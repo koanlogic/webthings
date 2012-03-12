@@ -196,9 +196,13 @@ static int encode_response(ec_pdu_t *pdu, uint8_t t, ec_rc_t rc,
     ec_flow_t *flow = pdu->flow;
     ec_opts_t *opts = &pdu->opts;
 
-    if (t != EC_COAP_RST && t != EC_COAP_CON && rc != EC_RC_UNSET)
+    /* Encode options only in case it is needed. */
+    if (t != EC_COAP_RST && rc != EC_RC_UNSET)
     {
-        /* TODO Check that no token has been set in options. */
+        /* TODO Check that no token has been explicitly set by the user.
+         * TODO Shouldn't it be explicitly avoided by the interface ? */
+
+        /* Mirror the Token possibly sent by the client. */
         if (flow->token_sz)
             dbg_err_if (ec_opts_add_token(opts, flow->token, flow->token_sz));
 
@@ -229,6 +233,7 @@ int ec_pdu_encode_request(ec_pdu_t *pdu)
 
     /* Encode options.
      * Assume that the token has been already set by ec_client_go(). */
+    /* XXX @stewy check this -- after default Token option removal. */
     dbg_err_if (ec_opts_encode(&pdu->opts));
 
     /* Get requested messaging semantics. */
@@ -450,5 +455,4 @@ int ec_pdu_get_mid(ec_pdu_t *pdu, uint16_t *mid)
 
     return 0;
 }
-
 
