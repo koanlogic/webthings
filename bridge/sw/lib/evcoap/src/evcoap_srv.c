@@ -434,38 +434,6 @@ err:
 #undef RC_ERR
 }
 
-#ifdef TODO_BLOCK
-static ec_handle_block_option(ec_server_t *srv)
-{
-    size_t bsz;
-    bool stateless_block;
-    uint8_t szx;
-
-    /*
-     * WIP: Incremental Block Option support (factor it out ASAP!):
-     *  - Fig.2 (Simple blockwise GET) 
-     */
-    if (flow->resp_code == EC_CONTENT
-            && flow->method == EC_GET)
-    {
-        dbg_err_if (ec_cfg_get_block_info(cfg, &stateless_block, &szx));
-
-        bsz = 1 << (szx + 4);
-
-        /* See if this payload needs to be trimmed via Block. */
-        if (!stateless_block && pl_sz > bsz)
-        {
-            /* Trim 'pl_sz' to the requested block boundary and add a Block2
-             * option advertising the first block [2/0/1/bsz]. */
-            pl_sz = bsz;
-            dbg_err_if (ec_opts_add_block2(&srv->res->opts, 0, true, szx));
-        }
-    }
-
-    return 0;
-}
-#endif  /* TODO_BLOCK */
-
 static int ec_trim_payload_sz(ec_cfg_t *cfg, size_t *pl_sz)
 {
     size_t bsz;
