@@ -327,7 +327,7 @@ void ec_pdu_dump(ec_pdu_t *pdu, bool srv)
     static int pnum = 1;
     ec_hdr_t *h;
     ec_opt_t *o;
-    uint8_t _bi;
+    size_t _bi;
 
     dbg_ifb (pdu == NULL || pdu->hdr == NULL)
         return;
