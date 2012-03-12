@@ -25,6 +25,7 @@ static int ec_cli_obs_init(ec_cli_obs_t *obs);
 static int ec_client_rst_peer(ec_client_t *cli);
 static int ec_client_add(ec_client_t *cli, ec_clients_t *clts);
 static int ec_client_del(ec_client_t *cli, ec_clients_t *clts);
+static int ec_client_send_ack(ec_client_t *cli);
 
 
 int ec_clients_init(ec_clients_t *clts)
@@ -49,7 +50,6 @@ void ec_clients_term(ec_clients_t *clts)
         }
     }
     return;
-
 }
 
 static int ec_client_add(ec_client_t *cli, ec_clients_t *clts)
@@ -707,7 +707,7 @@ bool ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
     {
         /* In case we reach DONE via a ACK the separate response. */
         if (cur == EC_CLI_STATE_REQ_ACKD && is_con)
-            u_dbg("TODO ack the separate response");
+            dbg_if (ec_client_send_ack(cli));
     }
 
     /* Finally set state and, in case the state we've entered is final, or
@@ -1133,6 +1133,47 @@ void ec_res_set_clear(ec_res_set_t *rset)
 
         (void) ec_res_set_init(rset);
     }
+}
+
+/* ACK the separate response on a CON flow. */
+static int ec_client_send_ack(ec_client_t *cli)
+{
+    ec_flow_t flow;
+    ec_pdu_t *sep_ack = NULL;   /* Ad-hoc PDU. */
+
+    dbg_return_if (cli == NULL, -1);
+
+    /* Init flow. */
+    memset(&flow, 0, sizeof flow);
+
+    /* TODO Consistency check (sep ACK is ok on CON flow) ? */
+
+    /* Create ad-hoc ACK-only PDU which needs to just ACK the MID in the 
+     * received separate response. */
+    dbg_err_sif ((sep_ack = ec_pdu_new_empty()) == NULL);
+
+    /* Retrieve the separate response PDU. */
+    ec_pdu_t *sep_res = ec_client_get_response_pdu(cli);
+
+    /* Pair ACK and response PDUs (needed for MID mirroring). */
+    dbg_err_if (ec_pdu_set_sibling(sep_ack, sep_res));
+
+    /* Copy the flow data. */
+    dbg_err_if (ec_conn_copy(&cli->flow.conn, &flow.conn));
+    dbg_err_if (ec_pdu_set_flow(sep_ack, &flow));
+
+    /* Encode and send the PDU. */
+    dbg_err_if (ec_pdu_encode_response_ack(sep_ack));
+    dbg_err_if (ec_pdu_send(sep_ack, &cli->base->dups));
+
+    /* Dispose temp memory (XXX should definitely use the stack here.) */
+    ec_pdu_free(sep_ack);
+
+    return 0;
+err:
+    if (sep_ack)
+        ec_pdu_free(sep_ack);
+    return -1;
 }
 
 ec_pdu_t *ec_client_get_request_pdu(ec_client_t *cli)

@@ -706,7 +706,7 @@ int ec_response_add_observe(ec_server_t *srv, uint16_t o)
     return ec_opts_add_observe(opts, o);
 }
 
-static ec_response_add_block(ec_server_t *srv, ec_opt_sym_t which, uint32_t
+static int ec_response_add_block(ec_server_t *srv, ec_opt_sym_t which, uint32_t
         bnum, bool more, size_t bsz)
 {
     ec_pdu_t *res;
