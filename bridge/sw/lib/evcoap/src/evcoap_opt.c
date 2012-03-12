@@ -682,7 +682,7 @@ ec_rc_t ec_opts_decode(ec_opts_t *opts, const uint8_t *pdu, size_t pdu_sz,
     ec_rc_t rc = EC_INTERNAL_SERVER_ERROR;
 
     dbg_return_if (pdu == NULL, -1);
-    dbg_return_if (pdu_sz <= EC_COAP_HDR_SIZE, -1);
+    dbg_return_if (pdu_sz < EC_COAP_HDR_SIZE, -1);
     dbg_return_if (opts == NULL, -1);
     dbg_return_if (olen == NULL, -1);
 

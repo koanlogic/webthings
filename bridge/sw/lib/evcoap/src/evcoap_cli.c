@@ -904,9 +904,7 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         goto cleanup;
     }
 
-    /* Parse options.  At least one option (namely the Token) must be present
-     * because evcoap always sends one non-empty Token to its clients. */
-    dbg_err_ifm (!h->oc, "no options in response !");
+    /* Parse options. */
     dbg_err_ifm (ec_opts_decode(&res->opts, raw, raw_sz, h->oc, &olen),
             "CoAP options could not be parsed correctly");
 
