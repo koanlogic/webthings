@@ -67,27 +67,25 @@ ec_cbrc_t resource_cb_wellknown(ec_server_t *srv, void *u0, struct timeval *u1,
         bool u2);
 #endif
 
-/* Fill a string with char values looping from 'a' to 'z'. */
-static void init_str(char *s, size_t s_sz)
+/* Fill buf with char values looping from '0' to '9'. */
+static void init_buf(char *s, size_t s_sz)
 {
     size_t n;
-    char c = 'a';
+    char c = '0';
 
     for (n = 0; n < s_sz; n++,
-            c = (c == 'z' ? 'a' : 'b'))
+            c = (c == '9' ? '0' : c + 1))
         s[n] = c;
-
-    s[s_sz-1] = '\0';
 }
 
 int main(int ac, char *av[])
 {
     int c, port;
     char a[U_URI_STRMAX];
-    char longstr[EC_COAP_BLOCK_MAX * 3];
+    char largebuf[1500];
 
     /* Initalisations. */
-    init_str(longstr, sizeof(longstr));
+    init_buf(largebuf, sizeof(largebuf));
 
     while ((c = getopt(ac, av, "u:b:hv")) != -1)
     {
@@ -137,7 +135,7 @@ int main(int ac, char *av[])
                 &resource_cb_dft) ||
 
             resource_add("/large", EC_GET_MASK, 0, "text/plain",
-                (const uint8_t *) longstr, strlen(longstr),
+                (const uint8_t *) largebuf, sizeof(largebuf),
                 &resource_cb_dft) ||
 
             resource_add("/separate", EC_GET_MASK, 0, "text/plain",
@@ -318,6 +316,47 @@ err:
     return -1;
 }
 
+static int set_payload(ec_server_t *srv, const uint8_t *data, size_t data_sz)
+{
+    uint32_t bnum = 0;
+    bool more;
+    size_t bsz;
+    const uint8_t *p;
+    size_t p_sz;
+    size_t block_sz = g_ctx.block_sz ? g_ctx.block_sz : EC_COAP_BLOCK_MAX;
+
+    /* If Block2 option was received, use its info. */
+    if (ec_request_get_block2(srv, &bnum, &more, &bsz) == 0)
+        if (bsz)
+            block_sz = U_MIN(bsz, block_sz);
+
+    /* Single block if data fits. */
+    if (data_sz <= block_sz)
+    {
+        p = data;
+        p_sz = data_sz;
+    }
+    else  /* Otherwise we have > 1 blocks and add Block2 option. */
+    {
+        p = data + (bnum * block_sz);
+
+        more = (bnum < (data_sz / block_sz));
+
+        if (more)
+            p_sz = block_sz;
+        else
+            p_sz = data_sz - bnum * block_sz;
+
+        dbg_err_if (ec_response_add_block2(srv, bnum, more, block_sz));
+    }
+
+    (void) ec_response_set_payload(srv, p, p_sz);
+
+    return 0;
+err:
+    return -1;
+}
+
 ec_cbrc_t resource_cb_dft(ec_server_t *srv, void *u0, struct timeval *u1, 
         bool u2)
 {
@@ -360,8 +399,9 @@ ec_cbrc_t resource_cb_dft(ec_server_t *srv, void *u0, struct timeval *u1,
         goto end;
     }
 
-    /* Always return current representation. */
-    (void) ec_response_set_payload(srv, rep->data, rep->data_sz);
+    /* Set payload (or Block if necessary). */
+    dbg_err_if (set_payload(srv, rep->data, rep->data_sz));
+
     (void) ec_response_add_content_type(srv, rep->media_type);
 
     /* Add max-age if != from default. */

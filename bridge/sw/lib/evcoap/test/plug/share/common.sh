@@ -13,6 +13,7 @@ EC_PLUG_CLI_ARG_TYPE="CON"
 EC_PLUG_CLI_ARG_METHOD="GET"
 #EC_PLUG_CLI_ARG_PAYLOAD=""     # default: unset
 #EC_PLUG_CLI_ARG_TOKEN=""       # default: unset
+#EC_PLUG_CLI_ARG_BLOCK=""       # default: unset
 EC_PLUG_CLI_ARG_OUTPUT="-"
 
 # other settings
@@ -132,6 +133,9 @@ t_cli_run()
     [ -z ${EC_PLUG_CLI_ARG_TOKEN} ] || \
         args="${args} -T"
 
+    [ -z ${EC_PLUG_CLI_ARG_BLOCK} ] || \
+        args="${args} -B ${EC_PLUG_CLI_ARG_BLOCK}"
+
     [ -z ${EC_PLUG_CLI_ARG_OUTPUT} ] || \
         args="${args} -o ${EC_PLUG_CLI_ARG_OUTPUT}"
 
@@ -187,6 +191,12 @@ t_cli_set_payload()
 t_cli_set_token()
 {
     EC_PLUG_CLI_ARG_TOKEN=1
+}
+
+# Set client Block option
+t_cli_set_block()
+{
+    EC_PLUG_CLI_ARG_BLOCK=$1
 }
 
 # Get the value of a field.

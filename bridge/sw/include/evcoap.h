@@ -87,15 +87,23 @@ uint8_t *ec_response_get_payload(ec_client_t *cli, size_t *sz);
 
 uint8_t *ec_request_get_payload(ec_server_t *srv, size_t *sz);
 int ec_request_get_observe(ec_server_t *srv);
+int ec_request_get_block1(ec_server_t *srv, uint32_t *bnum, bool *more,
+        size_t *bsz);
+int ec_request_get_block2(ec_server_t *srv, uint32_t *bnum, bool *more,
+        size_t *bsz);
 int ec_request_get_acceptable_media_types(ec_server_t *srv, ec_mt_t *mta,
         size_t *mta_sz);
 
-int ec_response_set_payload(ec_server_t *srv, uint8_t *payload, size_t sz);
+int ec_response_set_payload(ec_server_t *srv, const uint8_t *payload, size_t sz);
 int ec_response_set_code(ec_server_t *srv, ec_rc_t rc);
 int ec_response_add_etag(ec_server_t *srv, const uint8_t *et, size_t et_len);
 int ec_response_add_content_type(ec_server_t *srv, uint16_t ct);
 int ec_response_add_max_age(ec_server_t *srv, uint32_t max_age);
 int ec_response_add_observe(ec_server_t *srv, uint16_t o);
+int ec_response_add_block1(ec_server_t *srv, uint32_t bnum, bool more,
+        size_t bsz);
+int ec_response_add_block2(ec_server_t *srv, uint32_t bnum, bool more,
+        size_t bsz);
 
 /* Observe API */
 int ec_update_representation(const char *uri, const uint8_t *rep,
