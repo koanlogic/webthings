@@ -79,12 +79,13 @@ static ec_server_t *ec_servers_lookup(ec_servers_t *srvs, uint16_t mid, int sd,
     {
         size_t i;
         ec_conn_t *conn = &srv->flow.conn;
-        ec_pdu_t *opdu[2] = { [0] = srv->octrl, [1] = srv->res };
 
         if (conn->socket != sd || memcmp(&conn->peer, peer, peer_len))
             continue;
 
         /* May match any outbound PDU (i.e. a ->res or an ->octrl.) */
+        ec_pdu_t *opdu[2] = { [0] = srv->octrl, [1] = srv->res };
+
         for (i = 0; i < 2; ++i)
         {
             if (opdu[i] && opdu[i]->hdr_bits.mid == mid)
@@ -252,12 +253,43 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
 
     /*
      * See what needs to be done based on the incoming PDU type (TODO factorize)
-     * TODO take care of RST'd observations (goto).
      */ 
     if (!h->code)
     {
         /* In case the incoming PDU is a control message (i.e. RST or ACK),
-         * retrieve the active server context for this transaction. */
+         * retrieve the active server context for this transaction.
+         * An exception to this is a RST message from an observing client.
+         * In this case there is no running server and the message must be
+         * matched against the Observe machinery. */
+        if (h->t == EC_COAP_RST)
+        {
+            /* Fake a flow object since we don't have one already (as
+             * we don't have a srv context.) */
+            ec_flow_t tflow;
+
+            memset(&tflow, 0, sizeof tflow);
+            dbg_err_if (ec_net_save_us(&tflow.conn, sd));
+            dbg_err_if (ec_net_save_peer(&tflow.conn, peer));
+            (void) ec_pdu_set_flow(pdu, &tflow);
+
+            /* Observations may be removed by RST'ing a notification message
+             * so check whether this RST comes in response to an nfy PDU. */
+            switch (ec_observe_canceled_by_rst(coap, pdu))
+            {
+                case 1:
+                    /* Active observer removed. */
+                    goto cleanup;
+                default:
+                    /* Proceed anyway. */
+                    u_dbg("Observe handling machinery failed !");
+                case 0:
+                    /* Not an active observation: proceed as it should have
+                     * an associated running server context. */
+                    (void) ec_pdu_set_flow(pdu, NULL);
+                    break;
+            }
+        }
+
         if ((srv = ec_servers_lookup(&coap->servers, h->mid, sd, peer)) == NULL)
         {
             RC_ERR(EC_BAD_REQUEST,
@@ -293,25 +325,10 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     /* Again, check if its a "control" message. */
     if (!h->code)
     {
-        /* Check if RST. */
+        /* Check if RST (we've already checked with the Observe machinery
+         * that this PDU is not sent by a listening client.) */
         if (h->t == EC_COAP_RST)
         {
-            /* Observations may be removed by RST'ing a notification message
-             * so check whether this RST comes in response to an nfy PDU. */
-            switch (ec_observe_canceled_by_rst(coap, pdu))
-            {
-                case 0:
-                    /* Not an active observation, proceed. */
-                    break;
-                case 1:
-                    /* Active observer removed. */
-                    goto cleanup;
-                default:
-                    /* Internal error. */
-                    u_dbg("Observe handling machinery failed !");
-                    goto err;
-            }
-
             /* Move server to final state and bail out. */
             ec_server_set_state(srv, EC_SRV_STATE_CLIENT_RST);
             return EC_NET_CBRC_SUCCESS;
