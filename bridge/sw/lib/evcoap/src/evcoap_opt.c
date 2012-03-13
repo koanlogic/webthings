@@ -12,8 +12,6 @@ static int compose_uri(ec_opts_t *opts, struct sockaddr_storage *us,
 static size_t fenceposts_encsz(size_t cur, size_t last);
 static uint8_t *add_fenceposts(ec_opts_t *opts, uint8_t *p, size_t cur, 
         size_t *delta);
-static int ec_opts_get_block(ec_opts_t *opts, uint32_t *num, bool *more,
-        uint8_t *szx, ec_opt_sym_t which);
 
 /*******************************************************************************
  NOTE: the g_opts array entries *MUST* be kept in sync with the ec_opt_sym_t
@@ -684,7 +682,7 @@ ec_rc_t ec_opts_decode(ec_opts_t *opts, const uint8_t *pdu, size_t pdu_sz,
     ec_rc_t rc = EC_INTERNAL_SERVER_ERROR;
 
     dbg_return_if (pdu == NULL, -1);
-    dbg_return_if (pdu_sz <= EC_COAP_HDR_SIZE, -1);
+    dbg_return_if (pdu_sz < EC_COAP_HDR_SIZE, -1);
     dbg_return_if (opts == NULL, -1);
     dbg_return_if (olen == NULL, -1);
 
@@ -1147,7 +1145,7 @@ int ec_opts_add_block(ec_opts_t *opts, ec_opt_sym_t which, uint32_t num,
     return ec_opts_add_uint(opts, which, b);
 }
 
-static int ec_opts_get_block(ec_opts_t *opts, uint32_t *num, bool *more,
+int ec_opts_get_block(ec_opts_t *opts, uint32_t *num, bool *more,
         uint8_t *szx, ec_opt_sym_t which)
 {
     uint64_t tmp;

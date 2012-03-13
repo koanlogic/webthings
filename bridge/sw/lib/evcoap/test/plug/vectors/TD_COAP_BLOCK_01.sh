@@ -1,11 +1,9 @@
 ## TD_COAP_BLOCK_01
 ##
 ## description: Handle GET blockwise transfer for large resource (early negotiation)
-## status: incomplete,untested
+## status: complete,tested
 
 . ../share/common.sh
-
-t_die 1 "# Unimplemented!"
 
 #
 # Init
@@ -18,10 +16,12 @@ t_srv_run
 #
 t_dbg "# Step 1"
 
-out=`t_cli_run GET CON "" /large`
+t_cli_set_type CON
+t_cli_set_method GET
+t_cli_set_path /large
+t_cli_set_block 256
 
-t_term
-exit 0
+out=`t_cli_run`
 
 #
 # Step 2
@@ -30,6 +30,7 @@ t_dbg "# Step 2"
 
 t_field_check 1 srv T CON
 t_field_check 1 srv Code GET
+t_field_check 1 srv Block2 4  # num=0,m=0,szx=4
 
 #
 # Step 3
@@ -39,22 +40,48 @@ t_dbg "# Step 3"
 t_field_check 1 cli Code "2.05 (Content)"
 v=`t_field_get 1 srv MID`
 t_field_check 1 cli MID "${v}"
-
-t_field_get 1 cli Content-Type 1>/dev/null
-[ $? -ne 1 ] || t_die 1 "field must be defined!"
+t_field_check 1 cli Block2 12  # num=0,m=1,szx=4
 
 #
 # Step 4
 #
 t_dbg "# Step 4"
 
+for i in `seq 2 6`; do
+    t_field_check ${i} srv T CON
+    t_field_check ${i} srv Code GET
+done
+
+#
+# Step 5
+#
+t_dbg "# Step 5"
+
+t_field_check 2 srv Block2 20  # num=1,m=0,szx=4
+t_field_check 3 srv Block2 36  # num=2,m=0,szx=4
+t_field_check 4 srv Block2 52  # num=3,m=0,szx=4
+t_field_check 5 srv Block2 68  # num=4,m=0,szx=4
+t_field_check 6 srv Block2 84  # num=5,m=0,szx=4
+
+#
+# Step 6
+#
+t_dbg "# Step 6"
+
+t_field_check 2 cli Block2 28  # num=1,m=1,szx=4
+t_field_check 3 cli Block2 44  # num=2,m=1,szx=4
+t_field_check 4 cli Block2 60  # num=3,m=1,szx=4
+t_field_check 5 cli Block2 76  # num=4,m=1,szx=4
+t_field_check 6 cli Block2 84  # num=5,m=0,szx=4
+
+#
+# Step 7
+#
+t_dbg "# Step 7"
+
 t_dbg "${out}"
-if [ "${EC_PLUG_MODE}" != "srv" ]; then
-    t_cmp "${out}" "Hello world!"
-fi
 
 #
 # Cleanup
 #
 t_term
-

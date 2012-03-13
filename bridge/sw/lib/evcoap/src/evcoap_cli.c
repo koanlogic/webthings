@@ -23,6 +23,56 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a);
 static int ec_client_invoke_user_callback(ec_client_t *cli);
 static int ec_cli_obs_init(ec_cli_obs_t *obs);
 static int ec_client_rst_peer(ec_client_t *cli);
+static int ec_client_add(ec_client_t *cli, ec_clients_t *clts);
+static int ec_client_del(ec_client_t *cli, ec_clients_t *clts);
+static int ec_client_send_ack(ec_client_t *cli);
+
+
+int ec_clients_init(ec_clients_t *clts)
+{
+    dbg_return_if (clts == NULL, -1);
+
+    TAILQ_INIT(&clts->h);
+
+    return 0;
+}
+
+void ec_clients_term(ec_clients_t *clts)
+{
+    if (clts != NULL)
+    {
+        ec_client_t *cli;
+
+        while ((cli = TAILQ_FIRST(&clts->h)))
+        {
+            (void) ec_client_del(cli, clts);
+            ec_client_free(cli);
+        }
+    }
+    return;
+}
+
+static int ec_client_add(ec_client_t *cli, ec_clients_t *clts)
+{
+    dbg_return_if (cli == NULL, -1);
+    dbg_return_if (clts == NULL, -1);
+
+    TAILQ_INSERT_TAIL(&clts->h, cli, next);
+    cli->parent = clts;
+
+    return 0;
+}
+
+static int ec_client_del(ec_client_t *cli, ec_clients_t *clts)
+{
+    dbg_return_if (cli == NULL, -1);
+    dbg_return_if (clts == NULL, -1);
+
+    TAILQ_REMOVE(&clts->h, cli, next);
+    cli->parent = NULL;
+
+    return 0;
+}
 
 int ec_client_set_method(ec_client_t *cli, ec_method_t m)
 {
@@ -648,6 +698,17 @@ bool ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
             dbg_err_if (ec_cli_start_obs_timer(cli));
         }
     }
+    else if (state == EC_CLI_STATE_REQ_ACKD)
+    {
+        /* Server has ACK'd our request: quench the retransmission timer. */
+        dbg_if (is_con && ec_cli_stop_coap_timer(cli));
+    }
+    else if (state == EC_CLI_STATE_REQ_DONE)
+    {
+        /* In case we reach DONE via a ACK the separate response. */
+        if (cur == EC_CLI_STATE_REQ_ACKD && is_con)
+            dbg_if (ec_client_send_ack(cli));
+    }
 
     /* Finally set state and, in case the state we've entered is final, or
      * we are (re)entering the WAIT_NFY state triggered by the arrival of a 
@@ -744,7 +805,8 @@ int ec_client_register(ec_client_t *cli)
     /* Attach input event on this socket. */
     conn->ev_input = ev_input, ev_input = NULL;
 
-    TAILQ_INSERT_HEAD(&coap->clients, cli, next);
+    /* Stick client to the base. */
+    dbg_err_if (ec_client_add(cli, &coap->clients));
 
     return 0;
 err:
@@ -767,7 +829,7 @@ int ec_client_unregister(ec_client_t *cli)
         event_free(conn->ev_input);
 
     if (coap)
-        TAILQ_REMOVE(&coap->clients, cli, next);
+        (void) ec_client_del(cli, &coap->clients);
 
     return 0;
 }
@@ -842,9 +904,7 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         goto cleanup;
     }
 
-    /* Parse options.  At least one option (namely the Token) must be present
-     * because evcoap always sends one non-empty Token to its clients. */
-    dbg_err_ifm (!h->oc, "no options in response !");
+    /* Parse options. */
     dbg_err_ifm (ec_opts_decode(&res->opts, raw, raw_sz, h->oc, &olen),
             "CoAP options could not be parsed correctly");
 
@@ -999,8 +1059,23 @@ static int ec_client_invoke_user_callback(ec_client_t *cli)
 
 int ec_client_handle_empty_pdu(ec_client_t *cli, uint8_t t, uint16_t mid)
 {
-    /* TODO */
+    dbg_return_if (cli == NULL, -1);
+
+    switch (t)
+    {
+        case EC_COAP_ACK:
+            ec_client_set_state(cli, EC_CLI_STATE_REQ_ACKD);
+            break;
+        case EC_COAP_RST:
+           u_dbg("TODO handle RST"); 
+           break;
+        default:
+           dbg_err("unexpected T: %u here !", t);
+    }
+
     return 0;
+err:
+    return -1;
 }
 
 /* Just a wrapper around ec_net_pullup_all(). */
@@ -1056,6 +1131,47 @@ void ec_res_set_clear(ec_res_set_t *rset)
 
         (void) ec_res_set_init(rset);
     }
+}
+
+/* ACK the separate response on a CON flow. */
+static int ec_client_send_ack(ec_client_t *cli)
+{
+    ec_flow_t flow;
+    ec_pdu_t *sep_ack = NULL;   /* Ad-hoc PDU. */
+
+    dbg_return_if (cli == NULL, -1);
+
+    /* Init flow. */
+    memset(&flow, 0, sizeof flow);
+
+    /* TODO Consistency check (sep ACK is ok on CON flow) ? */
+
+    /* Create ad-hoc ACK-only PDU which needs to just ACK the MID in the 
+     * received separate response. */
+    dbg_err_sif ((sep_ack = ec_pdu_new_empty()) == NULL);
+
+    /* Retrieve the separate response PDU. */
+    ec_pdu_t *sep_res = ec_client_get_response_pdu(cli);
+
+    /* Pair ACK and response PDUs (needed for MID mirroring). */
+    dbg_err_if (ec_pdu_set_sibling(sep_ack, sep_res));
+
+    /* Copy the flow data. */
+    dbg_err_if (ec_conn_copy(&cli->flow.conn, &flow.conn));
+    dbg_err_if (ec_pdu_set_flow(sep_ack, &flow));
+
+    /* Encode and send the PDU. */
+    dbg_err_if (ec_pdu_encode_response_ack(sep_ack));
+    dbg_err_if (ec_pdu_send(sep_ack, &cli->base->dups));
+
+    /* Dispose temp memory (XXX should definitely use the stack here.) */
+    ec_pdu_free(sep_ack);
+
+    return 0;
+err:
+    if (sep_ack)
+        ec_pdu_free(sep_ack);
+    return -1;
 }
 
 ec_pdu_t *ec_client_get_request_pdu(ec_client_t *cli)

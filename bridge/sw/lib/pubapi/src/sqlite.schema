@@ -1,0 +1,35 @@
+
+CREATE TABLE IF NOT EXISTS meta
+(
+    name TEXT NOT NULL UNIQUE,
+    value TEXT
+);
+
+CREATE TABLE IF NOT EXISTS origin
+(
+    id INTEGER PRIMARY KEY,
+    schema TEXT NOT NULL,
+    ip INTEGER NOT NULL,
+    port INTEGER,
+    UNIQUE(schema,ip,port)
+);
+
+CREATE TABLE IF NOT EXISTS path
+(
+    id INTEGER PRIMARY KEY,
+    path TEXT NOT NULL,
+    origin_id INTEGER,
+    UNIQUE(origin_id, path),
+    FOREIGN KEY(origin_id) REFERENCES origin(id)
+);
+
+CREATE TABLE IF NOT EXISTS attribute
+(
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    value TEXT,
+    path_id INTEGER,
+    FOREIGN KEY(path_id) REFERENCES path(id)
+);
+
+

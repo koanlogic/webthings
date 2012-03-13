@@ -48,6 +48,7 @@ int ec_net_send(uint8_t h[EC_COAP_HDR_SIZE], uint8_t *o, size_t o_sz,
 
 /* TODO s/net/conn/ in the following three. */
 int ec_net_save_us(ec_conn_t *conn, evutil_socket_t sd);
+int ec_net_save_peer(ec_conn_t *conn, const struct sockaddr_storage *peer);
 int ec_net_set_confirmable(ec_conn_t *conn, bool is_con);
 int ec_net_get_confirmable(ec_conn_t *conn, bool *is_con);
 

@@ -1,3 +1,4 @@
+#include <math.h>
 #include <u/libu.h>
 #include <event2/util.h>
 #include "evcoap.h"
@@ -24,8 +25,8 @@ ec_t *ec_init(struct event_base *base, struct evdns_base *dns)
     coap->base = base;
     coap->dns = dns;
 
-    TAILQ_INIT(&coap->clients);
     (void) ec_servers_init(&coap->servers);
+    (void) ec_clients_init(&coap->clients);
 
     TAILQ_INIT(&coap->observing);
     TAILQ_INIT(&coap->listeners);
@@ -168,20 +169,20 @@ int ec_register_fb(ec_t *coap, ec_server_cb_t fb, void *fb_args)
     return 0;
 }
 
-static int ec_request_add_block(ec_client_t *cli, ec_opt_sym_t which, 
+/**
+ * 'bsz' must be a power of 2 in range [16,1024].
+ * Corresponding Block size will be a value between 0 and 6.
+ */
+static int add_block(ec_opts_t *opts, ec_opt_sym_t which,
         uint32_t bnum, bool more, size_t bsz)
 {
-    ec_opts_t *opts;
     size_t sz;
     uint8_t i, szx;
     uint64_t tmp;
 
-    dbg_return_if (cli == NULL, -1);
     dbg_return_if (which != EC_OPT_BLOCK1 && which != EC_OPT_BLOCK2, -1);
     dbg_return_if (bsz < EC_COAP_BLOCK_MIN || bsz > EC_COAP_BLOCK_MAX, -1);
     dbg_return_if ((bsz & (~bsz + 1)) != bsz, -1);  /* not a power of 2 */
-
-    dbg_err_if ((opts = ec_client_get_request_options(cli)) == NULL);
 
     dbg_err_ifm (ec_opts_get_uint(opts, which, &tmp) == 0,
             "Block Option MUST NOT occur more than once");
@@ -201,6 +202,18 @@ static int ec_request_add_block(ec_client_t *cli, ec_opt_sym_t which,
     return 0;
 err:
     return -1;
+}
+
+static int ec_request_add_block(ec_client_t *cli, ec_opt_sym_t which,
+        uint32_t bnum, bool more, size_t bsz)
+{
+    ec_opts_t *opts;
+
+    dbg_return_if (cli == NULL, -1);
+
+    dbg_return_if ((opts = ec_client_get_request_options(cli)) == NULL, -1);
+
+    return add_block(opts, which, bnum, more, bsz);
 }
 
 /**
@@ -294,6 +307,42 @@ int ec_request_get_observe(ec_server_t *srv)
     ec_opts_t *opts = &req->opts;
 
     return ec_opts_get_observe(opts, NULL);
+}
+
+static int ec_request_get_block(ec_server_t *srv, ec_opt_sym_t which,
+        uint32_t *bnum, bool *more, size_t *bsz)
+{
+    ec_pdu_t *req;
+    ec_opts_t *opts;
+    uint8_t szx;
+
+    dbg_return_if (srv == NULL, -1);
+    dbg_return_if ((req = srv->req) == NULL, -1);
+    dbg_return_if (bnum == NULL, -1);
+    dbg_return_if (more == NULL, -1);
+    dbg_return_if (bsz == NULL, -1);
+
+    opts = &req->opts;
+
+    nop_err_if (ec_opts_get_block(opts, bnum, more, &szx, which));
+
+    *bsz = (int) exp2((double) (szx + 4));
+
+    return 0;
+err:
+    return -1;
+}
+
+int ec_request_get_block1(ec_server_t *srv, uint32_t *bnum, bool *more,
+        size_t *bsz)
+{
+    return (ec_request_get_block(srv, EC_OPT_BLOCK1, bnum, more, bsz));
+}
+
+int ec_request_get_block2(ec_server_t *srv, uint32_t *bnum, bool *more,
+        size_t *bsz)
+{
+    return (ec_request_get_block(srv, EC_OPT_BLOCK2, bnum, more, bsz));
 }
 
 /**
@@ -618,7 +667,7 @@ int ec_request_add_if_none_match(ec_client_t *cli)
 /**
  *  \brief  TODO
  */
-int ec_response_set_payload(ec_server_t *srv, uint8_t *payload, size_t sz)
+int ec_response_set_payload(ec_server_t *srv, const uint8_t *payload, size_t sz)
 {
     dbg_return_if (srv == NULL, -1);
 
@@ -655,6 +704,31 @@ int ec_response_add_observe(ec_server_t *srv, uint16_t o)
     ec_opts_t *opts = &res->opts;
 
     return ec_opts_add_observe(opts, o);
+}
+
+static int ec_response_add_block(ec_server_t *srv, ec_opt_sym_t which, uint32_t
+        bnum, bool more, size_t bsz)
+{
+    ec_pdu_t *res;
+
+    dbg_return_if (srv == NULL, -1);
+    dbg_return_if ((res = srv->res) == NULL, -1);
+
+    ec_opts_t *opts = &res->opts;
+
+    return add_block(opts, which, bnum, more, bsz);
+}
+
+int ec_response_add_block1(ec_server_t *srv, uint32_t bnum, bool more,
+        size_t bsz)
+{
+    return ec_response_add_block(srv, EC_OPT_BLOCK1, bnum, more, bsz);
+}
+
+int ec_response_add_block2(ec_server_t *srv, uint32_t bnum, bool more,
+        size_t bsz)
+{
+    return ec_response_add_block(srv, EC_OPT_BLOCK2, bnum, more, bsz);
 }
 
 /**

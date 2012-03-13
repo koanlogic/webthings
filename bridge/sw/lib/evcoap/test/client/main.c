@@ -34,10 +34,11 @@ typedef struct
     const char *pfn;
     uint32_t observe;
     bool verbose;
-    blockopt_t bopt;
     bool fail;
     bool token;
     size_t block_sz;
+    size_t block;
+    blockopt_t bopt;
 } ctx_t;
 
 ctx_t g_ctx = {
@@ -56,7 +57,8 @@ ctx_t g_ctx = {
     .verbose = false,
     .fail = false,
     .token = false,
-    .block_sz = 0
+    .block_sz = 0,      /* block size defined by user */
+    .block = 0          /* current block index */
 };
 
 void usage(const char *prog);
@@ -279,14 +281,17 @@ int client_run(void)
     if (g_ctx.observe)
         dbg_err_if (ec_request_add_observe(g_ctx.cli));
 
-    /* Handle blockwise transfer. */
-	if (g_ctx.block_sz)
+    /* First run - initiate early negotiation. */
+	if (g_ctx.block++ == 0 && g_ctx.block_sz)
         dbg_err_if (ec_request_add_block2(g_ctx.cli, 0, 0, g_ctx.block_sz));
 
+    /* More data available - get next block. */
     if (g_ctx.bopt.more)
     {
         g_ctx.bopt.block_no++;
-        g_ctx.bopt.block_sz = U_MIN(g_ctx.block_sz, g_ctx.bopt.block_sz);
+
+        g_ctx.bopt.block_sz = g_ctx.block_sz ?
+            U_MIN(g_ctx.block_sz, g_ctx.bopt.block_sz) : g_ctx.bopt.block_sz;
 
         CHAT("requesting block n.%u (size: %u)", g_ctx.bopt.block_no,
                 g_ctx.bopt.block_sz);
@@ -309,13 +314,6 @@ int client_run(void)
     }
 
     CHAT("sending request to %s", g_ctx.uri);
-
-    /* 
-    dbg_err_if (ec_request_add_if_match(cli, etag, sizeof etag));
-    dbg_err_if (ec_request_add_accept(g_ctx.cli, EC_MT_TEXT_PLAIN));
-    dbg_err_if (ec_request_add_accept(g_ctx.cli, EC_MT_APPLICATION_JSON));
-    */
-
     dbg_err_if (ec_request_send(g_ctx.cli, cb, NULL, &g_ctx.app_tout));
 
     return event_base_dispatch(g_ctx.base);
