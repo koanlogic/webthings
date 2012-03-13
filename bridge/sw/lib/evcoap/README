@@ -146,10 +146,8 @@ Contents
     b) associate any unbound URI to a user defined callback.
 
   Requests with a given URI are tried in the following order:
-    2) strcasecmp the requested URI to callbacks (see 3.2.1);
-    3) invoke fallback, if set (see 3.2.2).
-
-  [[TODO observable resources.]]
+    1) strcasecmp the requested URI to callbacks (see 3.2.1);
+    2) invoke fallback, if set (see 3.2.2).
 
 3.2.1 Register callback
 
@@ -279,5 +277,6 @@ Contents
 
 5. PDUs Lifetime
 
-  Client and server objects are created by the user and disposed by evcoap.
+  Client and server objects are created by the user and disposed by evcoap
+  when they reach a final state.
 
