@@ -297,6 +297,42 @@ int ec_request_get_acceptable_media_types(ec_server_t *srv, ec_mt_t *mta,
     return ec_opts_get_accept_all(opts, mta, mta_sz);
 }
 
+const char *ec_request_get_uri_origin(ec_server_t *srv)
+{
+    ec_pdu_t *req;
+
+    dbg_return_if (srv == NULL, NULL);
+    dbg_return_if ((req = srv->req) == NULL, NULL);
+
+    ec_flow_t *flow = req->flow;
+
+    return ec_flow_get_uri_origin(flow);
+}
+
+const char *ec_request_get_uri_query(ec_server_t *srv)
+{
+    ec_pdu_t *req;
+
+    dbg_return_if (srv == NULL, NULL);
+    dbg_return_if ((req = srv->req) == NULL, NULL);
+
+    ec_flow_t *flow = req->flow;
+
+    return ec_flow_get_uri_query(flow);
+}
+
+const char *ec_request_get_uri_path(ec_server_t *srv)
+{
+    ec_pdu_t *req;
+
+    dbg_return_if (srv == NULL, NULL);
+    dbg_return_if ((req = srv->req) == NULL, NULL);
+
+    ec_flow_t *flow = req->flow;
+
+    return ec_flow_get_uri_path(flow);
+}
+
 int ec_request_get_observe(ec_server_t *srv)
 {
     ec_pdu_t *req;
@@ -775,7 +811,7 @@ int ec_update_representation(const char *uri, const uint8_t *rep,
  */ 
 int ec_register_cb(ec_t *coap, const char *url, ec_server_cb_t cb, void *args)
 {
-    ec_rescb_t *tmp, *r;
+    ec_rescb_t *tmp, *r = NULL;
 
     dbg_return_if (coap == NULL, -1);
     dbg_return_if (url == NULL, -1);

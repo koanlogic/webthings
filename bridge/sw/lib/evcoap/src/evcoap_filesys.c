@@ -134,11 +134,16 @@ static int __build_wkc(const void *val, const void *arg)
     const ec_res_t *res = (const ec_res_t *) val;
 
     /* TODO query filter. */
-    /* TODO origin filter. */
+
+    /* Filter unwanted origins. */
+    if (strncasecmp(a->origin, res->uri, strlen(a->origin)))
+        return 0;
 
     dbg_err_if (ec_res_link_format_str(res, a->origin, a->query, lfs) == NULL);
+
     if (a->wkc[0] != '\0')
         dbg_err_if (u_strlcat(a->wkc, ",", EC_WKC_MAX));
+
     dbg_err_if (u_strlcat(a->wkc, lfs, EC_WKC_MAX));
 
     return 0;

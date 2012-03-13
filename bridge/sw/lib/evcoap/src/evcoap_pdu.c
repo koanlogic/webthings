@@ -66,7 +66,7 @@ int ec_pdu_set_sibling(ec_pdu_t *pdu, ec_pdu_t *sibling)
 {
     dbg_return_if (pdu == NULL, -1);
     dbg_return_if (sibling == NULL, -1);
-    dbg_return_if (pdu->sibling != NULL, -1);
+    dbg_return_if (pdu->sibling != NULL && pdu->sibling != sibling, -1);
 
     pdu->sibling = sibling;
 

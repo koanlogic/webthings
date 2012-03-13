@@ -378,7 +378,7 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     /* Everything has gone smoothly, so: attach the incoming PDU to the
      * request hook, create the and attach the response PDU, and set state 
      * accordingly. */
-    (void) ec_server_set_req(srv, pdu);
+    (void) ec_server_set_req(srv, pdu), pdu = NULL;
     dbg_err_if (ec_server_new_response(srv));
     ec_server_set_state(srv, EC_SRV_STATE_REQ_OK);
 

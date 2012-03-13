@@ -7,6 +7,7 @@
 #include "kink_conf.h"
 #include "evcoap_enums.h"
 #include "evcoap_base.h"
+#include "evcoap_flow.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -93,8 +94,11 @@ int ec_request_get_block2(ec_server_t *srv, uint32_t *bnum, bool *more,
         size_t *bsz);
 int ec_request_get_acceptable_media_types(ec_server_t *srv, ec_mt_t *mta,
         size_t *mta_sz);
+const char *ec_request_get_uri_origin(ec_server_t *srv);
+const char *ec_request_get_uri_query(ec_server_t *srv);
+const char *ec_request_get_uri_path(ec_server_t *srv);
 
-int ec_response_set_payload(ec_server_t *srv, const uint8_t *payload, size_t sz);
+int ec_response_set_payload(ec_server_t *srv, const uint8_t *pload, size_t sz);
 int ec_response_set_code(ec_server_t *srv, ec_rc_t rc);
 int ec_response_add_etag(ec_server_t *srv, const uint8_t *et, size_t et_len);
 int ec_response_add_content_type(ec_server_t *srv, uint16_t ct);
