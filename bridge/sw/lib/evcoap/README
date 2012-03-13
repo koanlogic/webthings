@@ -267,13 +267,18 @@ Contents
   different from regular requests, CoAP Observe requests elicit one or more
   responses, hence the user supplied callback can be invoked one or more times.
 
-  The user can return a special return code to signal its willingness to drop
-  the observation (TODO).
+  The user can signal her willingness to drop the observation by invoking:
 
-  If the observed resource don't provide a notification within the associated
-  Max-Age, the observation timeouts at the client, in which case the callback
-  is invoked with a special status (TODO).
+      ec_client_cancel_observation(cli);
 
+  If the observed resource doesn't provide a notification within the associated
+  Max-Age, the observation timeouts at the client, and the callback is invoked 
+  with state EC_CLI_STATE_OBS_TIMEOUT:
+
+      if (ec_client_get_state(cli) == EC_CLI_STATE_OBS_TIMEOUT)
+      {
+          /* Re-arm the observation, or bail out... */
+      }
 
 5. PDUs Lifetime
 
