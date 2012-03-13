@@ -1,0 +1,20 @@
+client
+- add .ictrl to handle RST and separated ACK cleanly
+
+server
+- garbage collect lingering server contexts:
+    - add a .last_used timestamp to the ec_server_t 
+    - add timer + garbage collector function to ec_servers_t
+- remove .ictrl since it is unused
+
+resources
+- add dynamic well-known builder interface to ec_filesys_t
+- add link-format resource attributes to ec_res_t
+- add "owner/creator Id" to support the Publish option
+
+observe
+- should it be completely merged into the ec_server_t logics/lifetime ?  this
+  would avoid special case'ing the RST handling in ec_server_handle_pdu()
+- hook caching of produced representations (so that the representation producer
+  callback can be called only when it is really needed)
+ 

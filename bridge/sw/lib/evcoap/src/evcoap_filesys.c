@@ -1,7 +1,15 @@
 #include "evcoap_filesys.h"
 #include "evcoap_resource.h"
 
+struct ec_wkc_args_s
+{
+    char *wkc;  /* EC_WKC_MAX */
+    const char *origin;
+    const char *query;
+};
+
 static void __free_resource(void *arg);
+static int __build_wkc(const void *val, const void *arg);
 
 ec_filesys_t *ec_filesys_create(void)
 {
@@ -95,6 +103,47 @@ ec_rep_t *ec_filesys_get_suitable_rep(ec_filesys_t *fs, const char *uri,
     dbg_return_if ((res = u_hmap_easy_get(fs->map, uri)) == NULL, NULL);
 
     return ec_resource_get_suitable_rep(res, uri, mta, mta_sz, etag);
+}
+
+char *ec_filesys_well_known_core(ec_filesys_t *fs, const char *origin, 
+        const char *query, char wkc[EC_WKC_MAX])
+{
+    struct ec_wkc_args_s args;
+
+    dbg_return_if (fs == NULL, NULL);
+    dbg_return_if (wkc == NULL, NULL);
+    /* 'query' may be NULL for unfiltered queries. */
+
+    wkc[0] = '\0';
+
+    args.wkc = wkc;
+    args.origin = origin;
+    args.query = query;
+
+    dbg_err_if (u_hmap_foreach_arg(fs->map, __build_wkc, &args));
+
+    return wkc;
+err:
+    return NULL;
+}
+
+static int __build_wkc(const void *val, const void *arg)
+{
+    char lfs[EC_LINK_FMT_MAX] = { '\0' };
+    const struct ec_wkc_args_s *a = (const struct ec_wkc_args_s *) arg;
+    const ec_res_t *res = (const ec_res_t *) val;
+
+    /* TODO query filter. */
+    /* TODO origin filter. */
+
+    dbg_err_if (ec_res_link_format_str(res, a->origin, a->query, lfs) == NULL);
+    if (a->wkc[0] != '\0')
+        dbg_err_if (u_strlcat(a->wkc, ",", EC_WKC_MAX));
+    dbg_err_if (u_strlcat(a->wkc, lfs, EC_WKC_MAX));
+
+    return 0;
+err:
+    return -1;
 }
 
 /* Wrapper to make hmap happy. */

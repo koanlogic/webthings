@@ -18,6 +18,7 @@ ec_res_t *ec_resource_new(const char *uri, ec_method_mask_t methods,
     res->methods = methods;
     res->max_age = max_age ? max_age : EC_COAP_DEFAULT_MAX_AGE;
     TAILQ_INIT(&res->reps);
+    (void) ec_res_attrs_init(res);
 
     return res;
 err:
@@ -37,10 +38,8 @@ void ec_resource_free(ec_res_t *res)
             TAILQ_REMOVE(&res->reps, rep, next);
             ec_rep_free(rep);
         }
-
         u_free(res);
     }
-
     return;
 }
 
@@ -68,7 +67,8 @@ err:
     return -1;
 }
 
-ec_rep_t *ec_rep_new(ec_res_t *res, const uint8_t *data, size_t data_sz, ec_mt_t media_type)
+ec_rep_t *ec_rep_new(ec_res_t *res, const uint8_t *data, size_t data_sz, 
+        ec_mt_t media_type)
 {
     ec_rep_t *rep = NULL;
 
@@ -126,7 +126,7 @@ ec_rep_t *ec_resource_get_suitable_rep(ec_res_t *res, const char *uri,
     dbg_return_if (uri == NULL || *uri == '\0', NULL);
 
     /* Try to get a matching representation. */
-    TAILQ_FOREACH(rep, &res->reps, next)
+    TAILQ_FOREACH (rep, &res->reps, next)
     {
         mt_match = (ec_mt_matches(rep->media_type, mta, mta_sz))
             ? true : false;
@@ -181,4 +181,182 @@ void ec_rep_free(ec_rep_t *rep)
         u_free(rep);
     }
 }
+
+char *ec_res_link_format_str(const ec_res_t *res, const char *origin,
+        const char *query, char s[EC_LINK_FMT_MAX])
+{
+    size_t sz;
+    ec_mt_t mt;
+    ec_rep_t *rep;
+    bool exportable, observable, has_sz = true, has_mt = true;
+    char interface[EC_RES_ATTR_MAX], res_type[EC_RES_ATTR_MAX];
+
+    dbg_return_if (res == NULL, NULL);
+    dbg_return_if (s == NULL, NULL);
+
+    dbg_err_if (ec_res_attrs_get_if(res, interface));
+    dbg_err_if (ec_res_attrs_get_rt(res, res_type));
+    dbg_err_if (ec_res_attrs_get_obs(res, &observable));
+    dbg_err_if (ec_res_attrs_get_exp(res, &exportable));
+
+    dbg_err_if ((rep = TAILQ_FIRST(&res->reps)) == NULL);
+
+    sz = rep->data_sz, mt = rep->media_type;
+
+    TAILQ_FOREACH (rep, &res->reps, next)
+    {
+        if (rep->data_sz != sz)
+            has_sz = false;
+
+        if (rep->media_type != mt)
+            has_mt = false;
+    }
+
+    /* TODO filter using query string. */
+    /* TODO filter using the origin string. */
+
+    dbg_err_if (u_strlcat(s, "<", EC_LINK_FMT_MAX));
+    dbg_err_if (u_strlcat(s, res->uri, EC_LINK_FMT_MAX));
+    dbg_err_if (u_strlcat(s, ">", EC_LINK_FMT_MAX));
+
+    if (res_type[0] != '\0')
+    {
+        dbg_err_if (u_strlcat(s, ";", EC_LINK_FMT_MAX));
+        dbg_err_if (u_strlcat(s, "rt=", EC_LINK_FMT_MAX));
+        dbg_err_if (u_strlcat(s, res_type, EC_LINK_FMT_MAX));
+    }
+
+    if (interface[0] != '\0')
+    {
+        dbg_err_if (u_strlcat(s, ";", EC_LINK_FMT_MAX));
+        dbg_err_if (u_strlcat(s, "if=", EC_LINK_FMT_MAX));
+        dbg_err_if (u_strlcat(s, interface, EC_LINK_FMT_MAX));
+    }
+
+    if (has_sz)
+    {
+        char sz_val[16] = { '\0' };
+
+        dbg_err_if (u_snprintf(sz_val, sizeof sz_val, "%zu", sz));
+        dbg_err_if (u_strlcat(s, ";", EC_LINK_FMT_MAX));
+        dbg_err_if (u_strlcat(s, "sz=", EC_LINK_FMT_MAX));
+        dbg_err_if (u_strlcat(s, sz_val, EC_LINK_FMT_MAX));
+    }
+
+    if (has_mt)
+    {
+        char mt_val[4] = { '\0' };
+
+        dbg_err_if (u_snprintf(mt_val, sizeof mt_val, "%u", (unsigned int) mt));
+        dbg_err_if (u_strlcat(s, ";", EC_LINK_FMT_MAX));
+        dbg_err_if (u_strlcat(s, "ct=", EC_LINK_FMT_MAX));
+        dbg_err_if (u_strlcat(s, mt_val, EC_LINK_FMT_MAX));
+    }
+
+    if (observable) 
+    {
+        dbg_err_if (u_strlcat(s, ";", EC_LINK_FMT_MAX));
+        dbg_err_if (u_strlcat(s, "obs", EC_LINK_FMT_MAX));
+    }
+
+    if (exportable) 
+    {
+        dbg_err_if (u_strlcat(s, ";", EC_LINK_FMT_MAX));
+        dbg_err_if (u_strlcat(s, "exp", EC_LINK_FMT_MAX));
+    }
+
+    return s;
+err:
+    return NULL;
+}
+
+int ec_res_attrs_init(ec_res_t *res)
+{
+    dbg_return_if (res == NULL, -1);
+
+    memset(&res->attrs, 0, sizeof res->attrs);
+
+    return 0;
+}
+
+int ec_res_attrs_set_obs(ec_res_t *res, bool observable)
+{
+    dbg_return_if (res == NULL, -1);
+
+    res->attrs.obs = observable;
+
+    return 0;
+}
+
+int ec_res_attrs_set_exp(ec_res_t *res, bool exportable)
+{
+    dbg_return_if (res == NULL, -1);
+
+    res->attrs.exp = exportable;
+
+    return 0;
+}
+
+int ec_res_attrs_set_if(ec_res_t *res, const char *interface)
+{
+    dbg_return_if (res == NULL, -1);
+    dbg_return_if (interface == NULL, -1);
+
+    dbg_return_if (u_strlcpy(res->attrs.interface, interface, 
+                sizeof res->attrs.interface), -1);
+    return 0;
+}
+
+int ec_res_attrs_set_rt(ec_res_t *res, const char *res_type)
+{
+    dbg_return_if (res == NULL, -1);
+    dbg_return_if (res_type == NULL, -1);
+
+    dbg_return_if (u_strlcpy(res->attrs.res_type, res_type, 
+                sizeof res->attrs.res_type), -1);
+    return -1;
+}
+
+int ec_res_attrs_get_obs(const ec_res_t *res, bool *observable)
+{
+    dbg_return_if (res == NULL, -1);
+    dbg_return_if (observable == NULL, -1);
+
+    *observable = res->attrs.obs;
+
+    return 0;
+}
+
+int ec_res_attrs_get_exp(const ec_res_t *res, bool *exportable)
+{
+    dbg_return_if (res == NULL, -1);
+    dbg_return_if (exportable == NULL, -1);
+
+    *exportable = res->attrs.exp; 
+
+    return 0;
+}
+
+int ec_res_attrs_get_if(const ec_res_t *res, char interface[EC_RES_ATTR_MAX])
+{
+    dbg_return_if (res == NULL, -1);
+    dbg_return_if (interface == NULL, -1);
+
+    dbg_return_if (u_strlcpy(interface, res->attrs.interface, 
+                EC_RES_ATTR_MAX), -1);
+
+    return 0;
+}
+
+int ec_res_attrs_get_rt(const ec_res_t *res, char res_type[EC_RES_ATTR_MAX])
+{
+    dbg_return_if (res == NULL, -1);
+    dbg_return_if (res_type == NULL, -1);
+
+    dbg_return_if (u_strlcpy(res_type, res->attrs.res_type, 
+                EC_RES_ATTR_MAX), -1);
+
+    return 0;
+}
+
 
