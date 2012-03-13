@@ -22,7 +22,7 @@ struct ec_server_s
     struct ec_s *base;
     ec_srv_state_t state;
     ec_flow_t flow;
-    ec_pdu_t *req, *res, *ictrl, *octrl;
+    ec_pdu_t *req, *res, *octrl;
     struct ec_servers_s *parent;
     ec_srv_timers_t timers;
     TAILQ_ENTRY(ec_server_s) next;
