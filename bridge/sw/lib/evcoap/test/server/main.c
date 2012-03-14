@@ -40,9 +40,13 @@ void server_term(void);
 int server_run(void);
 int server_bind(u_config_t *cfg);
 
+/* Server DELETE a resource*/
+void server_delete(ec_server_t *srv);
+
 int vhost_setup(u_config_t *vhost);
 int vhost_load_contents(u_config_t *vhost, const char *origin);
 int vhost_load_resource(u_config_t *res, const char *origin);
+int vhost_load_resource_attrs(ec_res_t *res, u_config_t *attrs);
 
 int parse_addr(const char *ap, char *a, size_t a_sz, uint16_t *p);
 int normalize_origin(const char *o, char co[U_URI_STRMAX]);
@@ -169,6 +173,7 @@ err:
 int vhost_load_contents(u_config_t *vhost, const char *origin)
 {
     size_t i;
+    char wkc[1024] = { '\0' };
     u_config_t *res, *contents;
 
     dbg_return_if (vhost == NULL, -1);
@@ -189,6 +194,12 @@ int vhost_load_contents(u_config_t *vhost, const char *origin)
 
     con_err_ifm (i == 0, "no resources in virtual host");
 
+    /* Add the default /.well-known/core interface. */
+    CHAT("adding resource %s (AUTO)", wkc);
+    con_err_if (u_snprintf(wkc, sizeof wkc, "%s/.well-known/core", origin));
+    con_err_ifm (ec_register_cb(g_ctx.coap, wkc, serve, NULL),
+            "registering callback for %s failed", wkc);
+
     return 0;
 err:
     return -1;
@@ -203,7 +214,7 @@ int vhost_load_resource(u_config_t *resource, const char *origin)
     ec_res_t *res = NULL;
     ec_mt_t mt;
     char uri[512];
-    u_config_t *repr;
+    u_config_t *repr, *attrs;
 
     dbg_return_if (resource == NULL, -1);
 
@@ -248,6 +259,13 @@ int vhost_load_resource(u_config_t *resource, const char *origin)
     }
     con_err_ifm (i == 0, "no resources in virtual host");
 
+    /* Add fixed link-format attributes. */
+    if (u_config_get_subkey(resource, "link-attrs", &attrs) == 0)
+    {
+        con_err_ifm (vhost_load_resource_attrs(res, attrs),
+                "error loading link-attrs for resource %s%s", origin, path);
+    }
+
     /* Put resource into the file system. */
     con_err_ifm (ec_filesys_put_resource(g_ctx.fs, res), 
             "adding resource failed");
@@ -261,6 +279,43 @@ int vhost_load_resource(u_config_t *resource, const char *origin)
 err:
     if (res)
         ec_resource_free(res);
+    return -1;
+}
+
+int vhost_load_resource_attrs(ec_res_t *res, u_config_t *attrs)
+{
+    int bv;
+    const char *v;
+
+    dbg_return_if (res == NULL, -1);
+    dbg_return_if (attrs == NULL, -1);
+
+    if ((v = u_config_get_subkey_value(attrs, "if")) != NULL)
+    {
+        con_err_ifm (ec_res_attrs_set_if(res, v),
+                "setting if= attribute to %s", v);
+    }
+
+    if ((v = u_config_get_subkey_value(attrs, "rt")) != NULL)
+    {
+        con_err_ifm (ec_res_attrs_set_rt(res, v),
+                "setting rt= attribute to %s", v);
+    }
+
+    /* Default for 'exp' is false. */
+    con_err_ifm (u_config_get_subkey_value_b(attrs, "exp", false, &bv),
+            "bad boolean value");
+    con_err_ifm (ec_res_attrs_set_exp(res, (bool) bv),
+            "setting exp= attribute to %d", bv);
+    
+    /* Default for 'obs' is false. */
+    con_err_ifm (u_config_get_subkey_value_b(attrs, "obs", false, &bv),
+            "bad boolean value");
+    con_err_ifm (ec_res_attrs_set_obs(res, (bool) bv),
+            "setting obs= attribute to %d", bv);
+
+    return 0;
+err:
     return -1;
 }
 
@@ -407,7 +462,7 @@ const uint8_t *ob_serve(const char *uri, ec_mt_t mt, size_t *p_sz, void *args)
 {
     u_unused_args(mt, args);
 
-    u_con("TODO produce resource for %s", uri);
+    CHAT("Producing resource representation for observed URI %s", uri);
 
     *p_sz = strlen("hello observe");
 
@@ -420,6 +475,7 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
     size_t mta_sz = sizeof mta / sizeof(ec_mt_t);
     ec_rep_t *rep;
     ec_res_t *res;
+    ec_method_t method;
 
     u_unused_args(u0);
 
@@ -436,10 +492,37 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
         return EC_CBRC_WAIT;
     }
 
+    method = ec_server_get_method(srv);
+
     /* Do not accept verbs different from GET (this may obviously change.) */
-    if (ec_server_get_method(srv) != EC_COAP_GET)
+    if (method != EC_COAP_GET)
     {
-        (void) ec_response_set_code(srv, EC_NOT_IMPLEMENTED); 
+    	if (method == EC_COAP_DELETE )
+    	{
+    		server_delete(srv);
+    		goto end;
+
+    	}else
+    	{
+    		(void) ec_response_set_code(srv, EC_NOT_IMPLEMENTED);
+    		goto end;
+    	}
+
+    }
+
+    /* See if it is a query for the /.well-known/core URI. */
+    if (!strcasecmp(ec_request_get_uri_path(srv), "/.well-known/core"))
+    {
+        char wkc[EC_WKC_MAX];
+
+        dbg_err_if (ec_filesys_well_known_core(g_ctx.fs, 
+                    ec_request_get_uri_origin(srv),
+                    ec_request_get_uri_query(srv), wkc) == NULL);
+
+        (void) ec_response_set_code(srv, EC_CONTENT);
+        (void) ec_response_set_payload(srv, wkc, strlen(wkc));
+        (void) ec_response_add_content_type(srv, EC_MT_APPLICATION_LINK_FORMAT);
+
         goto end;
     }
     
@@ -492,3 +575,41 @@ err:
     return EC_CBRC_ERROR;
 }
 
+
+
+/*
+ * The DELETE method requests that the resource identified by the
+ * request URI be deleted.  A 2.02 (Deleted) response SHOULD be sent on
+ * success or in case the resource did not exist before the request.
+ * DELETE is not safe, but idempotent.
+ */
+void server_delete(ec_server_t *srv){
+		char wkc[EC_WKC_MAX];
+
+         /*
+          * Check if it is a query for the /.well-known/core URI.
+          * it is NOT permitted to delete /.well-known/core URI.
+          */
+		 if (!strcasecmp(ec_request_get_uri_path(srv), "/.well-known/core")){
+			 (void) ec_response_set_code(srv, EC_METHOD_NOT_ALLOWED);
+			 return;
+		 }
+
+         /*
+          * Check if the resource exist in the file system
+          */
+		if (ec_filesys_well_known_core(g_ctx.fs,
+                ec_request_get_uri_origin(srv),
+                ec_request_get_uri_query(srv), wkc) != NULL){
+			ec_filesys_del_resource(g_ctx.fs, ec_server_get_url(srv));
+			(void) ec_response_set_code(srv, EC_DELETED);
+		}
+        /*
+         * if does not exist in the file
+         */
+		else {
+			(void) ec_response_set_code(srv, EC_NOT_FOUND);
+		}
+
+		return ;
+}

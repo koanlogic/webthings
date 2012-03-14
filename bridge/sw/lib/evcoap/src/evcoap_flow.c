@@ -64,6 +64,62 @@ ec_method_t ec_flow_get_method(ec_flow_t *flow)
     return flow->method;
 }
 
+u_uri_t *ec_flow_get_uri(ec_flow_t *flow)
+{
+    dbg_return_if (flow == NULL, NULL);
+
+    return flow->uri;
+}
+
+const char *ec_flow_get_uri_origin(ec_flow_t *flow)
+{
+    dbg_return_if (flow == NULL, NULL);
+
+    char *o = flow->origin;
+    const size_t o_sz = sizeof flow->origin;
+
+    /* Compute and cache the origin value. */
+    if (o[0] == '\0')
+    {
+        u_uri_t *u = flow->uri;
+        u_uri_flags_t f = u_uri_get_flags(u);
+
+        dbg_err_if (u == NULL);
+        
+        dbg_err_if (u_strlcpy(o, u_uri_get_scheme(u), o_sz));
+        dbg_err_if (u_strlcat(o, "://", o_sz));
+
+        if (f & U_URI_FLAGS_HOST_IS_IPLITERAL)
+            dbg_err_if (u_strlcat(o, "[", o_sz));
+
+        dbg_err_if (u_strlcat(o, u_uri_get_host(u), o_sz));
+
+        if (f & U_URI_FLAGS_HOST_IS_IPLITERAL)
+            dbg_err_if (u_strlcat(o, "]", o_sz));
+
+        dbg_err_if (u_strlcat(o, ":", o_sz));
+        dbg_err_if (u_strlcat(o, u_uri_get_port(u), o_sz));
+    }
+
+    return flow->origin;
+err:
+    return NULL;
+}
+
+const char *ec_flow_get_uri_query(ec_flow_t *flow)
+{
+    dbg_return_if (flow == NULL, NULL);
+
+    return u_uri_get_query(flow->uri);
+}
+
+const char *ec_flow_get_uri_path(ec_flow_t *flow)
+{
+    dbg_return_if (flow == NULL, NULL);
+
+    return u_uri_get_path(flow->uri);
+}
+
 int ec_flow_set_method(ec_flow_t *flow, ec_method_t method)
 {
     dbg_return_if (flow == NULL, -1);

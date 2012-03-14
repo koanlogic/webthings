@@ -133,9 +133,8 @@ ec_server_t *ec_server_new(struct ec_s *coap, evutil_socket_t sd)
 
     srv->res = srv->req = NULL;
 
-    /* Clean input and output control messages (hopefully they won't be 
-     * needed.) */
-    srv->ictrl = srv->octrl = NULL;
+    /* Clean output control message (hopefully they won't be needed.) */
+    srv->octrl = NULL;
 
     return srv;
 err:
@@ -176,9 +175,6 @@ void ec_server_free(ec_server_t *srv)
 
         if (srv->req)
             ec_pdu_free(srv->req);
-
-        if (srv->ictrl)
-            ec_pdu_free(srv->ictrl);
 
         if (srv->octrl)
             ec_pdu_free(srv->octrl);
@@ -308,7 +304,6 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     ec_pdu_t *res = srv->res;
     ec_pdu_t *req = srv->req;
     ec_pdu_t *octrl = srv->octrl;
-    ec_pdu_t *ictrl = srv->ictrl;
     ec_flow_t *flow = &srv->flow;
     ec_conn_t *conn = &flow->conn;
 
@@ -378,7 +373,7 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     /* Everything has gone smoothly, so: attach the incoming PDU to the
      * request hook, create the and attach the response PDU, and set state 
      * accordingly. */
-    (void) ec_server_set_req(srv, pdu);
+    (void) ec_server_set_req(srv, pdu), pdu = NULL;
     dbg_err_if (ec_server_new_response(srv));
     ec_server_set_state(srv, EC_SRV_STATE_REQ_OK);
 

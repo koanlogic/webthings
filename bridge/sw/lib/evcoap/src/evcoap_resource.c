@@ -314,7 +314,7 @@ int ec_res_attrs_set_rt(ec_res_t *res, const char *res_type)
 
     dbg_return_if (u_strlcpy(res->attrs.res_type, res_type, 
                 sizeof res->attrs.res_type), -1);
-    return -1;
+    return 0;
 }
 
 int ec_res_attrs_get_obs(const ec_res_t *res, bool *observable)
