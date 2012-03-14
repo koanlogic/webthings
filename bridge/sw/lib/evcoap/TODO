@@ -8,7 +8,6 @@ server
 
 resources
 - add "owner/creator Id" to support the Publish option
-- let user pick URI-reference format: relative-ref or URI (fixed)
 
 observe
 - should it be completely merged into the ec_server_t logics/lifetime ?  this
