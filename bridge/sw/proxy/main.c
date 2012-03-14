@@ -87,17 +87,29 @@ void process_http_request(struct evhttp_request *req, void *arg)
 
     /* URI map is just a scheme substitution. */
     (void) u_uri_set_scheme(u, "coap");
-    (void) u_uri_set_host(u, "zrs");
+    (void) u_uri_set_host(u, "127.0.0.1");
 
     con_err_if (u_uri_knead(u, g_ctx.curi));
 
     u_con("mapped URI: %s", g_ctx.curi);
 
-    con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_GET,
-                    g_ctx.curi, EC_COAP_CON)) == NULL);
+
+    switch (req->type)
+      {
+    		case EVHTTP_REQ_GET:
+    		    con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_GET,
+    		                    g_ctx.curi, EC_COAP_CON)) == NULL);
+    		    break;
+    		case EVHTTP_REQ_DELETE:
+    		    con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_DELETE,
+    		                    g_ctx.curi, EC_COAP_CON)) == NULL);
+            default:
+                break;
+      }
+
 
 	/* Add token option to allow for concurrent requests. */
-	con_err_if (ec_request_add_token(g_ctx.cli, NULL, 0));
+   //con_err_if (ec_request_add_token(g_ctx.cli, NULL, 0));
 
     con_err_if (ec_request_send(g_ctx.cli, process_coap_response, req,
                 &g_ctx.tout));
@@ -126,54 +138,88 @@ void process_coap_response(ec_client_t *cli)
 
     con_err_if (cli == NULL);
 
-    con_err_ifm ((s = ec_client_get_state(cli)) != EC_CLI_STATE_REQ_DONE,
-            "request failed: %s", ec_cli_state_str(s));
+     con_err_ifm ((s = ec_client_get_state(cli)) != EC_CLI_STATE_REQ_DONE,
+             "request failed: %s", ec_cli_state_str(s));
 
-    /* Get response code. */
-    con_err_ifm ((rc = ec_response_get_code(cli)) == EC_RC_UNSET,
-            "could not get response code");
+     /* Get response code. */
+     con_err_ifm ((rc = ec_response_get_code(cli)) == EC_RC_UNSET,
+             "could not get response code");
 
-    /* If fragmented will set g_ctx.bopt. */
-    if (ec_response_get_block2(cli, &bnum, &g_ctx.bopt.more,
-                &g_ctx.bopt.block_sz) == 0) {
+     u_con("%s", ec_rc_str((rc = ec_response_get_code(cli))));
 
-            /* Blockwise transfer - make sure requested block was returned. */
-            con_err_if (bnum != g_ctx.bopt.block_no);
+     switch (rc)
+       {
+           case EC_DELETED:
+        	     /*A successful response SHOULD be
+        	      * 200 (OK) if the response includes an representation describing the status,
+        	      * 202 (Accepted) if the action has not yet been enacted,
+        	      * 204 (No Content) if the action has been enacted but the response does not include a representation.*/
+        	    //To Do: Check all the cases!!
+        	   evhttp_send_reply(req, HTTP_NOCONTENT, "No Content", g_ctx.buf);
+        	   return;
+           case EC_CONTENT:
+               //return "2.05 (Content)";
+           break;
+           case EC_NOT_FOUND:
+           {
+           //4.04 (Not Found)
+           evhttp_send_reply(req, HTTP_NOTFOUND, "Not Found", g_ctx.buf);
+           return;
+           }
+           case EC_METHOD_NOT_ALLOWED:
+           {
+        	   //4.05 (Method Not Allowed)
+        	   evhttp_send_reply(req, HTTP_BADMETHOD, "Method Not Allowed", g_ctx.buf);
+        	   return;
+           }
 
-            g_ctx.bopt.block_no = bnum;
-    }
+           default:
+               break;
 
-    if (rc == EC_CONTENT)
-    {
-        con_err_ifm ((pl = ec_response_get_payload(cli, &pl_sz)) == NULL,
-                "empty payload");
-        strncpy(payload, (const char *) pl, U_MIN(sizeof payload, pl_sz));
-        payload[pl_sz] = '\0';
-    }
+       }
 
-    evhttp_add_header(evhttp_request_get_output_headers(req),
-            "Content-Type", "text/plain; charset=UTF-8");
-    evhttp_add_header(evhttp_request_get_output_headers(req),
-            "Access-Control-Allow-Origin", "*");
-    evhttp_add_header(evhttp_request_get_output_headers(req),
-            "Cache-Control", "no-cache");
 
-    evbuffer_add_printf(g_ctx.buf, "%s", payload);
+     /* If fragmented will set g_ctx.bopt. */
+     if (ec_response_get_block2(cli, &bnum, &g_ctx.bopt.more,
+                 &g_ctx.bopt.block_sz) == 0) {
 
-    /* No more blocks => send reply. */
-    if (!g_ctx.bopt.more)
-    {
-        evhttp_send_reply(req, HTTP_OK, "OK", g_ctx.buf);
-        return;
-    }
+             /* Blockwise transfer - make sure requested block was returned. */
+             con_err_if (bnum != g_ctx.bopt.block_no);
 
-    /* If there is more, send a new request with Block2 Option. */
-    con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_GET,
-                    g_ctx.curi, EC_COAP_CON)) == NULL);
-    con_err_if (ec_request_add_block2(g_ctx.cli, ++g_ctx.bopt.block_no, 0,
-                g_ctx.bopt.block_sz) == -1);
-    con_err_if (ec_request_send(g_ctx.cli, process_coap_response, req,
-                &g_ctx.tout));
+             g_ctx.bopt.block_no = bnum;
+     }
+
+     if (rc == EC_CONTENT)
+     {
+         con_err_ifm ((pl = ec_response_get_payload(cli, &pl_sz)) == NULL,
+                 "empty payload");
+         strncpy(payload, (const char *) pl, U_MIN(sizeof payload, pl_sz));
+         payload[pl_sz] = '\0';
+     }
+
+     evhttp_add_header(evhttp_request_get_output_headers(req),
+             "Content-Type", "text/plain; charset=UTF-8");
+     evhttp_add_header(evhttp_request_get_output_headers(req),
+             "Access-Control-Allow-Origin", "*");
+     evhttp_add_header(evhttp_request_get_output_headers(req),
+             "Cache-Control", "no-cache");
+
+     evbuffer_add_printf(g_ctx.buf, "%s", payload);
+
+     /* No more blocks => send reply. */
+     if (!g_ctx.bopt.more)
+     {
+         evhttp_send_reply(req, HTTP_OK, "OK", g_ctx.buf);
+         return;
+     }
+
+     /* If there is more, send a new request with Block2 Option. */
+     con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_GET,
+                     g_ctx.curi, EC_COAP_CON)) == NULL);
+     con_err_if (ec_request_add_block2(g_ctx.cli, ++g_ctx.bopt.block_no, 0,
+                 g_ctx.bopt.block_sz) == -1);
+     con_err_if (ec_request_send(g_ctx.cli, process_coap_response, req,
+                 &g_ctx.tout));
     return;
 err:
     evhttp_send_reply(req, HTTP_INTERNAL, "wtf!", NULL);
