@@ -201,8 +201,8 @@ int vhost_load_contents(u_config_t *vhost, const char *origin)
     con_err_ifm(i == 0, "no resources in virtual host");
 
     /* Add the default /.well-known/core interface. */
-    CHAT("adding resource %s (AUTO)", wkc);
     con_err_if(u_snprintf(wkc, sizeof wkc, "%s/.well-known/core", origin));
+    CHAT("adding resource %s (AUTO)", wkc);
     con_err_ifm(ec_register_cb(g_ctx.coap, wkc, serve, NULL),
             "registering callback for %s failed", wkc);
 

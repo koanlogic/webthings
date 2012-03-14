@@ -17,4 +17,5 @@ include prog.mk
 
 ifdef OS_DARWIN
 all-hook-post: ; /usr/bin/dsymutil $(PROG)
+clean-hook-post: ; rm -rf $(PROG).dSYM
 endif
