@@ -172,7 +172,7 @@ int ec_resource_check_method(ec_res_t *res, ec_method_t method)
 
     mmask = ec_method_to_mask(method);
 
-    return ec_method_to_mask(res->methods & mmask) ? 0 : -1;
+    return (res->methods & mmask) ? 0 : -1;
 }
 
 void ec_rep_free(ec_rep_t *rep)
