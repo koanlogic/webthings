@@ -25,11 +25,12 @@ typedef struct
     struct timeval sep;
 } ctx_t;
 
-ctx_t g_ctx = { 
+ctx_t g_ctx =
+{
     .coap = NULL,
     .base = NULL,
     .dns = NULL,
-    .conf = DEFAULT_CONF, 
+    .conf = DEFAULT_CONF,
     .fs = NULL,
     .block_sz = 0,  /* By default Block is fully under user control. */
     .verbose = false,
@@ -85,27 +86,27 @@ int main(int ac, char *av[])
                 g_ctx.rel_refs = true;
                 break;
             case 'h':
-            default: 
+            default:
                 usage(av[0]);
         }
     }
 
     /* Load configuration from file. */
-    con_err_ifm (u_config_load_from_file(g_ctx.conf, &cfg),
+    con_err_ifm(u_config_load_from_file(g_ctx.conf, &cfg),
             "error loading %s", g_ctx.conf);
 
     /* Initialize libevent and evcoap machinery. */
-    con_err_ifm (server_init(), "evcoap initialization failed");
+    con_err_ifm(server_init(), "evcoap initialization failed");
 
     /* Bind configured addresses. */
-    con_err_ifm (server_bind(cfg), "server socket setup failed");
+    con_err_ifm(server_bind(cfg), "server socket setup failed");
 
     /* Setup configured virtual hosts. */
     for (i = 0; (vhost = u_config_get_child_n(cfg, "vhost", i)) != NULL; ++i)
-        con_err_ifm (vhost_setup(vhost), "configuration error");
-    con_err_ifm (i == 0, "no origins configured");
-    
-    con_err_ifm (server_run(), "server run failed");
+        con_err_ifm(vhost_setup(vhost), "configuration error");
+    con_err_ifm(i == 0, "no origins configured");
+
+    con_err_ifm(server_run(), "server run failed");
 
     return EXIT_SUCCESS;
 err:
@@ -123,7 +124,7 @@ int vhost_setup(u_config_t *vhost)
     const char *o;
     char co[U_URI_STRMAX];
 
-    dbg_return_if (vhost == NULL, -1);
+    dbg_return_if(vhost == NULL, -1);
 
     /* For each origin specified for this vhost... */
     for (i = 0;
@@ -131,13 +132,13 @@ int vhost_setup(u_config_t *vhost)
             ++i)
     {
         /* Get and check origin. */
-        con_err_ifm ((o = u_config_get_value(origin)) == NULL,
+        con_err_ifm((o = u_config_get_value(origin)) == NULL,
                 "missing origin value !");
 
-        con_err_ifm (normalize_origin(o, co), "origin check failed");
+        con_err_ifm(normalize_origin(o, co), "origin check failed");
 
         /* Load contents. */
-        con_err_ifm (vhost_load_contents(vhost, co), "could not load contents");
+        con_err_ifm(vhost_load_contents(vhost, co), "could not load contents");
     }
 
     return 0;
@@ -150,13 +151,13 @@ int normalize_origin(const char *o, char co[U_URI_STRMAX])
     u_uri_t *u = NULL;
     const char *scheme, *port;
 
-    dbg_return_if (o == NULL || o[0] == '\0', -1);
-    dbg_return_if (co == NULL, -1);
+    dbg_return_if(o == NULL || o[0] == '\0', -1);
+    dbg_return_if(co == NULL, -1);
 
-    con_err_ifm (u_uri_crumble(o, 0, &u), "%s parse error", o);
+    con_err_ifm(u_uri_crumble(o, 0, &u), "%s parse error", o);
 
     /* Check that scheme is 'coap' or 'coaps'. */
-    con_err_ifm ((scheme = u_uri_get_scheme(u)) == NULL ||
+    con_err_ifm((scheme = u_uri_get_scheme(u)) == NULL ||
             (strcasecmp(scheme, "coap") && strcasecmp(scheme, "coaps")),
             "bad %s scheme", scheme);
 
@@ -164,7 +165,7 @@ int normalize_origin(const char *o, char co[U_URI_STRMAX])
     if ((port = u_uri_get_port(u)) == NULL || *port == '\0')
         (void) u_uri_set_port(u, EC_COAP_DEFAULT_SPORT);
 
-    con_err_ifm (u_uri_knead(u, co), "error normalizing origin (%s)", o);
+    con_err_ifm(u_uri_knead(u, co), "error normalizing origin (%s)", o);
 
     u_uri_free(u), u = NULL;
 
@@ -181,11 +182,11 @@ int vhost_load_contents(u_config_t *vhost, const char *origin)
     char wkc[1024] = { '\0' };
     u_config_t *res, *contents;
 
-    dbg_return_if (vhost == NULL, -1);
-    dbg_return_if (origin == NULL, -1);
+    dbg_return_if(vhost == NULL, -1);
+    dbg_return_if(origin == NULL, -1);
 
     /* Pick up the "contents" section. */
-    con_err_ifm (u_config_get_subkey(vhost, "contents", &contents),
+    con_err_ifm(u_config_get_subkey(vhost, "contents", &contents),
             "no contents in virtual host !");
 
     /* Load hosted resources. */
@@ -193,16 +194,16 @@ int vhost_load_contents(u_config_t *vhost, const char *origin)
             (res = u_config_get_child_n(contents, "resource", i)) != NULL;
             ++i)
     {
-        con_err_ifm (vhost_load_resource(res, origin),
+        con_err_ifm(vhost_load_resource(res, origin),
                 "error loading resource");
     }
 
-    con_err_ifm (i == 0, "no resources in virtual host");
+    con_err_ifm(i == 0, "no resources in virtual host");
 
     /* Add the default /.well-known/core interface. */
     CHAT("adding resource %s (AUTO)", wkc);
-    con_err_if (u_snprintf(wkc, sizeof wkc, "%s/.well-known/core", origin));
-    con_err_ifm (ec_register_cb(g_ctx.coap, wkc, serve, NULL),
+    con_err_if(u_snprintf(wkc, sizeof wkc, "%s/.well-known/core", origin));
+    con_err_ifm(ec_register_cb(g_ctx.coap, wkc, serve, NULL),
             "registering callback for %s failed", wkc);
 
     return 0;
@@ -221,10 +222,10 @@ int vhost_load_resource(u_config_t *resource, const char *origin)
     char uri[512];
     u_config_t *repr, *attrs;
 
-    dbg_return_if (resource == NULL, -1);
+    dbg_return_if(resource == NULL, -1);
 
     /* Get resource path. */
-    con_err_ifm ((path = u_config_get_subkey_value(resource, "path")) == NULL,
+    con_err_ifm((path = u_config_get_subkey_value(resource, "path")) == NULL,
             "missing mandatory \'path\' in resource");
 
     /* Get resource max age (default to 60 secs if not specified.) */
@@ -232,52 +233,52 @@ int vhost_load_resource(u_config_t *resource, const char *origin)
         ma = 60;
     else
     {
-        con_err_ifm (u_atoi(max_age, &tmp), "conversion error for %s", max_age);
+        con_err_ifm(u_atoi(max_age, &tmp), "conversion error for %s", max_age);
         ma = (uint32_t) tmp;
     }
 
     /* Create complete resource name. */
-    con_err_ifm (u_snprintf(uri, sizeof uri, "%s%s", origin, path),
+    con_err_ifm(u_snprintf(uri, sizeof uri, "%s%s", origin, path),
             "could not create uri for path %s and origin %s", path, origin);
 
     CHAT("adding resource %s", uri);
 
     /* Create FS resource. */
-    con_err_ifm ((res = ec_resource_new(uri, EC_METHOD_MASK_ALL, ma)) == NULL,
+    con_err_ifm((res = ec_resource_new(uri, EC_METHOD_MASK_ALL, ma)) == NULL,
             "resource creation failed");
 
     /* Load each resource representation. */
-    for (i = 0; (repr = u_config_get_child_n(resource, 
-                    "representation", i)) != NULL; ++i)
+    for (i = 0; (repr = u_config_get_child_n(resource,
+            "representation", i)) != NULL; ++i)
     {
         /* Retrieve representation type and value. */
-        con_err_ifm (ec_mt_from_string(u_config_get_subkey_value(repr, "t:"),
-                    &mt), "media type map error");
+        con_err_ifm(ec_mt_from_string(u_config_get_subkey_value(repr, "t:"),
+                &mt), "media type map error");
 
-        con_err_ifm ((val = u_config_get_subkey_value(repr, "v:")) == NULL, 
+        con_err_ifm((val = u_config_get_subkey_value(repr, "v:")) == NULL,
                 "no value for resource %s", uri);
         val_sz = strlen(val);
 
-        con_err_ifm (ec_resource_add_rep(res, (const uint8_t *) val, 
-                    val_sz, mt, NULL),
+        con_err_ifm(ec_resource_add_rep(res, (const uint8_t *) val,
+                val_sz, mt, NULL),
                 "error adding representation for %s", uri);
     }
-    con_err_ifm (i == 0, "no resources in virtual host");
+    con_err_ifm(i == 0, "no resources in virtual host");
 
     /* Add fixed link-format attributes. */
     if (u_config_get_subkey(resource, "link-attrs", &attrs) == 0)
     {
-        con_err_ifm (vhost_load_resource_attrs(res, attrs),
+        con_err_ifm(vhost_load_resource_attrs(res, attrs),
                 "error loading link-attrs for resource %s%s", origin, path);
     }
 
     /* Put resource into the file system. */
-    con_err_ifm (ec_filesys_put_resource(g_ctx.fs, res), 
+    con_err_ifm(ec_filesys_put_resource(g_ctx.fs, res),
             "adding resource failed");
     res = NULL; /* ownership lost */
 
     /* Register the callback that will serve this URI. */
-    con_err_ifm (ec_register_cb(g_ctx.coap, uri, serve, NULL),
+    con_err_ifm(ec_register_cb(g_ctx.coap, uri, serve, NULL),
             "registering callback for %s failed", uri);
 
     return 0;
@@ -292,31 +293,31 @@ int vhost_load_resource_attrs(ec_res_t *res, u_config_t *attrs)
     int bv;
     const char *v;
 
-    dbg_return_if (res == NULL, -1);
-    dbg_return_if (attrs == NULL, -1);
+    dbg_return_if(res == NULL, -1);
+    dbg_return_if(attrs == NULL, -1);
 
     if ((v = u_config_get_subkey_value(attrs, "if")) != NULL)
     {
-        con_err_ifm (ec_res_attrs_set_if(res, v),
+        con_err_ifm(ec_res_attrs_set_if(res, v),
                 "setting if= attribute to %s", v);
     }
 
     if ((v = u_config_get_subkey_value(attrs, "rt")) != NULL)
     {
-        con_err_ifm (ec_res_attrs_set_rt(res, v),
+        con_err_ifm(ec_res_attrs_set_rt(res, v),
                 "setting rt= attribute to %s", v);
     }
 
     /* Default for 'exp' is false. */
-    con_err_ifm (u_config_get_subkey_value_b(attrs, "exp", false, &bv),
+    con_err_ifm(u_config_get_subkey_value_b(attrs, "exp", false, &bv),
             "bad boolean value");
-    con_err_ifm (ec_res_attrs_set_exp(res, (bool) bv),
+    con_err_ifm(ec_res_attrs_set_exp(res, (bool) bv),
             "setting exp= attribute to %d", bv);
-    
+
     /* Default for 'obs' is false. */
-    con_err_ifm (u_config_get_subkey_value_b(attrs, "obs", false, &bv),
+    con_err_ifm(u_config_get_subkey_value_b(attrs, "obs", false, &bv),
             "bad boolean value");
-    con_err_ifm (ec_res_attrs_set_obs(res, (bool) bv),
+    con_err_ifm(ec_res_attrs_set_obs(res, (bool) bv),
             "setting obs= attribute to %d", bv);
 
     return 0;
@@ -326,13 +327,13 @@ err:
 
 int server_init(void)
 {
-    dbg_err_if ((g_ctx.base = event_base_new()) == NULL);
-    dbg_err_if ((g_ctx.dns = evdns_base_new(g_ctx.base, 1)) == NULL);
-    dbg_err_if ((g_ctx.coap = ec_init(g_ctx.base, g_ctx.dns)) == NULL);
-    dbg_err_if ((g_ctx.fs = ec_filesys_create(g_ctx.rel_refs)) == NULL);
+    dbg_err_if((g_ctx.base = event_base_new()) == NULL);
+    dbg_err_if((g_ctx.dns = evdns_base_new(g_ctx.base, 1)) == NULL);
+    dbg_err_if((g_ctx.coap = ec_init(g_ctx.base, g_ctx.dns)) == NULL);
+    dbg_err_if((g_ctx.fs = ec_filesys_create(g_ctx.rel_refs)) == NULL);
 
     if (g_ctx.block_sz)
-        dbg_err_if (ec_set_block_size(g_ctx.coap, g_ctx.block_sz));
+        dbg_err_if(ec_set_block_size(g_ctx.coap, g_ctx.block_sz));
 
     return 0;
 err:
@@ -382,7 +383,7 @@ int server_bind(u_config_t *cfg)
     char a[256];
     uint16_t port;
 
-    dbg_return_if (cfg == NULL, -1);
+    dbg_return_if(cfg == NULL, -1);
 
     /* Bind all the specified 'addr' records. */
     for (i = 0; (addr = u_config_get_child_n(cfg, "addr", i)) != NULL; ++i)
@@ -390,14 +391,14 @@ int server_bind(u_config_t *cfg)
         if ((v = u_config_get_value(addr)) == NULL)
         {
             u_con("skipping empty 'addr' record...");
-            continue; 
+            continue;
         }
 
-        con_err_ifm (parse_addr(v, a, sizeof a, &port), 
+        con_err_ifm(parse_addr(v, a, sizeof a, &port),
                 "error parsing %s", v);
 
         /* Try to bind the requested address. */
-        con_err_ifm (ec_bind_socket(g_ctx.coap, a, port),
+        con_err_ifm(ec_bind_socket(g_ctx.coap, a, port),
                 "error binding %s:%u", a, port);
     }
 
@@ -412,26 +413,26 @@ int parse_addr(const char *ap, char *a, size_t a_sz, uint16_t *p)
     char *ptr;
     size_t alen;
 
-    dbg_return_if (ap == NULL, -1);
-    dbg_return_if (a == NULL, -1);
-    dbg_return_if (a_sz == 0, -1);
-    dbg_return_if (p == NULL, -1);
+    dbg_return_if(ap == NULL, -1);
+    dbg_return_if(a == NULL, -1);
+    dbg_return_if(a_sz == 0, -1);
+    dbg_return_if(p == NULL, -1);
 
     /* Extract port, if specified. */
     if ((ptr = strchr(ap, '+')) != NULL && ptr[1] != '\0')
     {
-        con_err_ifm (u_atoi(++ptr, &tmp), "could not parse port %s", ptr);
+        con_err_ifm(u_atoi(++ptr, &tmp), "could not parse port %s", ptr);
         *p = (uint16_t) tmp;
     }
     else
     {
-        ptr = (char *) (ap + strlen(ap) + 1);
+        ptr = (char *)(ap + strlen(ap) + 1);
         *p = EC_COAP_DEFAULT_PORT;
     }
 
-    alen = (size_t) (ptr - ap - 1);
+    alen = (size_t)(ptr - ap - 1);
 
-    con_err_ifm (alen >= a_sz, 
+    con_err_ifm(alen >= a_sz,
             "not enough bytes (%zu vs %zu) to copy %s", alen, a_sz, ap);
 
     (void) strncpy(a, ap, alen);
@@ -495,26 +496,20 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
     {
         *tv = g_ctx.sep;
         u_con("reschedule cb for %s in %llu seconds",
-                uri, (long long) g_ctx.sep.tv_sec);
+              uri, (long long) g_ctx.sep.tv_sec);
         return EC_CBRC_WAIT;
     }
 
-    method = ec_server_get_method(srv);
-
-    /* Do not accept verbs different from GET (this may obviously change.) */
-    if (method != EC_COAP_GET)
+    switch ((method = ec_server_get_method(srv)))
     {
-    	if (method == EC_COAP_DELETE )
-    	{
-    		server_delete(srv);
-    		goto end;
-
-    	}else
-    	{
-    		(void) ec_response_set_code(srv, EC_NOT_IMPLEMENTED);
-    		goto end;
-    	}
-
+        case EC_COAP_GET:
+            break;
+        case EC_COAP_DELETE:
+            server_delete(srv);
+            goto end;
+        default:
+            (void) ec_response_set_code(srv, EC_NOT_IMPLEMENTED);
+            goto end;
     }
 
     /* See if it is a query for the /.well-known/core URI. */
@@ -522,9 +517,9 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
     {
         char wkc[EC_WKC_MAX];
 
-        dbg_err_if (ec_filesys_well_known_core(g_ctx.fs, 
-                    ec_request_get_uri_origin(srv),
-                    ec_request_get_uri_query(srv), wkc) == NULL);
+        dbg_err_if(ec_filesys_well_known_core(g_ctx.fs,
+                ec_request_get_uri_origin(srv),
+                ec_request_get_uri_query(srv), wkc) == NULL);
 
         (void) ec_response_set_code(srv, EC_CONTENT);
         (void) ec_response_set_payload(srv, wkc, strlen(wkc));
@@ -532,9 +527,9 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
 
         goto end;
     }
-    
+
     /* Get Accept'able media types. */
-    con_err_if (ec_request_get_acceptable_media_types(srv, mta, &mta_sz));
+    con_err_if(ec_request_get_acceptable_media_types(srv, mta, &mta_sz));
 
     /* Try to retrieve a representation that fits client request. */
     rep = ec_filesys_get_suitable_rep(g_ctx.fs, uri, mta, mta_sz, NULL);
@@ -543,7 +538,7 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
     if (rep)
     {
         res = ec_rep_get_res(rep);
-        dbg_err_if (res == NULL);
+        dbg_err_if(res == NULL);
 
         /* Set response code, payload, etag and content-type. */
         (void) ec_response_set_code(srv, EC_CONTENT);
@@ -562,8 +557,8 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
 
             /* Add a NON notifier attached to ob_serve callback. */
             if (!ec_add_observer(srv, ob_serve, NULL, res->max_age,
-                        rep->media_type, EC_COAP_NON, rep->etag, 
-                        sizeof rep->etag))
+                    rep->media_type, EC_COAP_NON, rep->etag,
+                    sizeof rep->etag))
             {
                 /* Get counter from time */
                 (void) ec_get_observe_counter(&o_cnt);
@@ -582,41 +577,33 @@ err:
     return EC_CBRC_ERROR;
 }
 
-
-
 /*
  * The DELETE method requests that the resource identified by the
  * request URI be deleted.  A 2.02 (Deleted) response SHOULD be sent on
  * success or in case the resource did not exist before the request.
  * DELETE is not safe, but idempotent.
  */
-void server_delete(ec_server_t *srv){
-		char wkc[EC_WKC_MAX];
+void server_delete(ec_server_t *srv)
+{
+    int rc;
 
-         /*
-          * Check if it is a query for the /.well-known/core URI.
-          * it is NOT permitted to delete /.well-known/core URI.
-          */
-		 if (!strcasecmp(ec_request_get_uri_path(srv), "/.well-known/core")){
-			 (void) ec_response_set_code(srv, EC_METHOD_NOT_ALLOWED);
-			 return;
-		 }
+    /*
+     * Check if it is a query for the /.well-known/core URI.
+     * It is NOT permitted to delete /.well-known/core URI.
+     */
+    if (!strcasecmp(ec_request_get_uri_path(srv), "/.well-known/core"))
+    {
+        (void) ec_response_set_code(srv, EC_METHOD_NOT_ALLOWED);
+        return;
+    }
 
-         /*
-          * Check if the resource exist in the file system
-          */
-		if (ec_filesys_well_known_core(g_ctx.fs,
-                ec_request_get_uri_origin(srv),
-                ec_request_get_uri_query(srv), wkc) != NULL){
-			ec_filesys_del_resource(g_ctx.fs, ec_server_get_url(srv));
-			(void) ec_response_set_code(srv, EC_DELETED);
-		}
-        /*
-         * if does not exist in the file
-         */
-		else {
-			(void) ec_response_set_code(srv, EC_NOT_FOUND);
-		}
+    /*
+     * Check if the resource exist in the file system
+     */
+    rc = ec_filesys_del_resource(g_ctx.fs, ec_server_get_url(srv));
+    (void) ec_response_set_code(srv, rc == 0 ? EC_DELETED : EC_NOT_FOUND);
 
-		return ;
+    return;
 }
+
+

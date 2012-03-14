@@ -5,6 +5,9 @@
 
 static bool ec_mt_matches(ec_mt_t mt, ec_mt_t *mta, size_t mta_sz);
 
+static bool __q_match(const char *query, bool ex, bool obs, const char *iface,
+        const char *res_type, bool has_sz, size_t sz, bool has_mt, ec_mt_t mt);
+
 ec_res_t *ec_resource_new(const char *uri, ec_method_mask_t methods, 
         uint32_t max_age)
 {
@@ -199,11 +202,9 @@ char *ec_res_link_format_str(const ec_res_t *res, const char *origin,
     /* Filter out non-matching origins + pick the selected Uri-reference. */
     if ((p = strcasestr(res->uri, origin)) == NULL || p != res->uri)
         return NULL;
-    else
-    {
-        dbg_err_if (u_strlcpy(uri_ref, relative_ref ? p + strlen(origin) : p, 
-                    sizeof uri_ref));
-    }
+
+    dbg_err_if (u_strlcpy(uri_ref, relative_ref ? p + strlen(origin) : p, 
+                sizeof uri_ref));
 
     dbg_err_if (ec_res_attrs_get_if(res, interface));
     dbg_err_if (ec_res_attrs_get_rt(res, res_type));
@@ -221,6 +222,15 @@ char *ec_res_link_format_str(const ec_res_t *res, const char *origin,
 
         if (rep->media_type != mt)
             has_mt = false;
+    }
+
+    /* At this point we do have all the resource parameters that can be
+     * matched against the supplied query string. */
+    if (query)
+    {
+        if (!__q_match(query, exportable, observable, interface, res_type,
+                has_sz, sz, has_mt, mt))
+            return NULL;
     }
 
     dbg_err_if (u_strlcat(s, "<", EC_LINK_FMT_MAX));
@@ -367,4 +377,12 @@ int ec_res_attrs_get_rt(const ec_res_t *res, char res_type[EC_RES_ATTR_MAX])
     return 0;
 }
 
+static bool __q_match(const char *query, bool ex, bool obs, const char *iface,
+        const char *res_type, bool has_sz, size_t sz, bool has_mt, ec_mt_t mt)
+{
+    dbg_return_if (query == NULL, true);
 
+    u_con("Q: %s", query);
+
+    return true;
+}

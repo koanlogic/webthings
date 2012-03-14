@@ -1022,9 +1022,7 @@ static int compose_uri(ec_opts_t *opts, struct sockaddr_storage *us,
 
         if (o->sym == EC_OPT_URI_QUERY)
         {
-            if (query[0] == '\0')
-                dbg_err_if (u_strlcat(query, "?", sizeof query));
-            else
+            if (query[0] != '\0')
                 dbg_err_if (u_strlcat(query, "&", sizeof query));
 
             dbg_err_if (u_strlcat(query, (const char *) o->v, sizeof query));
