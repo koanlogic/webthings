@@ -5,8 +5,8 @@
 const char *evutil_format_sockaddr_port(const struct sockaddr *sa, char *out,
         size_t outlen);
 
-static int compose_proxy_uri(ec_opts_t *opts, char uri[U_URI_STRMAX]);
-static int compose_uri(ec_opts_t *opts, struct sockaddr_storage *us, 
+static u_uri_t *compose_proxy_uri(ec_opts_t *opts, char uri[U_URI_STRMAX]);
+static u_uri_t *compose_uri(ec_opts_t *opts, struct sockaddr_storage *us,
         bool nosec, char uri[U_URI_STRMAX]);
 
 static size_t fenceposts_encsz(size_t cur, size_t last);
@@ -777,17 +777,15 @@ err:
 u_uri_t *ec_opts_compose_url(ec_opts_t *opts, struct sockaddr_storage *us,
         bool nosec)
 {
-    u_uri_t *u = NULL;
+    u_uri_t *u;
     char url[U_URI_STRMAX];
 
     dbg_return_if (opts == NULL, NULL);
 
     /* [Proxy-URI] MAY occur one or more times and MUST take precedence over 
      * any of the Uri-Host, Uri-Port, Uri-Path or Uri-Query options. */
-    if (compose_proxy_uri(opts, url) == -1)
-        dbg_err_if (compose_uri(opts, us, nosec, url));
-
-    dbg_err_if (u_uri_crumble(url, 0, &u));
+    if ((u = compose_proxy_uri(opts, url)) == NULL)
+        dbg_err_if ((u = compose_uri(opts, us, nosec, url)) == NULL);
 
     return u;
 err:
@@ -931,7 +929,7 @@ int ec_opts_init(ec_opts_t *opts)
     return 0;
 }
 
-static int compose_uri(ec_opts_t *opts, struct sockaddr_storage *us, 
+static u_uri_t *compose_uri(ec_opts_t *opts, struct sockaddr_storage *us, 
         bool nosec, char uri[U_URI_STRMAX])
 {
     u_uri_t *u = NULL;
@@ -939,9 +937,9 @@ static int compose_uri(ec_opts_t *opts, struct sockaddr_storage *us,
     char host[U_URI_STRMAX], port[U_URI_STRMAX], path[U_URI_STRMAX],
          query[U_URI_STRMAX], authority[U_URI_STRMAX];
 
-    dbg_return_if (opts == NULL, -1);
-    dbg_return_if (uri == NULL, -1);
-    dbg_return_if (us == NULL, -1);
+    dbg_return_if (opts == NULL, NULL);
+    dbg_return_if (uri == NULL, NULL);
+    dbg_return_if (us == NULL, NULL);
    
     /* Initialize tokens to empty. */
     host[0] = port[0] = path[0] = query[0] = authority[0] = '\0';
@@ -1049,21 +1047,20 @@ static int compose_uri(ec_opts_t *opts, struct sockaddr_storage *us,
 
     dbg_err_if (u_uri_knead(u, uri));
 
-    u_uri_free(u);
-
-    return 0;
+    return u;
 err:
     if (u)
         u_uri_free(u);
-    return -1;
+    return NULL;
 }
 
-static int compose_proxy_uri(ec_opts_t *opts, char uri[U_URI_STRMAX])
+static u_uri_t *compose_proxy_uri(ec_opts_t *opts, char uri[U_URI_STRMAX])
 {
     ec_opt_t *o;
+    u_uri_t *u = NULL;
 
-    dbg_return_if (opts == NULL, -1);
-    dbg_return_if (uri == NULL, -1);
+    dbg_return_if (opts == NULL, NULL);
+    dbg_return_if (uri == NULL, NULL);
 
     uri[0] = '\0';
 
@@ -1075,10 +1072,15 @@ static int compose_proxy_uri(ec_opts_t *opts, char uri[U_URI_STRMAX])
         if (o->sym == EC_OPT_PROXY_URI)
             dbg_err_if (u_strlcat(uri, (const char *) o->v, U_URI_STRMAX));
     }
+ 
+    dbg_err_if (strlen(uri) == 0);
+    dbg_err_if (u_uri_crumble(uri, 0, &u));
 
-    return strlen(uri) ? 0 : -1;
+    return u;
 err:
-    return -1;
+    if (u)
+        u_uri_free(u);
+    return NULL;
 }
 
 static uint8_t *add_fenceposts(ec_opts_t *opts, uint8_t *p, size_t cur, 

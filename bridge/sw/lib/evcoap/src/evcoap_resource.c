@@ -382,7 +382,7 @@ static bool __q_match(const char *query, bool ex, bool obs, const char *iface,
 {
     dbg_return_if (query == NULL, true);
 
-    u_con("Q: %s", query);
+    u_dbg("TODO filter query: %s", query);
 
     return true;
 }

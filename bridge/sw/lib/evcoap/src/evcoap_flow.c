@@ -28,19 +28,30 @@ int ec_flow_save_token(ec_flow_t *flow, const uint8_t *tok, size_t tok_sz)
     return 0;
 }
 
-int ec_flow_save_url(ec_flow_t *flow, u_uri_t *url)
+int ec_flow_save_url(ec_flow_t *flow, u_uri_t *u)
 {
+    char saved_q[U_TOKEN_SZ];
+
     dbg_return_if (flow == NULL, -1);
-    dbg_return_if (url == NULL, -1);
+    dbg_return_if (u == NULL, -1);
+
+    /* Make a copy of the query string before clobbering the URI. */
+    dbg_err_if (u_strlcpy(saved_q, u_uri_get_query(u), sizeof saved_q));
 
     /* Strip out query params for path matching. */
-    dbg_return_if (u_uri_set_query(url, ""), -1);
+    (void) u_uri_set_query(u, "");
 
     /* Also save a string copy of the URL. */
-    dbg_return_if (u_uri_knead(url, flow->urlstr), -1);
-    flow->uri = url;
+    dbg_err_if (u_uri_knead(u, flow->urlstr));
+
+    /* Restore query. */
+    (void) u_uri_set_query(u, saved_q);
+
+    flow->uri = u;
 
     return 0;
+err:
+    return -1;
 }
 
 int ec_flow_get_token(ec_flow_t *flow, uint8_t token[8], size_t *token_sz)
