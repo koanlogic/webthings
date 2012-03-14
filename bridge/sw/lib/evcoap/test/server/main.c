@@ -515,7 +515,7 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
     /* See if it is a query for the /.well-known/core URI. */
     if (!strcasecmp(ec_request_get_uri_path(srv), "/.well-known/core"))
     {
-        char wkc[EC_WKC_MAX];
+        char wkc[EC_WKC_MAX] = { '\0' };
 
         dbg_err_if(ec_filesys_well_known_core(g_ctx.fs,
                 ec_request_get_uri_origin(srv),

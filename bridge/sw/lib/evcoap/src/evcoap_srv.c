@@ -835,9 +835,9 @@ int ec_server_send_resp(ec_server_t *srv)
     ec_flow_t *flow = &srv->flow;   /* shortcut */
     dbg_err_if (!EC_IS_RESP_CODE(flow->resp_code));
 
-    /* Need a payload in case response code is 2.05 Content. */
+    /* Need a payload in case response code is 2.05 Content ? */
     ec_pdu_t *res = srv->res;       /* shortcut */
-    dbg_err_if (flow->resp_code == EC_CONTENT && res->payload == NULL);
+/*  dbg_err_if (flow->resp_code == EC_CONTENT && res->payload == NULL); */
 
     ec_conn_t *conn = &flow->conn;  /* shortcut */
     dbg_err_if (ec_conn_get_confirmable(conn, &is_con));

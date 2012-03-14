@@ -380,9 +380,36 @@ int ec_res_attrs_get_rt(const ec_res_t *res, char res_type[EC_RES_ATTR_MAX])
 static bool __q_match(const char *query, bool ex, bool obs, const char *iface,
         const char *res_type, bool has_sz, size_t sz, bool has_mt, ec_mt_t mt)
 {
+    size_t nelems, i;
+    char **tv = NULL;
+
     dbg_return_if (query == NULL, true);
 
-    u_dbg("TODO filter query: %s", query);
+    /* Tokenize query parameters. */
+    dbg_err_if (u_strtok(query, "&", &tv, &nelems));
+
+    for (i = 0; i < nelems; ++i)
+    {
+        if (!strncasecmp(tv[i], "if=", strlen("if="))
+                && iface 
+                && strcasecmp(iface, tv[i] + strlen("if=")))
+            return false;
+        else if (!strncasecmp(tv[i], "rt=", strlen("rt="))
+                    && res_type
+                    && strcasecmp(res_type, tv[i] + strlen("rt=")))
+            return false;
+        else if (!strcasecmp(tv[i], "obs") && !obs)
+            return false;
+        else if (!strcasecmp(tv[i], "exp") && !ex)
+            return false;
+        else if (!strncasecmp(tv[i], "ct=", strlen("ct="))
+                || !strncasecmp(tv[i], "sz=", strlen("sz=")))
+            u_dbg("TODO match media type / resource size");
+        else
+            u_dbg("unknown query parameter %s", tv[i]);
+    }
 
     return true;
+err:
+    return false;
 }
