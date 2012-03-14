@@ -141,7 +141,8 @@ static int test_insert(u_test_case_t *tc)
 {
     ec_filesys_t *fs = NULL;
 
-    u_test_err_ifm (!(fs = ec_filesys_create()), "file system creation failed");
+    u_test_err_ifm (!(fs = ec_filesys_create(true)),
+            "file system creation failed");
 
     u_test_err_if (insert_all(fs, tc));
 
@@ -158,7 +159,8 @@ static int test_lookup(u_test_case_t *tc)
 {
     ec_filesys_t *fs = NULL;
 
-    u_test_err_ifm (!(fs = ec_filesys_create()), "file system creation failed");
+    u_test_err_ifm (!(fs = ec_filesys_create(true)),
+            "file system creation failed");
 
     u_test_err_if (insert_all(fs, tc));
     u_test_err_if (lookup_all(fs, tc));
@@ -176,7 +178,8 @@ static int test_update(u_test_case_t *tc)
 {
     ec_filesys_t *fs = NULL;
 
-    u_test_err_ifm (!(fs = ec_filesys_create()), "file system creation failed");
+    u_test_err_ifm (!(fs = ec_filesys_create(true)),
+            "file system creation failed");
 
     u_test_err_if (iur(fs, tc));
 

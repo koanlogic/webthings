@@ -54,6 +54,7 @@ int parse_addr(const char *ap, char *a, size_t a_sz, uint16_t *p);
 int normalize_origin(const char *o, char co[U_URI_STRMAX]);
 
 ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2);
+int serve_wkc(ec_server_t *srv, ec_method_t method);
 int serve_get(ec_server_t *srv, ec_rep_t *rep);
 int serve_delete(ec_server_t *srv);
 
@@ -550,16 +551,7 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
     /* See if it is a query for the /.well-known/core URI. */
     if (!strcasecmp(ec_request_get_uri_path(srv), "/.well-known/core"))
     {
-        char wkc[EC_WKC_MAX] = { '\0' };
-
-        dbg_err_if(ec_filesys_well_known_core(g_ctx.fs,
-                ec_request_get_uri_origin(srv),
-                ec_request_get_uri_query(srv), wkc) == NULL);
-
-        (void) ec_response_set_code(srv, EC_CONTENT);
-        (void) ec_response_set_payload(srv, wkc, strlen(wkc));
-        (void) ec_response_add_content_type(srv, EC_MT_APPLICATION_LINK_FORMAT);
-
+        (void) serve_wkc(srv, method);
         return EC_CBRC_READY;
     }
 
@@ -606,6 +598,32 @@ err:
     return EC_CBRC_ERROR;
 }
 
+int serve_wkc(ec_server_t *srv, ec_method_t method)
+{
+    dbg_return_if(srv == NULL, -1);
+
+    char wkc[EC_WKC_MAX] = { '\0' };
+
+    /* No operation other than GET is allowed on the /.well-known/core. */
+    if (method != EC_COAP_GET)
+    {
+        (void) ec_response_set_code(srv, EC_METHOD_NOT_ALLOWED);
+        return 0;
+    }
+
+    dbg_err_if(ec_filesys_well_known_core(g_ctx.fs,
+            ec_request_get_uri_origin(srv),
+            ec_request_get_uri_query(srv), wkc) == NULL);
+
+    (void) ec_response_set_code(srv, EC_CONTENT);
+    (void) ec_response_set_payload(srv, wkc, strlen(wkc));
+    (void) ec_response_add_content_type(srv, EC_MT_APPLICATION_LINK_FORMAT);
+
+    return 0;
+err:
+    return -1;
+}
+
 int serve_get(ec_server_t *srv, ec_rep_t *rep)
 {
     ec_res_t *res = rep->res;
@@ -650,16 +668,6 @@ int serve_get(ec_server_t *srv, ec_rep_t *rep)
 int serve_delete(ec_server_t *srv)
 {
     int rc;
-
-    /*
-     * Check if it is a query for the /.well-known/core URI.
-     * It is NOT permitted to delete /.well-known/core URI.
-     */
-    if (!strcasecmp(ec_request_get_uri_path(srv), "/.well-known/core"))
-    {
-        (void) ec_response_set_code(srv, EC_METHOD_NOT_ALLOWED);
-        return 0;
-    }
 
     /*
      * Check if the resource exist in the file system

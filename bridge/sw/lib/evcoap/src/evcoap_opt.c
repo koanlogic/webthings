@@ -375,7 +375,7 @@ const char *ec_opts_get_uri_host(ec_opts_t *opts)
 
 const char *ec_opts_get_proxy_uri(ec_opts_t *opts, char url[U_URI_STRMAX])
 {
-    dbg_return_if (compose_proxy_uri(opts, url), NULL);
+    dbg_return_if (compose_proxy_uri(opts, url) == NULL, NULL);
     return url;
 }
 
