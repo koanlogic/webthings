@@ -1,0 +1,20 @@
+resource
+{
+    path    /s/humidity
+    max-age 5
+
+    link-attrs
+    {
+        if  core\#s
+        rt  simple:sen:hum
+
+        obs 1
+        exp 1
+    }
+
+    representation
+    {
+        t: text/plain
+        v: 80
+    }
+}

@@ -1,0 +1,20 @@
+resource
+{
+    path    /s/light
+    max-age 5
+
+    link-attrs
+    {
+        if  core\#s
+        rt  simple:sen:lt
+
+        obs 1
+        exp 1
+    }
+
+    representation
+    {
+        t: text/plain
+        v: 123
+    }
+}

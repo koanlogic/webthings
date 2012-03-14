@@ -1,0 +1,20 @@
+resource
+{
+    path    /s/temp
+    max-age 5
+
+    link-attrs
+    {
+        if  core\#s
+        rt  simple:sen:tmp
+
+        obs 1
+        exp 1
+    }
+
+    representation
+    {
+        t: text/plain
+        v: 20.5
+    }
+}
