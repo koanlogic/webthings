@@ -40,6 +40,9 @@ void server_term(void);
 int server_run(void);
 int server_bind(u_config_t *cfg);
 
+/* Server DELETE a resource*/
+void server_delete(ec_server_t *srv);
+
 int vhost_setup(u_config_t *vhost);
 int vhost_load_contents(u_config_t *vhost, const char *origin);
 int vhost_load_resource(u_config_t *res, const char *origin);
@@ -472,6 +475,7 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
     size_t mta_sz = sizeof mta / sizeof(ec_mt_t);
     ec_rep_t *rep;
     ec_res_t *res;
+    ec_method_t method;
 
     u_unused_args(u0);
 
@@ -488,11 +492,22 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
         return EC_CBRC_WAIT;
     }
 
+    method = ec_server_get_method(srv);
+
     /* Do not accept verbs different from GET (this may obviously change.) */
-    if (ec_server_get_method(srv) != EC_COAP_GET)
+    if (method != EC_COAP_GET)
     {
-        (void) ec_response_set_code(srv, EC_NOT_IMPLEMENTED); 
-        goto end;
+    	if (method == EC_COAP_DELETE )
+    	{
+    		server_delete(srv);
+    		goto end;
+
+    	}else
+    	{
+    		(void) ec_response_set_code(srv, EC_NOT_IMPLEMENTED);
+    		goto end;
+    	}
+
     }
 
     /* See if it is a query for the /.well-known/core URI. */
@@ -560,3 +575,41 @@ err:
     return EC_CBRC_ERROR;
 }
 
+
+
+/*
+ * The DELETE method requests that the resource identified by the
+ * request URI be deleted.  A 2.02 (Deleted) response SHOULD be sent on
+ * success or in case the resource did not exist before the request.
+ * DELETE is not safe, but idempotent.
+ */
+void server_delete(ec_server_t *srv){
+		char wkc[EC_WKC_MAX];
+
+         /*
+          * Check if it is a query for the /.well-known/core URI.
+          * it is NOT permitted to delete /.well-known/core URI.
+          */
+		 if (!strcasecmp(ec_request_get_uri_path(srv), "/.well-known/core")){
+			 (void) ec_response_set_code(srv, EC_METHOD_NOT_ALLOWED);
+			 return;
+		 }
+
+         /*
+          * Check if the resource exist in the file system
+          */
+		if (ec_filesys_well_known_core(g_ctx.fs,
+                ec_request_get_uri_origin(srv),
+                ec_request_get_uri_query(srv), wkc) != NULL){
+			ec_filesys_del_resource(g_ctx.fs, ec_server_get_url(srv));
+			(void) ec_response_set_code(srv, EC_DELETED);
+		}
+        /*
+         * if does not exist in the file
+         */
+		else {
+			(void) ec_response_set_code(srv, EC_NOT_FOUND);
+		}
+
+		return ;
+}
