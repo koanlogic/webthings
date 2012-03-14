@@ -5,12 +5,10 @@ server
 - garbage collect lingering server contexts:
     - add a .last_used timestamp to the ec_server_t 
     - add timer + garbage collector function to ec_servers_t
-- remove .ictrl since it is unused
 
 resources
-- add dynamic well-known builder interface to ec_filesys_t
-- add link-format resource attributes to ec_res_t
 - add "owner/creator Id" to support the Publish option
+- let user pick URI-reference format: relative-ref or URI (fixed)
 
 observe
 - should it be completely merged into the ec_server_t logics/lifetime ?  this
