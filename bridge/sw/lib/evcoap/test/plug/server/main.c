@@ -182,7 +182,7 @@ int server_init(void)
     dbg_err_if ((g_ctx.base = event_base_new()) == NULL);
     dbg_err_if ((g_ctx.dns = evdns_base_new(g_ctx.base, 1)) == NULL);
     dbg_err_if ((g_ctx.coap = ec_init(g_ctx.base, g_ctx.dns)) == NULL);
-    dbg_err_if ((g_ctx.fs = ec_filesys_create()) == NULL);
+    dbg_err_if ((g_ctx.fs = ec_filesys_create(true)) == NULL);
 
     if (g_ctx.block_sz)
         dbg_err_if (ec_set_block_size(g_ctx.coap, g_ctx.block_sz));
