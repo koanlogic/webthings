@@ -15,4 +15,6 @@ observe
   would avoid special case'ing the RST handling in ec_server_handle_pdu()
 - hook caching of produced representations (so that the representation producer
   callback can be called only when it is really needed)
- 
+- add hook to the underlying resource in observe
+- remove strict token dependency
+
