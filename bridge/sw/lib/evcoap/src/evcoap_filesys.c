@@ -6,12 +6,13 @@ struct ec_wkc_args_s
     char *wkc;  /* EC_WKC_MAX */
     const char *origin;
     const char *query;
+    bool rel_refs;
 };
 
 static void __free_resource(void *arg);
 static int __build_wkc(const void *val, const void *arg);
 
-ec_filesys_t *ec_filesys_create(void)
+ec_filesys_t *ec_filesys_create(bool relative_refs)
 {
     ec_filesys_t *fs = NULL;
     u_hmap_t *hmap = NULL;
@@ -32,6 +33,7 @@ ec_filesys_t *ec_filesys_create(void)
     u_hmap_opts_free(opts), opts = NULL;
 
     fs->map = hmap, hmap = NULL;
+    fs->rel_refs = relative_refs;
 
     return fs;
 err:
@@ -119,6 +121,7 @@ char *ec_filesys_well_known_core(ec_filesys_t *fs, const char *origin,
     args.wkc = wkc;
     args.origin = origin;
     args.query = query;
+    args.rel_refs = fs->rel_refs;
 
     dbg_err_if (u_hmap_foreach_arg(fs->map, __build_wkc, &args));
 
@@ -133,13 +136,8 @@ static int __build_wkc(const void *val, const void *arg)
     const struct ec_wkc_args_s *a = (const struct ec_wkc_args_s *) arg;
     const ec_res_t *res = (const ec_res_t *) val;
 
-    /* TODO query filter. */
-
-    /* Filter unwanted origins. */
-    if (strncasecmp(a->origin, res->uri, strlen(a->origin)))
-        return 0;
-
-    dbg_err_if (ec_res_link_format_str(res, a->origin, a->query, lfs) == NULL);
+    if (!ec_res_link_format_str(res, a->origin, a->query, a->rel_refs, lfs))
+        return 0;   /* Leave a->wkc untouched. */
 
     if (a->wkc[0] != '\0')
         dbg_err_if (u_strlcat(a->wkc, ",", EC_WKC_MAX));

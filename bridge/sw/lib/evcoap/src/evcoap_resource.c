@@ -183,16 +183,27 @@ void ec_rep_free(ec_rep_t *rep)
 }
 
 char *ec_res_link_format_str(const ec_res_t *res, const char *origin,
-        const char *query, char s[EC_LINK_FMT_MAX])
+        const char *query, bool relative_ref, char s[EC_LINK_FMT_MAX])
 {
     size_t sz;
     ec_mt_t mt;
     ec_rep_t *rep;
     bool exportable, observable, has_sz = true, has_mt = true;
-    char interface[EC_RES_ATTR_MAX], res_type[EC_RES_ATTR_MAX];
+    char *p, uri_ref[EC_URI_MAX],
+         interface[EC_RES_ATTR_MAX], res_type[EC_RES_ATTR_MAX];
 
     dbg_return_if (res == NULL, NULL);
     dbg_return_if (s == NULL, NULL);
+    dbg_return_if (origin == NULL, NULL);
+
+    /* Filter out non-matching origins + pick the selected Uri-reference. */
+    if ((p = strcasestr(res->uri, origin)) == NULL || p != res->uri)
+        return NULL;
+    else
+    {
+        dbg_err_if (u_strlcpy(uri_ref, relative_ref ? p + strlen(origin) : p, 
+                    sizeof uri_ref));
+    }
 
     dbg_err_if (ec_res_attrs_get_if(res, interface));
     dbg_err_if (ec_res_attrs_get_rt(res, res_type));
@@ -212,11 +223,8 @@ char *ec_res_link_format_str(const ec_res_t *res, const char *origin,
             has_mt = false;
     }
 
-    /* TODO filter using query string. */
-    /* TODO filter using the origin string. */
-
     dbg_err_if (u_strlcat(s, "<", EC_LINK_FMT_MAX));
-    dbg_err_if (u_strlcat(s, res->uri, EC_LINK_FMT_MAX));
+    dbg_err_if (u_strlcat(s, uri_ref, EC_LINK_FMT_MAX));
     dbg_err_if (u_strlcat(s, ">", EC_LINK_FMT_MAX));
 
     if (res_type[0] != '\0')

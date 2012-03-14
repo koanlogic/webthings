@@ -21,6 +21,7 @@ typedef struct
     ec_filesys_t *fs;
     size_t block_sz;
     bool verbose;
+    bool rel_refs;
     struct timeval sep;
 } ctx_t;
 
@@ -32,6 +33,7 @@ ctx_t g_ctx = {
     .fs = NULL,
     .block_sz = 0,  /* By default Block is fully under user control. */
     .verbose = false,
+    .rel_refs = false,
     .sep = { .tv_sec = 0, .tv_usec = 0 }
 };
 
@@ -61,7 +63,7 @@ int main(int ac, char *av[])
     int c, i;
     u_config_t *cfg = NULL, *vhost;
 
-    while ((c = getopt(ac, av, "b:hf:s:v")) != -1)
+    while ((c = getopt(ac, av, "b:hf:Rs:v")) != -1)
     {
         switch (c)
         {
@@ -78,6 +80,9 @@ int main(int ac, char *av[])
             case 's':
                 if (sscanf(optarg, "%lld", (long long *)&g_ctx.sep.tv_sec) != 1)
                     usage(av[0]);
+                break;
+            case 'R':
+                g_ctx.rel_refs = true;
                 break;
             case 'h':
             default: 
@@ -324,7 +329,7 @@ int server_init(void)
     dbg_err_if ((g_ctx.base = event_base_new()) == NULL);
     dbg_err_if ((g_ctx.dns = evdns_base_new(g_ctx.base, 1)) == NULL);
     dbg_err_if ((g_ctx.coap = ec_init(g_ctx.base, g_ctx.dns)) == NULL);
-    dbg_err_if ((g_ctx.fs = ec_filesys_create()) == NULL);
+    dbg_err_if ((g_ctx.fs = ec_filesys_create(g_ctx.rel_refs)) == NULL);
 
     if (g_ctx.block_sz)
         dbg_err_if (ec_set_block_size(g_ctx.coap, g_ctx.block_sz));
@@ -448,6 +453,8 @@ void usage(const char *prog)
         "       -f <conf file>      (default is "DEFAULT_CONF")         \n"
         "       -b <block size>     enables automatic Block handling    \n"
         "       -s <num>            separate response after num seconds \n"
+        "       -R                  use relative-ref instead of URI in  \n"
+        "                           /.well-known/core entries           \n"
         "                                                               \n"
         ;
 

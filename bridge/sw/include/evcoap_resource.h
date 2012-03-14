@@ -65,7 +65,7 @@ int ec_resource_add_rep(ec_res_t *res, const uint8_t *data, size_t data_sz,
 
 /* Link formatter & friends. */
 char *ec_res_link_format_str(const ec_res_t *res, const char *origin,
-        const char *query, char lfs[EC_LINK_FMT_MAX]);
+        const char *query, bool relative_ref, char lfs[EC_LINK_FMT_MAX]);
 
 int ec_res_attrs_init(ec_res_t *res);
 
