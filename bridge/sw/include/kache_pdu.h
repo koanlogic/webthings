@@ -25,6 +25,7 @@ struct kache_pdu_s
     struct timeval *ts;
     int max_age;
     void *per_protocol_data;
+    char *protocol_type;
 };
 
 typedef struct kache_pdu_s kache_pdu_t;

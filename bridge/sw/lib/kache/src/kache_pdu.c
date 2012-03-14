@@ -46,6 +46,7 @@ void kache_free_kache_pdu(kache_pdu_t *pdu)
         u_free(pdu->ts);
         u_free(pdu->payload);
         u_free(pdu->per_protocol_data);
+        u_free(pdu->protocol_type);
         u_free(pdu);
     }
 }
