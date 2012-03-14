@@ -197,7 +197,7 @@ int ec_client_set_msg_model(ec_client_t *cli, bool is_con)
 {
     dbg_return_if (cli == NULL, -1);
 
-    return ec_net_set_confirmable(&cli->flow.conn, is_con);
+    return ec_conn_set_confirmable(&cli->flow.conn, is_con);
 }
 
 ec_client_t *ec_client_new(struct ec_s *coap, ec_method_t m, const char *uri, 
@@ -440,7 +440,7 @@ static int ec_client_check_transition(ec_cli_state_t cur, ec_cli_state_t next)
         case EC_CLI_STATE_REQ_DONE:
         case EC_CLI_STATE_REQ_RST:
             dbg_err_if (cur != EC_CLI_STATE_REQ_SENT
-                    && cur != EC_CLI_STATE_REQ_ACKD);
+                    && cur != EC_CLI_STATE_REQ_ACKD);   /* Not sure of ACKD */
             break;
 
         case EC_CLI_STATE_WAIT_NFY:
@@ -663,7 +663,7 @@ bool ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
     dbg_err_if (ec_client_check_transition(cur, state));
 
     /* Try to get the type of message flow. */
-    dbg_if (ec_net_get_confirmable(&cli->flow.conn, &is_con));
+    dbg_if (ec_conn_get_confirmable(&cli->flow.conn, &is_con));
 
     if (state == EC_CLI_STATE_REQ_SENT)
     {
@@ -757,7 +757,7 @@ static int ec_client_rst_peer(ec_client_t *cli)
 
     dbg_return_if (cli == NULL, -1);
 
-    memset(&flow, 0, sizeof flow);
+    (void) ec_flow_init(&flow);
 
     /* Create ad-hoc PDU. */
     dbg_err_if ((rst = ec_pdu_new_empty()) == NULL);
@@ -858,29 +858,28 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     ec_opt_t *t;
     ec_client_t *cli;
     size_t olen = 0, plen;
-    ec_pdu_t *res = NULL;
+    ec_pdu_t *pdu = NULL;
 
     dbg_return_if ((cli = (ec_client_t *) arg) == NULL, EC_NET_CBRC_ERROR);
 
-    /* Make room for the new PDU. */
-    dbg_err_sif ((res = ec_pdu_new_empty()) == NULL);
+    /* Make room for the new PDU.  It may carry a response, an RST or an ACK 
+     * for a separate CON transaction. */
+    dbg_err_sif ((pdu = ec_pdu_new_empty()) == NULL);
 
-    /* Decode CoAP header and save it into the client context. */
-    dbg_err_if (ec_pdu_decode_header(res, raw, raw_sz));
+    /* Decode CoAP header. */
+    dbg_err_if (ec_pdu_decode_header(pdu, raw, raw_sz));
 
-    ec_hdr_t *h = &res->hdr_bits;   /* shortcut */
+    ec_hdr_t *h = &pdu->hdr_bits;   /* shortcut */
     ec_flow_t *flow = &cli->flow;   /* shortcut */
 
+    /* Early bail out on packets (apparently) coming from outer space. */
     dbg_err_ifm (h->code >= 1 && h->code <= 31, 
             "unexpected request code in client response context");
 
     /* Pass MID and peer address to the dup handler machinery. */
     ec_dups_t *dups = &cli->base->dups;
 
-    /* See return codes of evcoap_base.c:ec_dups_handle_incoming_res().
-     *
-     * TODO Keep an eye here, if we can factor out code in common with 
-     * TODO ec_server_handle_pdu(). */
+    /* See return codes of evcoap_base.c:ec_dups_handle_incoming_res(). */
     switch (ec_dups_handle_incoming_srvmsg(dups, h->mid, sd, peer))
     {
         case 0:
@@ -905,20 +904,20 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     }
 
     /* Parse options. */
-    dbg_err_ifm (ec_opts_decode(&res->opts, raw, raw_sz, h->oc, &olen),
+    dbg_err_ifm (ec_opts_decode(&pdu->opts, raw, raw_sz, h->oc, &olen),
             "CoAP options could not be parsed correctly");
 
     /* Attach payload, if any, to the client context. */
     if ((plen = raw_sz - (olen + EC_COAP_HDR_SIZE)))
-        (void) ec_pdu_set_payload(res, raw + EC_COAP_HDR_SIZE + olen, plen);
+        (void) ec_pdu_set_payload(pdu, raw + EC_COAP_HDR_SIZE + olen, plen);
 
     /* If enabled, dump PDU (server=false). */
     if (getenv("EC_PLUG_DUMP"))
-        (void) ec_pdu_dump(res, false);
+        (void) ec_pdu_dump(pdu, false);
 
     /* If there is a token check if it matches the one we sent out with the
      * request. */
-    t = ec_opts_get(&res->opts, EC_OPT_TOKEN);
+    t = ec_opts_get(&pdu->opts, EC_OPT_TOKEN);
     if (t)
         dbg_err_ifm (t->l != flow->token_sz || memcmp(t->v, flow->token, t->l),
                 "received token mismatch");
@@ -929,12 +928,12 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     /* TODO fill in the residual info (e.g. socket...). */
 
     /* Add response PDU to the client response set. */
-    dbg_err_if (ec_res_set_add(&cli->res_set, res));
-    res = NULL;
+    dbg_err_if (ec_res_set_add(&cli->res_set, pdu));
+    pdu = NULL;
 
     /* Check if a (possibly) requested observation has been accepted by the
      * end node and set the client->obs flag in case.  Do this *after* 
-     * the 'res' PDU is added to the response set in client context. */
+     * the PDU is added to the response set in client context. */
     dbg_err_if (ec_client_handle_observation(cli));
 
     /* Just before invoking the client callback, set state to one of DONE or
@@ -957,12 +956,11 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     }
 
 cleanup:
-    u_dbg("TODO check this cleanup: label");
-    ec_pdu_free(res);
+    ec_pdu_free(pdu);
     return EC_NET_CBRC_SUCCESS;
 err:
-    if (res)
-        ec_pdu_free(res);
+    if (pdu)
+        ec_pdu_free(pdu);
     return EC_NET_CBRC_ERROR;
 }
 
@@ -1050,9 +1048,7 @@ static int ec_client_invoke_user_callback(ec_client_t *cli)
     if (cli->cb)
         cli->cb(cli);
     else
-    {
-        /* TODO respond something standard in case there's no callback. */
-    }
+        u_dbg("TODO why there's no callback here ?");
 
     return 0;
 }
@@ -1067,10 +1063,10 @@ int ec_client_handle_empty_pdu(ec_client_t *cli, uint8_t t, uint16_t mid)
             ec_client_set_state(cli, EC_CLI_STATE_REQ_ACKD);
             break;
         case EC_COAP_RST:
-           u_dbg("TODO handle RST"); 
-           break;
+            ec_client_set_state(cli, EC_CLI_STATE_REQ_RST);
+            break;
         default:
-           dbg_err("unexpected T: %u here !", t);
+            dbg_err("unexpected T: %u here !", t);
     }
 
     return 0;
@@ -1142,7 +1138,7 @@ static int ec_client_send_ack(ec_client_t *cli)
     dbg_return_if (cli == NULL, -1);
 
     /* Init flow. */
-    memset(&flow, 0, sizeof flow);
+    (void) ec_flow_init(&flow);
 
     /* TODO Consistency check (sep ACK is ok on CON flow) ? */
 

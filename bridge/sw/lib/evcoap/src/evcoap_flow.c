@@ -1,5 +1,15 @@
 #include "evcoap_flow.h"
 
+int ec_flow_init(ec_flow_t *flow)
+{
+    dbg_return_if (flow == NULL, -1);
+
+    memset(flow, 0, sizeof *flow);
+    (void) ec_conn_init(&flow->conn);
+
+    return 0;
+}
+
 int ec_flow_save_token(ec_flow_t *flow, const uint8_t *tok, size_t tok_sz)
 {
     dbg_return_if (flow == NULL, -1);

@@ -155,7 +155,7 @@ err:
     return -1;
 }
 
-int ec_net_save_us(ec_conn_t *conn, evutil_socket_t sd)
+int ec_conn_save_us(ec_conn_t *conn, evutil_socket_t sd)
 {
     dbg_return_if (sd == -1, -1);
     dbg_return_if (conn == NULL, -1);
@@ -171,7 +171,7 @@ err:
     return -1;
 }
 
-int ec_net_save_peer(ec_conn_t *conn, const struct sockaddr_storage *peer)
+int ec_conn_save_peer(ec_conn_t *conn, const struct sockaddr_storage *peer)
 {
     uint8_t peer_len;
 
@@ -185,7 +185,7 @@ int ec_net_save_peer(ec_conn_t *conn, const struct sockaddr_storage *peer)
     return 0;
 }
 
-int ec_net_set_confirmable(ec_conn_t *conn, bool is_con)
+int ec_conn_set_confirmable(ec_conn_t *conn, bool is_con)
 {
     dbg_return_if (conn == NULL, -1);
 
@@ -194,7 +194,7 @@ int ec_net_set_confirmable(ec_conn_t *conn, bool is_con)
     return 0;
 }
 
-int ec_net_get_confirmable(ec_conn_t *conn, bool *is_con)
+int ec_conn_get_confirmable(ec_conn_t *conn, bool *is_con)
 {
     dbg_return_if (conn == NULL, -1);
     dbg_return_if (is_con == NULL, -1);
@@ -250,6 +250,16 @@ int ec_conn_copy(const ec_conn_t *src, ec_conn_t *dst)
     memcpy(&dst->peer, &src->peer, sizeof dst->peer);
 
     /* TODO copy in security context. */
+
+    return 0;
+}
+
+int ec_conn_init(ec_conn_t *conn)
+{
+    dbg_return_if (conn == NULL, -1);
+
+    /* TODO something finer grained. */
+    memset(conn, 0, sizeof *conn);
 
     return 0;
 }

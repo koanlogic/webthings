@@ -78,7 +78,7 @@ static void ec_ob_cb(evutil_socket_t u0, short u1, void *c)
 
         /* Encode PDU (NON). */
         dbg_err_if (ec_conn_copy(&ovr->conn, &flow.conn));
-        dbg_err_if (ec_net_set_confirmable(&flow.conn, false));
+        dbg_err_if (ec_conn_set_confirmable(&flow.conn, false));
         dbg_err_if (ec_pdu_encode_response_separate(nfy));
 
         /* Send PDU (ignore ovr->msg_model for now, go NON all the way.)

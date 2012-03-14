@@ -27,6 +27,7 @@ typedef struct
     size_t token_sz;
 } ec_flow_t;
 
+int ec_flow_init(ec_flow_t *flow);
 int ec_flow_save_token(ec_flow_t *flow, const uint8_t *tok, size_t tok_sz);
 int ec_flow_save_url(ec_flow_t *flow, u_uri_t *url);
 int ec_flow_get_token(ec_flow_t *flow, uint8_t token[8], size_t *token_sz);

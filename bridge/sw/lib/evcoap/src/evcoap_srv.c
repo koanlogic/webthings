@@ -231,7 +231,6 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     /* Pass MID and peer address to the dup handler machinery. */
     ec_dups_t *dups = &coap->dups;
 
-    /* Check if it's a duplicate (mid and token). */
     switch (ec_dups_handle_incoming_climsg(dups, h->mid, sd, peer))
     {
         case 0:
@@ -263,9 +262,9 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
              * we don't have a srv context.) */
             ec_flow_t tflow;
 
-            memset(&tflow, 0, sizeof tflow);
-            dbg_err_if (ec_net_save_us(&tflow.conn, sd));
-            dbg_err_if (ec_net_save_peer(&tflow.conn, peer));
+            (void) ec_flow_init(&tflow);
+            dbg_err_if (ec_conn_save_us(&tflow.conn, sd));
+            dbg_err_if (ec_conn_save_peer(&tflow.conn, peer));
             (void) ec_pdu_set_flow(pdu, &tflow);
 
             /* Observations may be removed by RST'ing a notification message
@@ -310,8 +309,8 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     /* Save flow endpoints in the server context. */
     if (conn->socket != sd)
     {
-        dbg_err_if (ec_net_save_us(conn, sd));
-        dbg_err_if (ec_net_save_peer(conn, peer));
+        dbg_err_if (ec_conn_save_us(conn, sd));
+        dbg_err_if (ec_conn_save_peer(conn, peer));
     }
 
     /* Attach the incoming PDU to the underlying flow. */
@@ -496,7 +495,7 @@ static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args,
     ec_flow_t *flow = &srv->flow;
     ec_conn_t *conn = &flow->conn;
 
-    dbg_err_if (ec_net_get_confirmable(conn, &is_con));
+    dbg_err_if (ec_conn_get_confirmable(conn, &is_con));
 
     switch (f(srv, args, tv, resched))
     {
@@ -841,7 +840,7 @@ int ec_server_send_resp(ec_server_t *srv)
     dbg_err_if (flow->resp_code == EC_CONTENT && res->payload == NULL);
 
     ec_conn_t *conn = &flow->conn;  /* shortcut */
-    dbg_err_if (ec_net_get_confirmable(conn, &is_con));
+    dbg_err_if (ec_conn_get_confirmable(conn, &is_con));
 
     /* Encode, in case it was not already ACK'd, use piggyback. */
     if (is_con && srv->state != EC_SRV_STATE_ACK_SENT)
@@ -905,7 +904,7 @@ int ec_server_set_msg_model(ec_server_t *srv, bool is_con)
 {
     dbg_return_if (srv == NULL, -1);
 
-    return ec_net_set_confirmable(&srv->flow.conn, is_con);
+    return ec_conn_set_confirmable(&srv->flow.conn, is_con);
 }
 
 ec_pdu_t *ec_server_get_request_pdu(ec_server_t *srv)

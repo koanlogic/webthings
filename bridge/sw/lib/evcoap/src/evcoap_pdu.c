@@ -178,7 +178,7 @@ int ec_pdu_encode_response_separate(ec_pdu_t *pdu)
 
     /* Get requested messaging semantics. */
     ec_flow_t *flow = pdu->flow;
-    dbg_return_if (ec_net_get_confirmable(&flow->conn, &is_con), -1);
+    dbg_return_if (ec_conn_get_confirmable(&flow->conn, &is_con), -1);
 
     /* Set reponse code. */
 
@@ -238,7 +238,7 @@ int ec_pdu_encode_request(ec_pdu_t *pdu)
 
     /* Get requested messaging semantics. */
     ec_flow_t *flow = pdu->flow;
-    dbg_return_if (ec_net_get_confirmable(&flow->conn, &is_con), -1);
+    dbg_return_if (ec_conn_get_confirmable(&flow->conn, &is_con), -1);
 
     /* E.g. T=CON|NON, Code=1, MID=0x7d38. */
     encode_header(pdu, flow->method, is_con ? EC_COAP_CON : EC_COAP_NON, mid);
@@ -413,6 +413,8 @@ ec_pdu_t *ec_pdu_new_empty(void)
 {
     ec_pdu_t *pdu = NULL;
 
+    /* Zero out the whole area.  This "wrongly" assumes that a NULL
+     * pointer is encoded as a '0'-filled memory area. */
     dbg_err_sif ((pdu = u_zalloc(sizeof *pdu)) == NULL);
 
     (void) ec_pdu_init_options(pdu);
