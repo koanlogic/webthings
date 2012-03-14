@@ -432,6 +432,7 @@ int client_save_to_file(const uint8_t *pl, size_t pl_sz)
     {
         con_err_sifm (fwrite(pl, pl_sz, 1, stdout) != 1,
                 "could not write to %s", g_ctx.ofn);
+        (void) fputs("\n", stdout);
         return 0;
     }
 
@@ -440,7 +441,7 @@ int client_save_to_file(const uint8_t *pl, size_t pl_sz)
 
     con_err_sifm (fwrite(pl, pl_sz, 1, fp) != 1, 
             "could not write to %s", g_ctx.ofn);
-    
+
     (void) fclose(fp);
 
     return 0;

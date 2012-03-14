@@ -3,6 +3,8 @@ resource
     path    /s/temp
     max-age 5
 
+    allowed-methods GET
+
     link-attrs
     {
         if  core\#s

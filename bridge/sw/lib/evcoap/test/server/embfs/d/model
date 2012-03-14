@@ -2,6 +2,8 @@ resource
 {
     path    /d/model
 
+    allowed-methods GET
+
     link-attrs
     {
         if  core\#rp

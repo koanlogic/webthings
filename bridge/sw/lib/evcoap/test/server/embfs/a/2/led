@@ -2,6 +2,8 @@ resource
 {
     path    /a/2/led
 
+    allowed-methods GET PUT POST
+
     link-attrs
     {
         if  core\#a

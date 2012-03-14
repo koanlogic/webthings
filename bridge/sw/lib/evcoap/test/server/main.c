@@ -43,18 +43,19 @@ void server_term(void);
 int server_run(void);
 int server_bind(u_config_t *cfg);
 
-/* Server DELETE a resource*/
-void server_delete(ec_server_t *srv);
 
 int vhost_setup(u_config_t *vhost);
 int vhost_load_contents(u_config_t *vhost, const char *origin);
 int vhost_load_resource(u_config_t *res, const char *origin);
 int vhost_load_resource_attrs(ec_res_t *res, u_config_t *attrs);
+int vhost_load_allowed_methods(const char *m, ec_method_mask_t *pmm);
 
 int parse_addr(const char *ap, char *a, size_t a_sz, uint16_t *p);
 int normalize_origin(const char *o, char co[U_URI_STRMAX]);
 
 ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2);
+int serve_get(ec_server_t *srv, ec_rep_t *rep);
+int serve_delete(ec_server_t *srv);
 
 void usage(const char *prog);
 
@@ -216,10 +217,11 @@ int vhost_load_resource(u_config_t *resource, const char *origin)
     int tmp;
     size_t i, val_sz;
     uint32_t ma;
-    const char *path, *max_age, *val;
+    const char *path, *max_age, *val, *meth;
     ec_res_t *res = NULL;
     ec_mt_t mt;
     char uri[512];
+    ec_method_mask_t methods;
     u_config_t *repr, *attrs;
 
     dbg_return_if(resource == NULL, -1);
@@ -237,6 +239,15 @@ int vhost_load_resource(u_config_t *resource, const char *origin)
         ma = (uint32_t) tmp;
     }
 
+    /* Get allowed methods. */
+    if ((meth = u_config_get_subkey_value(resource, "allowed-methods")) == NULL)
+        methods = EC_GET_MASK; /* Default is read-only. */
+    else
+    {
+        con_err_ifm(vhost_load_allowed_methods(meth, &methods),
+                "bad allowed-methods in %s%s", origin, path);
+    }
+
     /* Create complete resource name. */
     con_err_ifm(u_snprintf(uri, sizeof uri, "%s%s", origin, path),
             "could not create uri for path %s and origin %s", path, origin);
@@ -244,7 +255,7 @@ int vhost_load_resource(u_config_t *resource, const char *origin)
     CHAT("adding resource %s", uri);
 
     /* Create FS resource. */
-    con_err_ifm((res = ec_resource_new(uri, EC_METHOD_MASK_ALL, ma)) == NULL,
+    con_err_ifm((res = ec_resource_new(uri, methods, ma)) == NULL,
             "resource creation failed");
 
     /* Load each resource representation. */
@@ -285,6 +296,41 @@ int vhost_load_resource(u_config_t *resource, const char *origin)
 err:
     if (res)
         ec_resource_free(res);
+    return -1;
+}
+
+int vhost_load_allowed_methods(const char *m, ec_method_mask_t *pmm)
+{
+    size_t nelems, i;
+    char **tv = NULL;
+
+    dbg_return_if(m == NULL, -1);
+    dbg_return_if(pmm == NULL, -1);
+
+    *pmm = EC_METHOD_MASK_UNSET;
+
+    dbg_err_if(u_strtok(m, " \t", &tv, &nelems));
+
+    for (i = 0; i < nelems; ++i)
+    {
+        if (!strcasecmp(tv[i], "GET"))
+            *pmm |= EC_GET_MASK;
+        else if (!strcasecmp(tv[i], "POST"))
+            *pmm |= EC_POST_MASK;
+        else if (!strcasecmp(tv[i], "PUT"))
+            *pmm |= EC_PUT_MASK;
+        else if (!strcasecmp(tv[i], "DELETE"))
+            *pmm |= EC_DELETE_MASK;
+        else
+            con_err("unknown method %s", tv[i]);
+    }
+
+    u_strtok_cleanup(tv, nelems);
+
+    return 0;
+err:
+    if (tv)
+        u_strtok_cleanup(tv, nelems);
     return -1;
 }
 
@@ -483,33 +529,22 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
     size_t mta_sz = sizeof mta / sizeof(ec_mt_t);
     ec_rep_t *rep;
     ec_res_t *res;
-    ec_method_t method;
 
     u_unused_args(u0);
 
     /* Get the requested URI and method. */
     const char *uri = ec_server_get_url(srv);
+    ec_method_t method = ec_server_get_method(srv);
 
-    CHAT("GET %s", uri);
+    CHAT("%s %s", ec_method_str(method), uri);
 
+    /* See if configured for separate responses. */
     if (resched == false && g_ctx.sep.tv_sec)
     {
         *tv = g_ctx.sep;
-        u_con("reschedule cb for %s in %llu seconds",
-              uri, (long long) g_ctx.sep.tv_sec);
+        u_con("reschedule %s() for %s in %llu seconds",
+              __func__, uri, (long long) g_ctx.sep.tv_sec);
         return EC_CBRC_WAIT;
-    }
-
-    switch ((method = ec_server_get_method(srv)))
-    {
-        case EC_COAP_GET:
-            break;
-        case EC_COAP_DELETE:
-            server_delete(srv);
-            goto end;
-        default:
-            (void) ec_response_set_code(srv, EC_NOT_IMPLEMENTED);
-            goto end;
     }
 
     /* See if it is a query for the /.well-known/core URI. */
@@ -525,7 +560,7 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
         (void) ec_response_set_payload(srv, wkc, strlen(wkc));
         (void) ec_response_add_content_type(srv, EC_MT_APPLICATION_LINK_FORMAT);
 
-        goto end;
+        return EC_CBRC_READY;
     }
 
     /* Get Accept'able media types. */
@@ -537,44 +572,73 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
     /* If found, craft the response. */
     if (rep)
     {
-        res = ec_rep_get_res(rep);
-        dbg_err_if(res == NULL);
+        dbg_err_if((res = ec_rep_get_res(rep)) == NULL);
 
-        /* Set response code, payload, etag and content-type. */
-        (void) ec_response_set_code(srv, EC_CONTENT);
-        (void) ec_response_set_payload(srv, rep->data, rep->data_sz);
-        (void) ec_response_add_etag(srv, rep->etag, sizeof rep->etag);
-        (void) ec_response_add_content_type(srv, rep->media_type);
-
-        /* Add max-age if != from default. */
-        if (res->max_age != EC_COAP_DEFAULT_MAX_AGE)
-            (void) ec_response_add_max_age(srv, res->max_age);
-
-        /* See if the client asked for Observing the resource. */
-        if (ec_request_get_observe(srv) == 0)
+        /* Make sure resource supports the requested method. */
+        if (ec_resource_check_method(res, method))
         {
-            uint16_t o_cnt;
+            (void) ec_response_set_code(srv, EC_METHOD_NOT_ALLOWED);
+            return EC_CBRC_READY;
+        }
 
-            /* Add a NON notifier attached to ob_serve callback. */
-            if (!ec_add_observer(srv, ob_serve, NULL, res->max_age,
-                    rep->media_type, EC_COAP_NON, rep->etag,
-                    sizeof rep->etag))
-            {
-                /* Get counter from time */
-                (void) ec_get_observe_counter(&o_cnt);
-                (void) ec_response_add_observe(srv, o_cnt);
-            }
-            else
-                u_dbg("could not add requested observation");
+        switch (method)
+        {
+            case EC_COAP_GET:
+                (void) serve_get(srv, rep);
+                return EC_CBRC_READY;
+
+            case EC_COAP_DELETE:
+                (void) serve_delete(srv);
+                return EC_CBRC_READY;
+                
+            case EC_COAP_PUT:
+            case EC_COAP_POST:
+            default:
+                ec_response_set_code(srv, EC_NOT_IMPLEMENTED);
+                return EC_CBRC_READY;
         }
     }
     else
         (void) ec_response_set_code(srv, EC_NOT_FOUND);
 
-end:
     return EC_CBRC_READY;
 err:
     return EC_CBRC_ERROR;
+}
+
+int serve_get(ec_server_t *srv, ec_rep_t *rep)
+{
+    ec_res_t *res = rep->res;
+
+    /* Set response code, payload, etag and content-type. */
+    (void) ec_response_set_code(srv, EC_CONTENT);
+    (void) ec_response_set_payload(srv, rep->data, rep->data_sz);
+    (void) ec_response_add_etag(srv, rep->etag, sizeof rep->etag);
+    (void) ec_response_add_content_type(srv, rep->media_type);
+
+    /* Add max-age if != from default. */
+    if (res->max_age != EC_COAP_DEFAULT_MAX_AGE)
+        (void) ec_response_add_max_age(srv, res->max_age);
+
+    /* See if the client asked for Observing the resource. */
+    if (ec_request_get_observe(srv) == 0)
+    {
+        uint16_t o_cnt;
+
+        /* Add a NON notifier attached to ob_serve callback. */
+        if (!ec_add_observer(srv, ob_serve, NULL, res->max_age,
+                rep->media_type, EC_COAP_NON, rep->etag,
+                sizeof rep->etag))
+        {
+            /* Get counter from time */
+            (void) ec_get_observe_counter(&o_cnt);
+            (void) ec_response_add_observe(srv, o_cnt);
+        }
+        else
+            u_dbg("could not add requested observation");
+    }
+
+    return 0;
 }
 
 /*
@@ -583,7 +647,7 @@ err:
  * success or in case the resource did not exist before the request.
  * DELETE is not safe, but idempotent.
  */
-void server_delete(ec_server_t *srv)
+int serve_delete(ec_server_t *srv)
 {
     int rc;
 
@@ -594,7 +658,7 @@ void server_delete(ec_server_t *srv)
     if (!strcasecmp(ec_request_get_uri_path(srv), "/.well-known/core"))
     {
         (void) ec_response_set_code(srv, EC_METHOD_NOT_ALLOWED);
-        return;
+        return 0;
     }
 
     /*
@@ -603,7 +667,7 @@ void server_delete(ec_server_t *srv)
     rc = ec_filesys_del_resource(g_ctx.fs, ec_server_get_url(srv));
     (void) ec_response_set_code(srv, rc == 0 ? EC_DELETED : EC_NOT_FOUND);
 
-    return;
+    return 0;
 }
 
 

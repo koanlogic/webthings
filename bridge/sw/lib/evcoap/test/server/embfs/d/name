@@ -2,6 +2,8 @@ resource
 {
     path    /d/name
 
+    allowed-methods GET
+
     link-attrs
     {
         if  core\#p

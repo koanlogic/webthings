@@ -411,7 +411,10 @@ static bool __q_match(const char *query, bool ex, bool obs, const char *iface,
             u_dbg("unknown query parameter %s", tv[i]);
     }
 
+    u_strtok_cleanup(tv, nelems);
     return true;
 err:
+    if (tv)
+        u_strtok_cleanup(tv, nelems);
     return false;
 }
