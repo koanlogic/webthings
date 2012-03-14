@@ -67,7 +67,11 @@ static void ec_ob_cb(evutil_socket_t u0, short u1, void *c)
         dbg_err_if (ec_flow_set_resp_code(&flow, p ? EC_CONTENT : EC_DELETED));
 
         /* Stick the token sent by the client on the original request. */
-        dbg_err_if (ec_opts_add_token(&nfy->opts, ovr->token, ovr->token_sz));
+        if (ovr->token_sz > 0)
+        {
+            dbg_err_if (ec_opts_add_token(&nfy->opts, ovr->token,
+                        ovr->token_sz));
+        }
 
         /* Add Observe option with counter. */
         dbg_err_if (ec_opts_add_observe(&nfy->opts, o_cnt));

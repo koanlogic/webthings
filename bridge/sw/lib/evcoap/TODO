@@ -16,5 +16,4 @@ observe
 - hook caching of produced representations (so that the representation producer
   callback can be called only when it is really needed)
 - add hook to the underlying resource in observe
-- remove strict token dependency
 
