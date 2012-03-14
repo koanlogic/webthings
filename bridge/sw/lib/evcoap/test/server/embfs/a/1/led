@@ -1,0 +1,19 @@
+resource
+{
+    path    /a/1/led
+
+    link-attrs
+    {
+        if  core\#a
+        rt  simple:act:led
+
+        obs 1
+        exp 1
+    }
+
+    representation
+    {
+        t: text/plain
+        v: 1
+    }
+}

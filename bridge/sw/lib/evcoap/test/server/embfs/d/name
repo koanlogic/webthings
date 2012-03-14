@@ -1,0 +1,19 @@
+resource
+{
+    path    /d/name
+
+    link-attrs
+    {
+        if  core\#p
+        rt  simple:dev:n
+
+        obs 1
+        exp 1
+    }
+
+    representation
+    {
+        t: text/plain
+        v: evcoap test server
+    }
+}

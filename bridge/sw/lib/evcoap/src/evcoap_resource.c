@@ -239,16 +239,16 @@ char *ec_res_link_format_str(const ec_res_t *res, const char *origin,
 
     if (res_type[0] != '\0')
     {
-        dbg_err_if (u_strlcat(s, ";", EC_LINK_FMT_MAX));
-        dbg_err_if (u_strlcat(s, "rt=", EC_LINK_FMT_MAX));
+        dbg_err_if (u_strlcat(s, ";rt=\"", EC_LINK_FMT_MAX));
         dbg_err_if (u_strlcat(s, res_type, EC_LINK_FMT_MAX));
+        dbg_err_if (u_strlcat(s, "\"", EC_LINK_FMT_MAX));
     }
 
     if (interface[0] != '\0')
     {
-        dbg_err_if (u_strlcat(s, ";", EC_LINK_FMT_MAX));
-        dbg_err_if (u_strlcat(s, "if=", EC_LINK_FMT_MAX));
+        dbg_err_if (u_strlcat(s, ";if=\"", EC_LINK_FMT_MAX));
         dbg_err_if (u_strlcat(s, interface, EC_LINK_FMT_MAX));
+        dbg_err_if (u_strlcat(s, "\"", EC_LINK_FMT_MAX));
     }
 
     if (has_sz)
@@ -256,8 +256,7 @@ char *ec_res_link_format_str(const ec_res_t *res, const char *origin,
         char sz_val[16] = { '\0' };
 
         dbg_err_if (u_snprintf(sz_val, sizeof sz_val, "%zu", sz));
-        dbg_err_if (u_strlcat(s, ";", EC_LINK_FMT_MAX));
-        dbg_err_if (u_strlcat(s, "sz=", EC_LINK_FMT_MAX));
+        dbg_err_if (u_strlcat(s, ";sz=", EC_LINK_FMT_MAX));
         dbg_err_if (u_strlcat(s, sz_val, EC_LINK_FMT_MAX));
     }
 
@@ -266,22 +265,15 @@ char *ec_res_link_format_str(const ec_res_t *res, const char *origin,
         char mt_val[4] = { '\0' };
 
         dbg_err_if (u_snprintf(mt_val, sizeof mt_val, "%u", (unsigned int) mt));
-        dbg_err_if (u_strlcat(s, ";", EC_LINK_FMT_MAX));
-        dbg_err_if (u_strlcat(s, "ct=", EC_LINK_FMT_MAX));
+        dbg_err_if (u_strlcat(s, ";ct=", EC_LINK_FMT_MAX));
         dbg_err_if (u_strlcat(s, mt_val, EC_LINK_FMT_MAX));
     }
 
     if (observable) 
-    {
-        dbg_err_if (u_strlcat(s, ";", EC_LINK_FMT_MAX));
-        dbg_err_if (u_strlcat(s, "obs", EC_LINK_FMT_MAX));
-    }
+        dbg_err_if (u_strlcat(s, ";obs", EC_LINK_FMT_MAX));
 
     if (exportable) 
-    {
-        dbg_err_if (u_strlcat(s, ";", EC_LINK_FMT_MAX));
-        dbg_err_if (u_strlcat(s, "exp", EC_LINK_FMT_MAX));
-    }
+        dbg_err_if (u_strlcat(s, ";exp", EC_LINK_FMT_MAX));
 
     return s;
 err:
@@ -390,21 +382,31 @@ static bool __q_match(const char *query, bool ex, bool obs, const char *iface,
 
     for (i = 0; i < nelems; ++i)
     {
+        /* Interface. */
         if (!strncasecmp(tv[i], "if=", strlen("if="))
                 && iface 
                 && strcasecmp(iface, tv[i] + strlen("if=")))
             return false;
+
+        /* Resource type. */
         else if (!strncasecmp(tv[i], "rt=", strlen("rt="))
                     && res_type
                     && strcasecmp(res_type, tv[i] + strlen("rt=")))
             return false;
+
+        /* Observable. */
         else if (!strcasecmp(tv[i], "obs") && !obs)
             return false;
+
+        /* Exportable. */
         else if (!strcasecmp(tv[i], "exp") && !ex)
             return false;
+
+        /* TODO content type and resource size. */
         else if (!strncasecmp(tv[i], "ct=", strlen("ct="))
                 || !strncasecmp(tv[i], "sz=", strlen("sz=")))
             u_dbg("TODO match media type / resource size");
+
         else
             u_dbg("unknown query parameter %s", tv[i]);
     }

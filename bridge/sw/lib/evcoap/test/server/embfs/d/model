@@ -1,0 +1,19 @@
+resource
+{
+    path    /d/model
+
+    link-attrs
+    {
+        if  core\#rp
+        rt  simple:dev:mdl
+
+        obs 1
+        exp 1
+    }
+
+    representation
+    {
+        t: text/plain
+        v: version 0.1
+    }
+}
