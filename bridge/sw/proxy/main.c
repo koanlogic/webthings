@@ -100,9 +100,31 @@ void process_http_request(struct evhttp_request *req, void *arg)
     		    con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_GET,
     		                    g_ctx.curi, EC_COAP_CON)) == NULL);
     		    break;
+    		case EVHTTP_REQ_PUT:
+    		{
+
+    			printf("1\n");
+    		    struct evbuffer *body = evhttp_request_get_input_buffer(req);
+    		    const char *ct = evhttp_find_header(evhttp_request_get_input_headers(req), "Content-Type");
+
+    		    int len = evbuffer_get_length(body);
+
+                char *tmp = malloc(len+1);
+    		    memcpy(tmp, evbuffer_pullup(body, -1), len);
+    		    tmp[len] = '\0';
+printf("HTTP Payload %s\n", tmp);
+printf("HTTP Content-Type %s\n", ct);
+    		    con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_PUT,
+    		                    g_ctx.curi, EC_COAP_CON)) == NULL);
+
+    		    ec_request_set_payload(g_ctx.cli,tmp,len);
+    		    free(tmp);
+    		}
+    		    break;
     		case EVHTTP_REQ_DELETE:
     		    con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_DELETE,
     		                    g_ctx.curi, EC_COAP_CON)) == NULL);
+    		    break;
             default:
                 break;
       }
@@ -113,6 +135,7 @@ void process_http_request(struct evhttp_request *req, void *arg)
 
     con_err_if (ec_request_send(g_ctx.cli, process_coap_response, req,
                 &g_ctx.tout));
+
 
     u_uri_free(u);
 
@@ -172,7 +195,12 @@ void process_coap_response(ec_client_t *cli)
         	   evhttp_send_reply(req, HTTP_BADMETHOD, "Method Not Allowed", g_ctx.buf);
         	   return;
            }
-
+           case EC_NOT_IMPLEMENTED:
+           {
+        	   //4.05 (Method Not Allowed)
+        	   evhttp_send_reply(req, HTTP_NOTIMPLEMENTED, "Not Implemented", g_ctx.buf);
+        	   return;
+           }
            default:
                break;
 
