@@ -40,7 +40,7 @@ struct ec_pdu_s
 };
 typedef struct ec_pdu_s ec_pdu_t;
 
-int ec_pdu_set_payload(ec_pdu_t *pdu, uint8_t *payload, size_t sz);
+int ec_pdu_set_payload(ec_pdu_t *pdu, const uint8_t *payload, size_t sz);
 int ec_pdu_set_flow(ec_pdu_t *pdu, ec_flow_t *flow);
 int ec_pdu_set_peer(ec_pdu_t *pdu, const struct sockaddr_storage *peer);
 int ec_pdu_set_sibling(ec_pdu_t *pdu, ec_pdu_t *sibling);

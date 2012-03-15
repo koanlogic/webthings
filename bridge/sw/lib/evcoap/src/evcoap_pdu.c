@@ -8,7 +8,7 @@ static int encode_response(ec_pdu_t *pdu, uint8_t t, ec_rc_t rc,
 static void encode_header(ec_pdu_t *pdu, uint8_t code, uint8_t t,
         uint16_t mid);
 
-int ec_pdu_set_payload(ec_pdu_t *pdu, uint8_t *payload, size_t sz)
+int ec_pdu_set_payload(ec_pdu_t *pdu, const uint8_t *payload, size_t sz)
 {
     dbg_return_if (pdu == NULL, -1);
     dbg_return_if (payload == NULL, -1);
