@@ -94,6 +94,8 @@ int ec_request_get_block2(ec_server_t *srv, uint32_t *bnum, bool *more,
         size_t *bsz);
 int ec_request_get_acceptable_media_types(ec_server_t *srv, ec_mt_t *mta,
         size_t *mta_sz);
+int ec_request_get_content_type(ec_server_t *srv, ec_mt_t *mt);
+
 const char *ec_request_get_uri_origin(ec_server_t *srv);
 const char *ec_request_get_uri_query(ec_server_t *srv);
 const char *ec_request_get_uri_path(ec_server_t *srv);
