@@ -1,4 +1,5 @@
 #include <strings.h>
+#include <err.h>
 #include <u/libu.h>
 #include "evcoap_srv.h"
 #include "evcoap_base.h"
@@ -661,7 +662,7 @@ static bool ec_server_state_is_final(ec_srv_state_t state)
         case EC_SRV_STATE_COAP_RETRY:
             return false;
         default:
-            die(EXIT_FAILURE, "%s: no such state %u", __func__, state);
+            errx(EXIT_FAILURE, "%s: no such state %u", __func__, state);
     }
 }
 
@@ -692,7 +693,7 @@ void ec_server_set_state(ec_server_t *srv, ec_srv_state_t state)
 
     return;
 err:
-    die(EXIT_FAILURE, "%s failed (see logs)", __func__);
+    errx(EXIT_FAILURE, "%s failed (see logs)", __func__);
 }
 
 static void ec_srv_coap_timeout(evutil_socket_t u0, short u1, void *s)

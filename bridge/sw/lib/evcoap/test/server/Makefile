@@ -7,9 +7,15 @@ PROG = coap-server
 CFLAGS += $(LIBU_CFLAGS)
 CFLAGS += $(LIBEVENT_CFLAGS)
 
-LDADD += ../../src/libevcoap.a
-LDADD += $(LIBEVENT_LDADD)
-LDADD += $(LIBU_LDADD)
+ifdef SHLIB
+  LDFLAGS += -L../../src -levcoap
+  LDFLAGS += $(LIBU_LDFLAGS)
+  LDFLAGS += $(LIBEVENT_LDFLAGS)
+else
+  LDADD += ../../src/libevcoap.a
+  LDADD += $(LIBEVENT_LDADD)
+  LDADD += $(LIBU_LDADD)
+endif
 
 DPADD += $(LDADD)
 
