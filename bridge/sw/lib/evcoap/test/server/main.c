@@ -43,7 +43,6 @@ void server_term(void);
 int server_run(void);
 int server_bind(u_config_t *cfg);
 
-
 int vhost_setup(u_config_t *vhost);
 int vhost_load_contents(u_config_t *vhost, const char *origin);
 int vhost_load_resource(u_config_t *res, const char *origin);
@@ -54,13 +53,12 @@ int parse_addr(const char *ap, char *a, size_t a_sz, uint16_t *p);
 int normalize_origin(const char *o, char co[U_URI_STRMAX]);
 
 ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2);
+ec_cbrc_t create(ec_server_t *srv, void *u0, struct timeval *u1, bool u2);
+
 int serve_wkc(ec_server_t *srv, ec_method_t method);
 int serve_get(ec_server_t *srv, ec_rep_t *rep);
 int serve_delete(ec_server_t *srv);
-
-/* Server PUT a resource*/
-void server_put(ec_server_t *srv);
-ec_cbrc_t create(ec_server_t *srv, void *u0, struct timeval *u1, bool u2);
+int serve_put(ec_server_t *srv, ec_rep_t *rep);
 
 void usage(const char *prog);
 
@@ -112,7 +110,9 @@ int main(int ac, char *av[])
         con_err_ifm(vhost_setup(vhost), "configuration error");
     con_err_ifm(i == 0, "no origins configured");
 
-    ec_register_fb(g_ctx.coap, create, NULL);
+    /* Attach create() as the URI fallback handler. */
+    con_err_ifm(ec_register_fb(g_ctx.coap, create, NULL),
+            "error registering fallback");
 
     con_err_ifm(server_run(), "server run failed");
 
@@ -588,8 +588,11 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
             case EC_COAP_DELETE:
                 (void) serve_delete(srv);
                 return EC_CBRC_READY;
-                
+
             case EC_COAP_PUT:
+                (void) serve_put(srv, rep);
+                return EC_CBRC_READY;
+
             case EC_COAP_POST:
             default:
                 ec_response_set_code(srv, EC_NOT_IMPLEMENTED);
@@ -622,7 +625,7 @@ int serve_wkc(ec_server_t *srv, ec_method_t method)
             ec_request_get_uri_query(srv), wkc) == NULL);
 
     (void) ec_response_set_code(srv, EC_CONTENT);
-    (void) ec_response_set_payload(srv, wkc, strlen(wkc));
+    (void) ec_response_set_payload(srv, (uint8_t *) wkc, strlen(wkc));
     (void) ec_response_add_content_type(srv, EC_MT_APPLICATION_LINK_FORMAT);
 
     return 0;
@@ -673,12 +676,8 @@ int serve_get(ec_server_t *srv, ec_rep_t *rep)
  */
 int serve_delete(ec_server_t *srv)
 {
-    int rc;
+    int rc = ec_filesys_del_resource(g_ctx.fs, ec_server_get_url(srv));
 
-    /*
-     * Check if the resource exist in the file system
-     */
-    rc = ec_filesys_del_resource(g_ctx.fs, ec_server_get_url(srv));
     (void) ec_response_set_code(srv, rc == 0 ? EC_DELETED : EC_NOT_FOUND);
 
     return 0;
@@ -703,85 +702,73 @@ int serve_delete(ec_server_t *srv)
 
    PUT is not safe, but idempotent.
  */
-void server_put(ec_server_t *srv){
-
-	ec_rep_t *rep;
-    ec_res_t *res;
-	//Payload
-    char wkc[EC_WKC_MAX];
+int serve_put(ec_server_t *srv, ec_rep_t *rep)
+{
+    /* This routine handles the update of a resource using the PUT method.
+     * Creation of a resource via PUT is done by the create() routine. */
 
     /* Get the requested URI and method. */
     const char *uri = ec_server_get_url(srv);
 
-   /*
-    * ToDO
-    */
+    (void) ec_response_set_code(srv, EC_NOT_IMPLEMENTED);
 
-			(void) ec_response_set_code(srv, EC_NOT_FOUND);
-
-		return ;
-
-
+    return 0;
 }
 
 ec_cbrc_t create(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
 {
-	ec_rep_t *rep;
-    ec_res_t *res;
-	//Payload and Method
-    char wkc[EC_WKC_MAX];
-	ec_method_t method;
-
+    uint8_t *pload;
+    size_t pload_sz;
+    ec_res_t *res = NULL;
+    ec_method_t method;
     ec_mt_t mt;
+
+    u_unused_args(u0, u1, u2);
 
     /* Get the requested URI and method. */
     const char *uri = ec_server_get_url(srv);
-	method = ec_server_get_method(srv);
 
-	if (method != EC_COAP_PUT) {
-		(void) ec_response_set_code(srv, EC_NOT_FOUND);
- CHAT("CREATE: !EC_COAP_PUT");
+    if ((method = ec_server_get_method(srv)) != EC_COAP_PUT)
+    {
+        (void) ec_response_set_code(srv, EC_NOT_IMPLEMENTED);
+        return EC_CBRC_READY;
+    }
 
-  		goto end;
-	}
-
-
-	 /* Create resource. */
     CHAT("adding resource for: %s", uri);
 
-    con_err_ifm(( res = ec_resource_new(uri, EC_METHOD_MASK_ALL, 3600)) == NULL, "resource creation failed");
+    /* Create resource with all methods allowed. */
+    con_err_ifm((res = ec_resource_new(uri, EC_METHOD_MASK_ALL, 3600)) == NULL,
+            "resource creation failed");
 
+    /* Get payload (may be empty/NULL). */
+    pload = ec_request_get_payload(srv, &pload_sz);
 
-    size_t pload_sz;
-    uint8_t *pload = ec_request_get_payload(srv, &pload_sz);
+    /* Get media type (if not specified default to text/plain. */
     if (ec_request_get_content_type(srv, &mt))
         mt = EC_MT_TEXT_PLAIN;
 
-    CHAT("adding payload size: %d", pload_sz);
-    CHAT("adding payload : %s", pload);
-
-
-    con_err_ifm (rep = ec_rep_new(res, pload, pload_sz, mt) == NULL, "resource creation failed");
-
-    /* Convert representation type. */
-    //con_err_ifm (ec_mt_from_string("text/plain", &mt), "media type map error");
-
-    /* Each resource only has one representation in this implementation. */
-    con_err_ifm (ec_resource_add_rep(res, pload, pload_sz, mt, NULL),
-                "error adding representation for %s", uri);
+    /* Create new resource representation with the requested media type. */
+    /* Each resource only has one representation in this implementation.
+     * Use automatic ETag. */
+    con_err_ifm(ec_resource_add_rep(res, pload, pload_sz, mt, NULL),
+            "error adding representation for %s", uri);
 
     /* Attach resource to FS. */
-    con_err_ifm (ec_filesys_put_resource(g_ctx.fs, res), "adding resource failed");
+    con_err_ifm(ec_filesys_put_resource(g_ctx.fs, res),
+            "adding resource failed");
+    res = NULL;
 
     /* Register the callback that will serve this URI. */
-    con_err_ifm(ec_register_cb(g_ctx.coap, uri, serve, NULL), "registering callback for %s failed", uri);
+    con_err_ifm(ec_register_cb(g_ctx.coap, uri, serve, NULL),
+            "registering callback for %s failed", uri);
 
-    //201 Created
+    /* 2.01 Created */
     (void) ec_response_set_code(srv, EC_CREATED);
 
-end:
     return EC_CBRC_READY;
 err:
+    if (res)
+        ec_resource_free(res);
     return EC_CBRC_ERROR;
 }
 
