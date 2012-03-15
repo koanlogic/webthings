@@ -228,7 +228,6 @@ char *ec_res_link_format_str(const ec_res_t *res, const char *origin,
      * matched against the supplied query string. */
     if (query && strlen(query))
     {
-        u_con("querying for %s", res->uri);
         if (!__q_match(query, exportable, observable, interface, res_type,
                 has_sz, sz, has_mt, mt))
             return NULL;
