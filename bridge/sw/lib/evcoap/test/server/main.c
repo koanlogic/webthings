@@ -521,13 +521,24 @@ void usage(const char *prog)
 /* Payload serving callback. */
 const uint8_t *ob_serve(const char *uri, ec_mt_t mt, size_t *p_sz, void *args)
 {
-    u_unused_args(mt, args);
+    ec_rep_t *rep;
+    ec_mt_t mta[1] = { [0] = mt };
+
+    u_unused_args(args);
 
     CHAT("Producing resource representation for observed URI %s", uri);
 
-    *p_sz = strlen("hello observe");
+    if ((rep = ec_filesys_get_suitable_rep(g_ctx.fs, uri, mta, 1, NULL)))
+    {
+        ec_res_t *res;
 
-    return (const uint8_t *) "hello observe";
+        dbg_err_if((res = ec_rep_get_res(rep)) == NULL);
+        *p_sz = rep->data_sz;
+        return rep->data;
+    }
+
+err:
+    return NULL;
 }
 
 ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
@@ -622,7 +633,7 @@ int serve_wkc(ec_server_t *srv, ec_method_t method)
             ec_request_get_uri_query(srv), wkc) == NULL);
 
     (void) ec_response_set_code(srv, EC_CONTENT);
-    (void) ec_response_set_payload(srv, wkc, strlen(wkc));
+    (void) ec_response_set_payload(srv, (uint8_t *) wkc, strlen(wkc));
     (void) ec_response_add_content_type(srv, EC_MT_APPLICATION_LINK_FORMAT);
 
     return 0;

@@ -301,7 +301,6 @@ static const char *wrap_null_str(char *buf, size_t buf_sz, const char *prefix,
 
     /* Otherwise return buf with a string-representation of the code. */
     u_snprintf(buf, sizeof buf, "%s%d", prefix, c);
-    u_warn("BUF: %s", buf);
     return buf;
 }
 

@@ -44,7 +44,7 @@ ssize_t ec_net_pullup(evutil_socket_t sd, uint8_t *b, size_t b_sz,
     if ((n = recvmsg(sd, &msg, *flags)) < 0)
     {
         if ((*e = evutil_socket_geterror(sd)) != EAGAIN)
-            u_warn("%s", evutil_socket_error_to_string(*e));
+            u_dbg("%s", evutil_socket_error_to_string(*e));
      
         goto err;
     }
@@ -92,7 +92,7 @@ void ec_net_pullup_all(evutil_socket_t sd, ec_pdu_handler_t pdu_proc, void *arg)
                 case EINTR:
                     continue;
                 default:
-                    u_warn("%s", evutil_socket_error_to_string(e));
+                    u_dbg("%s", evutil_socket_error_to_string(e));
                     return;
             }
         }

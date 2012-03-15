@@ -1,5 +1,6 @@
 #include <strings.h>
 #include <string.h>
+#include <err.h>
 #include <event2/event.h>
 #include <event2/util.h>
 #include <u/libu.h>
@@ -440,7 +441,8 @@ static int ec_client_check_transition(ec_cli_state_t cur, ec_cli_state_t next)
         case EC_CLI_STATE_REQ_DONE:
         case EC_CLI_STATE_REQ_RST:
             dbg_err_if (cur != EC_CLI_STATE_REQ_SENT
-                    && cur != EC_CLI_STATE_REQ_ACKD);   /* Not sure of ACKD */
+                    && cur != EC_CLI_STATE_REQ_ACKD
+                    && cur != EC_CLI_STATE_WAIT_NFY);   /* Not sure of ACKD */
             break;
 
         case EC_CLI_STATE_WAIT_NFY:
@@ -460,7 +462,7 @@ static int ec_client_check_transition(ec_cli_state_t cur, ec_cli_state_t next)
 
     return 0;
 err:
-    u_warn("invalid transition from '%s' to '%s'", ec_cli_state_str(cur),
+    u_dbg("invalid transition from '%s' to '%s'", ec_cli_state_str(cur),
             ec_cli_state_str(next));
     return -1;
 }
@@ -486,7 +488,7 @@ static bool ec_client_state_is_final(ec_cli_state_t state)
         case EC_CLI_STATE_WAIT_NFY:
             return false;
         default:
-            die(EXIT_FAILURE, "%s: no such state %u", __func__, state);
+            errx(EXIT_FAILURE, "%s: no such state %u", __func__, state);
     }
 }
 
@@ -747,7 +749,7 @@ bool ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
     return is_final_state;
 err:
     /* Should never happen ! */
-    die(EXIT_FAILURE, "%s failed (see logs)", __func__);
+    errx(EXIT_FAILURE, "%s failed (see logs)", __func__);
 }
 
 static int ec_client_rst_peer(ec_client_t *cli)
@@ -1012,6 +1014,15 @@ static int ec_client_handle_observation(ec_client_t *cli)
         if (obs_ack == false)
         {
             u_dbg("Observe opt missing in notification !");
+
+            cli->observe.on = false;
+            return 0;
+        }
+
+        /* 2.5) Handled deleted resources (experimental). */
+        if (ec_response_get_code(cli) == EC_DELETED)
+        {
+            u_dbg("observation deleted since resource has been deleted");
 
             cli->observe.on = false;
             return 0;

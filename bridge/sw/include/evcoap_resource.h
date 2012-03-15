@@ -18,6 +18,12 @@
   #define EC_RES_ATTR_MAX   1024
 #endif  /* !EC_RES_ATTR_MAX */
 
+typedef struct ec_who_s
+{
+    struct sockaddr_storage peer;
+    /* TODO strong identity credentials. */
+} ec_who_t;
+
 /* Resource representation with private attributes and data. */
 typedef struct ec_rep_s
 {
@@ -46,7 +52,8 @@ typedef struct ec_res_s
     ec_method_mask_t methods;   /* Bitfield of supported methods. */
     uint32_t max_age;
     ec_res_attrs_t attrs;
-    /* TODO owner/creator Id */
+    time_t birth;               /* Creation timestamp. */
+    ec_who_t creator;           /* Owner/creator Id */
     TAILQ_HEAD(, ec_rep_s) reps;
 } ec_res_t;
 

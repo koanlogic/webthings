@@ -20,10 +20,18 @@ SRCS += evcoap_filesys.c
 
 CFLAGS += $(LIBU_CFLAGS)
 CFLAGS += $(LIBEVENT_CFLAGS)
+CFLAGS += -Wno-unused
+
+ifdef SHLIB
+  LDFLAGS += $(LIBU_LDFLAGS)
+  LDFLAGS += $(LIBEVENT_LDFLAGS)
+  CLEANFILES += *.so
+  ifdef OS_DARWIN
+    CLEANFILES += *.dylib
+  endif   # OS_DARWIN
+endif   # SHLIB
 
 DPADD += $(LIBEVENT_LDADD)
 DPADD += $(LIBU_LDADD)
-
-CFLAGS += -Wno-unused
 
 include lib.mk
