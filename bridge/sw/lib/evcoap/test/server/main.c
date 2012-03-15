@@ -521,24 +521,13 @@ void usage(const char *prog)
 /* Payload serving callback. */
 const uint8_t *ob_serve(const char *uri, ec_mt_t mt, size_t *p_sz, void *args)
 {
-    ec_rep_t *rep;
-    ec_mt_t mta[1] = { [0] = mt };
-
-    u_unused_args(args);
+    u_unused_args(mt, args);
 
     CHAT("Producing resource representation for observed URI %s", uri);
 
-    if ((rep = ec_filesys_get_suitable_rep(g_ctx.fs, uri, mta, 1, NULL)))
-    {
-        ec_res_t *res;
+    *p_sz = strlen("hello observe");
 
-        dbg_err_if((res = ec_rep_get_res(rep)) == NULL);
-        *p_sz = rep->data_sz;
-        return rep->data;
-    }
-
-err:
-    return NULL;
+    return (const uint8_t *) "hello observe";
 }
 
 ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
@@ -633,7 +622,7 @@ int serve_wkc(ec_server_t *srv, ec_method_t method)
             ec_request_get_uri_query(srv), wkc) == NULL);
 
     (void) ec_response_set_code(srv, EC_CONTENT);
-    (void) ec_response_set_payload(srv, (uint8_t *) wkc, strlen(wkc));
+    (void) ec_response_set_payload(srv, wkc, strlen(wkc));
     (void) ec_response_add_content_type(srv, EC_MT_APPLICATION_LINK_FORMAT);
 
     return 0;
@@ -724,50 +713,9 @@ void server_put(ec_server_t *srv){
     /* Get the requested URI and method. */
     const char *uri = ec_server_get_url(srv);
 
-    CHAT("adding resource for: %s", uri);
-
-
-
-    /* Create resource. */
-//    res = ec_resource_new(uri, EC_METHOD_MASK_ALL, 3600);
-    //    con_err_ifm(( res = ec_resource_new(uri, EC_METHOD_MASK_ALL, 3600)) == NULL, "resource creation failed");
-
-    //ec_request_get_payload(srv, wkc);
-
-    //rep = ec_rep_new(res, wkc, strlen(wkc), EC_MT_TEXT_PLAIN);
-    //ec_filesys_put_resource(g_ctx.fs, res);
-
-
-
-    //char uri[U_URI_STRMAX];
-    //ec_res_t *res = NULL;
-    //ec_mt_t mt;
-
-
-
-    /* Create complete resource name. */
-    //con_err_ifm (u_snprintf(uri, sizeof uri, "%s%s", g_ctx.uri, path),
-    //       "could not create uri for path %s and origin %s", path, g_ctx.uri);
-
-    /* Create resource. */
-    //con_err_ifm ((res = ec_resource_new(uri, methods, ma)) == NULL,
-    //       "resource creation failed");
-
-    /* Convert representation type. */
-    //con_err_ifm (ec_mt_from_string(media_type, &mt), "media type map error");
-
-    /* Each resource only has one representation in this implementation. */
-    //con_err_ifm (ec_resource_add_rep(res, data, data_sz, mt, NULL),
-    //               "error adding representation for %s", uri);
-
-    /* Attach resource to FS. */
-    //con_err_ifm (ec_filesys_put_resource(g_ctx.fs, res),
-    //       "adding resource failed");
-
-    /* Register the callback that will serve this URI. */
-    //con_err_ifm (ec_register_cb(g_ctx.coap, uri, cb, NULL),
-    //        "registering callback for %s failed", path);
-
+   /*
+    * ToDO
+    */
 
 			(void) ec_response_set_code(srv, EC_NOT_FOUND);
 
@@ -797,33 +745,28 @@ ec_cbrc_t create(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
   		goto end;
 	}
 
-	 CHAT("CREATE == EC_COAP_PUT");
-    /* Create resource. */
+
+	 /* Create resource. */
     CHAT("adding resource for: %s", uri);
 
     con_err_ifm(( res = ec_resource_new(uri, EC_METHOD_MASK_ALL, 3600)) == NULL, "resource creation failed");
 
 
-    /*
-     * TEST
-     */
     size_t pload_sz;
     uint8_t *pload = ec_request_get_payload(srv, &pload_sz);
-    CHAT("adding payload size: %d", pload_sz);
-    CHAT("adding payload size: %s", pload);
-    /*
-     * TEST
-     */
+    ec_request_get_content_type(srv, &mt);
 
+    CHAT("adding payload size: %d", pload_sz);
+    CHAT("adding payload : %s", pload);
 
 
     con_err_ifm (rep = ec_rep_new(res, pload, pload_sz, EC_MT_TEXT_PLAIN) == NULL, "resource creation failed");
 
     /* Convert representation type. */
-    con_err_ifm (ec_mt_from_string("text/plain", &mt), "media type map error");
+    //con_err_ifm (ec_mt_from_string("text/plain", &mt), "media type map error");
 
     /* Each resource only has one representation in this implementation. */
-    con_err_ifm (ec_resource_add_rep(res, "Hello world!", strlen("Hello world!"), mt, NULL),
+    con_err_ifm (ec_resource_add_rep(res, pload, pload_sz, mt, NULL),
                 "error adding representation for %s", uri);
 
     /* Attach resource to FS. */
@@ -832,13 +775,8 @@ ec_cbrc_t create(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
     /* Register the callback that will serve this URI. */
     con_err_ifm(ec_register_cb(g_ctx.coap, uri, serve, NULL), "registering callback for %s failed", uri);
 
-
-/*ec_filesys_put(...)
- * ec_register_cb(coap, resource_uri, serve, ...)
- * resp_code(EC_CREATED)
- */
-
-(void) ec_response_set_code(srv, EC_NOT_FOUND);
+    //201 Created
+    (void) ec_response_set_code(srv, EC_CREATED);
 
 end:
     return EC_CBRC_READY;

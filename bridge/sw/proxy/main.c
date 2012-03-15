@@ -117,7 +117,11 @@ printf("HTTP Content-Type %s\n", ct);
     		    con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_PUT,
     		                    g_ctx.curi, EC_COAP_CON)) == NULL);
 
+    		    //set payload
     		    ec_request_set_payload(g_ctx.cli,tmp,len);
+
+    		    //set Content-Type
+    		    ec_request_add_content_type(g_ctx.cli, ct);
     		    free(tmp);
     		}
     		    break;
@@ -180,6 +184,9 @@ void process_coap_response(ec_client_t *cli)
         	    //To Do: Check all the cases!!
         	   evhttp_send_reply(req, HTTP_NOCONTENT, "No Content", g_ctx.buf);
         	   return;
+           case	EC_CREATED:
+        	   //return "2.01 (Created)"
+        	   evhttp_send_reply(req, HTTP_OK, "No Content", g_ctx.buf);
            case EC_CONTENT:
                //return "2.05 (Content)";
            break;
