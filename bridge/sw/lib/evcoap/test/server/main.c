@@ -754,13 +754,14 @@ ec_cbrc_t create(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
 
     size_t pload_sz;
     uint8_t *pload = ec_request_get_payload(srv, &pload_sz);
-    ec_request_get_content_type(srv, &mt);
+    if (ec_request_get_content_type(srv, &mt))
+        mt = EC_MT_TEXT_PLAIN;
 
     CHAT("adding payload size: %d", pload_sz);
     CHAT("adding payload : %s", pload);
 
 
-    con_err_ifm (rep = ec_rep_new(res, pload, pload_sz, EC_MT_TEXT_PLAIN) == NULL, "resource creation failed");
+    con_err_ifm (rep = ec_rep_new(res, pload, pload_sz, mt) == NULL, "resource creation failed");
 
     /* Convert representation type. */
     //con_err_ifm (ec_mt_from_string("text/plain", &mt), "media type map error");
