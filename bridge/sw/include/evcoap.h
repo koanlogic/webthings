@@ -50,7 +50,7 @@ int ec_register_cb(ec_t *coap, const char *url, ec_server_cb_t cb, void *args);
 int ec_register_fb(ec_t *coap, ec_server_cb_t cb, void *cb_args);
 
 /* PDU manipulation API */
-int ec_request_set_payload(ec_client_t *cli, uint8_t *payload, size_t sz);
+int ec_request_set_payload(ec_client_t *cli, const uint8_t *payload, size_t sz);
 
 int ec_request_add_block1(ec_client_t *cli, uint32_t bnum, bool more,
         size_t bsz);

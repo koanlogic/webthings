@@ -1,4 +1,3 @@
-#include <math.h>
 #include <u/libu.h>
 #include <event2/util.h>
 #include "evcoap.h"
@@ -258,7 +257,7 @@ err:
 /**
  *  \brief  TODO
  */
-int ec_request_set_payload(ec_client_t *cli, uint8_t *payload, size_t sz)
+int ec_request_set_payload(ec_client_t *cli, const uint8_t *payload, size_t sz)
 {
     dbg_return_if (cli == NULL, -1);
 
@@ -374,7 +373,7 @@ static int ec_request_get_block(ec_server_t *srv, ec_opt_sym_t which,
 
     nop_err_if (ec_opts_get_block(opts, bnum, more, &szx, which));
 
-    *bsz = (int) exp2((double) (szx + 4));
+    *bsz = 1 << (szx + 4);
 
     return 0;
 err:
