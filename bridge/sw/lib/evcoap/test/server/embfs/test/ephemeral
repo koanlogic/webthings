@@ -1,0 +1,19 @@
+resource
+{
+    path    /test/ephemeral
+    max-age 5
+
+    allowed-methods GET DELETE
+
+    link-attrs
+    {
+        obs 1
+        exp 1
+    }
+
+    representation
+    {
+        t: text/plain
+        v: ephemeral value
+    }
+}

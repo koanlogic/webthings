@@ -62,9 +62,10 @@ struct ec_observation_s
     ec_res_t *cached_res;       /* Cached resource (with representations.) */
     uint32_t max_age;           /* Resource reload+notification timeout. */
     struct event *notify;       /* Notification timer. */
+    struct ec_s *base;          /* Back-ref to evcoap base. */ 
 
     TAILQ_HEAD(, ec_observer_s) observers;  /* Peers observing this resource. */
-    TAILQ_ENTRY(ec_observation_s) next;         /* Next observed resource. */
+    TAILQ_ENTRY(ec_observation_s) next;     /* Next observed resource. */
 };
 typedef struct ec_observation_s ec_observation_t;
 

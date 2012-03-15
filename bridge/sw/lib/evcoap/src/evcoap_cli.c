@@ -441,7 +441,8 @@ static int ec_client_check_transition(ec_cli_state_t cur, ec_cli_state_t next)
         case EC_CLI_STATE_REQ_DONE:
         case EC_CLI_STATE_REQ_RST:
             dbg_err_if (cur != EC_CLI_STATE_REQ_SENT
-                    && cur != EC_CLI_STATE_REQ_ACKD);   /* Not sure of ACKD */
+                    && cur != EC_CLI_STATE_REQ_ACKD
+                    && cur != EC_CLI_STATE_WAIT_NFY);   /* Not sure of ACKD */
             break;
 
         case EC_CLI_STATE_WAIT_NFY:
@@ -1013,6 +1014,15 @@ static int ec_client_handle_observation(ec_client_t *cli)
         if (obs_ack == false)
         {
             u_dbg("Observe opt missing in notification !");
+
+            cli->observe.on = false;
+            return 0;
+        }
+
+        /* 2.5) Handled deleted resources (experimental). */
+        if (ec_response_get_code(cli) == EC_DELETED)
+        {
+            u_dbg("observation deleted since resource has been deleted");
 
             cli->observe.on = false;
             return 0;
