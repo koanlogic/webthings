@@ -635,7 +635,7 @@ err:
 
 int serve_get(ec_server_t *srv, ec_rep_t *rep)
 {
-    ec_res_t *res = rep->res;
+    ec_res_t *res = ec_rep_get_res(rep);
 
     /* Set response code, payload, etag and content-type. */
     (void) ec_response_set_code(srv, EC_CONTENT);
