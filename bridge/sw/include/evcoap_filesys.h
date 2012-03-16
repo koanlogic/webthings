@@ -25,6 +25,7 @@ ec_filesys_t *ec_filesys_create(bool relative_refs);
 void ec_filesys_destroy(ec_filesys_t *fs);
 int ec_filesys_put_resource(ec_filesys_t *filesys, ec_res_t *res);
 int ec_filesys_del_resource(ec_filesys_t *filesys, const char *uri);
+ec_res_t *ec_filesys_get_resource(ec_filesys_t *fs, const char *uri);
 ec_rep_t *ec_filesys_get_rep(ec_filesys_t *filesys, const char *uri, 
         ec_mt_t media_type, const uint8_t *etag);
 ec_rep_t *ec_filesys_get_suitable_rep(ec_filesys_t *fs, const char *uri,

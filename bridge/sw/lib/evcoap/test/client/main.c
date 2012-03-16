@@ -42,6 +42,7 @@ typedef struct
     blockopt_t block1;
     blockopt_t block2;
     size_t iblock;      /* index of current block */
+    ec_mt_t mt;
 } ctx_t;
 
 ctx_t g_ctx = {
@@ -63,7 +64,8 @@ ctx_t g_ctx = {
     .data = NULL,
     .data_sz = 0,
     .block_sz = 0,      /* block size defined by user */
-    .iblock = 0
+    .iblock = 0,
+    .mt = EC_MT_ANY
 };
 
 void usage(const char *prog);
@@ -78,6 +80,7 @@ int client_set_output_file(const char *s);
 int client_set_payload_file(const char *s);
 int client_set_app_timeout(const char *s);
 int client_save_to_file(const uint8_t *pl, size_t pl_sz);
+int client_set_media_type(const char *s);
 int set_payload(ec_client_t *cli, const uint8_t *data, size_t data_sz);
 void cb(ec_client_t *cli);
 
@@ -85,10 +88,14 @@ int main(int ac, char *av[])
 {
     int c;
 
-    while ((c = getopt(ac, av, "hu:m:M:O:o:p:vt:B:T")) != -1)
+    while ((c = getopt(ac, av, "c:hu:m:M:O:o:p:vt:B:T")) != -1)
     {
         switch (c)
         {
+            case 'c':
+                if (client_set_media_type(optarg))
+                    usage(av[0]);
+                break;
             case 'u': /* .uri */
                 if (client_set_uri(optarg))
                     usage(av[0]);
@@ -252,6 +259,7 @@ void usage(const char *prog)
         "       -B <block_sz>                    (default is no Block2 -    \n"
         "          generate Block2 option        late negotiation only)     \n"
         "       -O <number of notifications> try to observe the resource    \n"
+        "       -c <media-type>                  (default is any)           \n"
         "                                                                   \n"
         ;
 
@@ -334,8 +342,9 @@ int client_run(void)
         /* Set payload (or Block if necessary). */
         dbg_err_if (set_payload(g_ctx.cli, g_ctx.data, g_ctx.data_sz));
 
-        /* Add Content-Type option */
-        dbg_err_if (ec_request_add_content_type(g_ctx.cli, EC_MT_TEXT_PLAIN));
+        /* Add Content-Type option (default to text/plain.) */
+        dbg_err_if (ec_request_add_content_type(g_ctx.cli,
+                    g_ctx.mt == EC_MT_ANY ? EC_MT_TEXT_PLAIN : g_ctx.mt));
     }
 
     CHAT("sending request to %s", g_ctx.uri);
@@ -410,6 +419,15 @@ int client_set_model(const char *s)
         return 0;
     }
 
+    return -1;
+}
+
+int client_set_media_type(const char *s)
+{
+    con_err_ifm (ec_mt_from_string(s, &g_ctx.mt), "unknown media type: %s", s);
+
+    return 0;
+err:
     return -1;
 }
 

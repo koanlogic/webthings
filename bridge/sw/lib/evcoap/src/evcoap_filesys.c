@@ -93,18 +93,20 @@ ec_rep_t *ec_filesys_get_rep(ec_filesys_t *fs, const char *uri,
     return ec_filesys_get_suitable_rep(fs, uri, mta, mta_sz, etag);
 }
 
-ec_rep_t *ec_filesys_get_suitable_rep(ec_filesys_t *fs, const char *uri,
-        ec_mt_t *mta, size_t mta_sz, const uint8_t *etag)
+ec_res_t *ec_filesys_get_resource(ec_filesys_t *fs, const char *uri)
 {
-    ec_res_t *res;
-
     dbg_return_if (fs == NULL, NULL);
     dbg_return_if (uri == NULL || *uri == '\0', NULL);
 
-    /* Lookup resource. */
-    dbg_return_if ((res = u_hmap_easy_get(fs->map, uri)) == NULL, NULL);
+    return u_hmap_easy_get(fs->map, uri);
+}
 
-    return ec_resource_get_suitable_rep(res, uri, mta, mta_sz, etag);
+ec_rep_t *ec_filesys_get_suitable_rep(ec_filesys_t *fs, const char *uri,
+        ec_mt_t *mta, size_t mta_sz, const uint8_t *etag)
+{
+    ec_res_t *res = ec_filesys_get_resource(fs, uri);
+
+    return ec_resource_get_suitable_rep(res, mta, mta_sz, etag);
 }
 
 char *ec_filesys_well_known_core(ec_filesys_t *fs, const char *origin, 

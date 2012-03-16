@@ -63,6 +63,7 @@ ec_rep_t *ec_rep_new(ec_res_t *res, const ev_uint8_t *data, size_t data_sz,
         ec_mt_t mt);
 ec_res_t *ec_rep_get_res(ec_rep_t *rep);
 void ec_rep_free(ec_rep_t *rep);
+int ec_rep_del(ec_res_t *res, ec_rep_t *rep);
 
 /* Resource. */
 ec_res_t *ec_resource_new(const char *uri, ec_method_mask_t methods,
@@ -70,6 +71,8 @@ ec_res_t *ec_resource_new(const char *uri, ec_method_mask_t methods,
 void ec_resource_free(ec_res_t *res);
 int ec_resource_add_rep(ec_res_t *res, const uint8_t *data, size_t data_sz, 
         ec_mt_t mt, uint8_t etag[EC_ETAG_SZ]);
+int ec_resource_update_rep(ec_res_t *res, const uint8_t *data, size_t data_sz,
+        ec_mt_t media_type, uint8_t etag[EC_ETAG_SZ]);
 
 /* Link formatter & friends. */
 char *ec_res_link_format_str(const ec_res_t *res, const char *origin,
@@ -87,10 +90,9 @@ int ec_res_attrs_get_exp(const ec_res_t *res, bool *exportable);
 int ec_res_attrs_get_if(const ec_res_t *res, char interface[EC_RES_ATTR_MAX]);
 int ec_res_attrs_get_rt(const ec_res_t *res, char res_type[EC_RES_ATTR_MAX]);
 
-ec_rep_t *ec_resource_get_rep(ec_res_t *res, const char *uri, ec_mt_t mt, 
-        const uint8_t *etag);
-ec_rep_t *ec_resource_get_suitable_rep(ec_res_t *res, const char *uri,
-        ec_mt_t *mta, size_t mta_sz, const uint8_t *etag);
+ec_rep_t *ec_resource_get_rep(ec_res_t *res, ec_mt_t mt, const uint8_t *etag);
+ec_rep_t *ec_resource_get_suitable_rep(ec_res_t *res, ec_mt_t *mta,
+        size_t mta_sz, const uint8_t *etag);
 int ec_resource_check_method(ec_res_t *res, ec_method_t method);
 
 #endif  /* !_EC_RESOURCE_H_ */

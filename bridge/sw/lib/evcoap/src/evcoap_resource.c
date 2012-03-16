@@ -37,10 +37,8 @@ void ec_resource_free(ec_res_t *res)
         ec_rep_t *rep;
 
         while ((rep = TAILQ_FIRST(&res->reps)) != NULL)
-        {
-            TAILQ_REMOVE(&res->reps, rep, next);
-            ec_rep_free(rep);
-        }
+            (void) ec_rep_del(res, rep);
+
         u_free(res);
     }
     return;
@@ -70,6 +68,32 @@ err:
     return -1;
 }
 
+int ec_resource_update_rep(ec_res_t *res, const uint8_t *data, size_t data_sz,
+        ec_mt_t media_type, uint8_t etag[EC_ETAG_SZ])
+{
+    ec_rep_t *rep;
+
+    dbg_return_if (res == NULL, -1);
+
+    if ((rep = ec_resource_get_rep(res, media_type, etag)) == NULL)
+    {
+        u_dbg("no representation matches the supplied media-type and ETag");
+        return -1;
+    }
+    else
+    {
+        dbg_err_if (ec_resource_add_rep(res, data, data_sz, media_type, etag));
+
+        /* Remove representation only in case the updated representation
+         * has been successfully added. */
+        (void) ec_rep_del(res, rep);
+    }
+
+    return 0;
+err:
+    return -1;
+}
+
 ec_rep_t *ec_rep_new(ec_res_t *res, const uint8_t *data, size_t data_sz, 
         ec_mt_t media_type)
 {
@@ -96,6 +120,17 @@ err:
     return NULL;
 }
 
+int ec_rep_del(ec_res_t *res, ec_rep_t *rep)
+{
+    dbg_return_if (res == NULL, -1);
+    dbg_return_if (rep == NULL, -1);
+
+    TAILQ_REMOVE(&res->reps, rep, next);
+    ec_rep_free(rep);
+
+    return 0;
+}
+
 ec_res_t *ec_rep_get_res(ec_rep_t *rep)
 {
     dbg_return_if (rep == NULL, NULL);
@@ -107,8 +142,8 @@ ec_res_t *ec_rep_get_res(ec_rep_t *rep)
  * lookup parameter.)
  * 'media_type' is optional (set it to EC_MT_ANY if you don't care about
  *  a specific representation.) */
-ec_rep_t *ec_resource_get_rep(ec_res_t *res, const char *uri, 
-        ec_mt_t media_type, const uint8_t *etag)
+ec_rep_t *ec_resource_get_rep(ec_res_t *res, ec_mt_t media_type,
+        const uint8_t *etag)
 {
     ec_mt_t mta[1] = { [0] = media_type };
     size_t mta_sz = 1;
@@ -116,17 +151,16 @@ ec_rep_t *ec_resource_get_rep(ec_res_t *res, const char *uri,
     if (media_type == EC_MT_ANY)
        mta_sz = 0;  /* See ec_mt_matches(). */
 
-    return ec_resource_get_suitable_rep(res, uri, mta, mta_sz, etag);
+    return ec_resource_get_suitable_rep(res, mta, mta_sz, etag);
 }
 
-ec_rep_t *ec_resource_get_suitable_rep(ec_res_t *res, const char *uri, 
-        ec_mt_t *mta, size_t mta_sz, const uint8_t *etag)
+ec_rep_t *ec_resource_get_suitable_rep(ec_res_t *res, ec_mt_t *mta, 
+        size_t mta_sz, const uint8_t *etag)
 {
     bool mt_match, et_match;
     ec_rep_t *rep = NULL;
 
     dbg_return_if (res == NULL, NULL);
-    dbg_return_if (uri == NULL || *uri == '\0', NULL);
 
     /* Try to get a matching representation. */
     TAILQ_FOREACH (rep, &res->reps, next)
@@ -354,7 +388,6 @@ int ec_res_attrs_get_if(const ec_res_t *res, char interface[EC_RES_ATTR_MAX])
 
     dbg_return_if (u_strlcpy(interface, res->attrs.interface, 
                 EC_RES_ATTR_MAX), -1);
-
     return 0;
 }
 
@@ -365,7 +398,6 @@ int ec_res_attrs_get_rt(const ec_res_t *res, char res_type[EC_RES_ATTR_MAX])
 
     dbg_return_if (u_strlcpy(res_type, res->attrs.res_type, 
                 EC_RES_ATTR_MAX), -1);
-
     return 0;
 }
 

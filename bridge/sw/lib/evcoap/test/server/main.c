@@ -714,12 +714,32 @@ int serve_put(ec_server_t *srv, ec_rep_t *rep)
     /* This routine handles the update of a resource using the PUT method.
      * Creation of a resource via PUT is done by the create() routine. */
 
-    /* Get the requested URI and method. */
+    ec_mt_t mta[1];
+    ec_res_t *res;
+    size_t pload_sz;
+    uint8_t etag[EC_ETAG_SZ] = { 0 }, *pload;
     const char *uri = ec_server_get_url(srv);
 
-    (void) ec_response_set_code(srv, EC_NOT_IMPLEMENTED);
+    /* Get payload and media type (if specified.) */
+    pload = ec_request_get_payload(srv, &pload_sz);
+    dbg_err_if (ec_request_get_content_type(srv, &mta[1]));
+
+    /* Search resource by URI. */
+    dbg_err_if ((res = ec_filesys_get_resource(g_ctx.fs, uri)) == NULL);
+
+    /* Add new representation. */
+    dbg_err_if (ec_resource_add_rep(res, pload, pload_sz, mta[1], etag));
+
+    /* Delete old. */
+    (void) ec_rep_del(res, rep);
+
+    (void) ec_response_add_etag(srv, etag, sizeof etag);
+    (void) ec_response_set_code(srv, EC_CHANGED);
 
     return 0;
+err:
+    (void) ec_response_set_code(srv, EC_INTERNAL_SERVER_ERROR);
+    return -1;
 }
 
 ec_cbrc_t create(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
