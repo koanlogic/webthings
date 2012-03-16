@@ -20,6 +20,7 @@
 
 typedef struct ec_who_s
 {
+    bool is_set;
     struct sockaddr_storage peer;
     /* TODO strong identity credentials. */
 } ec_who_t;

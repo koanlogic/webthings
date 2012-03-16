@@ -846,6 +846,36 @@ err:
     return -1;
 }
 
+int ec_unregister_cb(ec_t *coap, const char *url)
+{
+    ec_rescb_t *rcb;
+
+    dbg_return_if (coap == NULL, -1);
+    dbg_return_if (url == NULL, -1);
+
+    TAILQ_FOREACH(rcb, &coap->resources, next)
+    {
+        if (!evutil_ascii_strcasecmp(rcb->path, url))
+        {
+            TAILQ_REMOVE(&coap->resources, rcb, next); 
+            ec_rescb_free(rcb);
+            return 0;
+        }
+    }
+
+    return -1;
+}
+
+int ec_unregister_fb(ec_t *coap)
+{
+    dbg_return_if (coap == NULL, -1);
+
+    coap->fb = NULL;
+    coap->fb_args = NULL;
+
+    return 0;
+}
+
 /* Supplying val=0 means unlimited (bounded only by lower layer protocols.) */
 int ec_set_block_size(ec_t *coap, size_t val)
 {

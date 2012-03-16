@@ -676,9 +676,16 @@ int serve_get(ec_server_t *srv, ec_rep_t *rep)
  */
 int serve_delete(ec_server_t *srv)
 {
-    int rc = ec_filesys_del_resource(g_ctx.fs, ec_server_get_url(srv));
+    int rc;
+    const char *uri = ec_server_get_url(srv);
 
-    (void) ec_response_set_code(srv, rc == 0 ? EC_DELETED : EC_NOT_FOUND);
+    if ((rc = ec_filesys_del_resource(g_ctx.fs, uri)) == 0)
+    {
+        (void) ec_response_set_code(srv, EC_DELETED);
+        dbg_if (ec_unregister_cb(g_ctx.coap, uri));
+    }
+    else
+        (void) ec_response_set_code(srv, EC_NOT_FOUND);
 
     return 0;
 }
@@ -730,7 +737,7 @@ ec_cbrc_t create(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
 
     if ((method = ec_server_get_method(srv)) != EC_COAP_PUT)
     {
-        (void) ec_response_set_code(srv, EC_NOT_IMPLEMENTED);
+        (void) ec_response_set_code(srv, EC_NOT_FOUND);
         return EC_CBRC_READY;
     }
 

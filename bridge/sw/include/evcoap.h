@@ -48,6 +48,8 @@ int ec_bind_socket(ec_t *coap, const char *addr, uint16_t port);
 
 int ec_register_cb(ec_t *coap, const char *url, ec_server_cb_t cb, void *args);
 int ec_register_fb(ec_t *coap, ec_server_cb_t cb, void *cb_args);
+int ec_unregister_cb(ec_t *coap, const char *url);
+int ec_unregister_fb(ec_t *coap);
 
 /* PDU manipulation API */
 int ec_request_set_payload(ec_client_t *cli, const uint8_t *payload, size_t sz);
