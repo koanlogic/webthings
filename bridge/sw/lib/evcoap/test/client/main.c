@@ -37,8 +37,11 @@ typedef struct
     bool fail;
     bool token;
     size_t block_sz;
-    size_t block;
-    blockopt_t bopt;
+    uint8_t *data;
+    size_t data_sz;
+    blockopt_t block1;
+    blockopt_t block2;
+    size_t iblock;      /* index of current block */
 } ctx_t;
 
 ctx_t g_ctx = {
@@ -57,8 +60,10 @@ ctx_t g_ctx = {
     .verbose = false,
     .fail = false,
     .token = false,
+    .data = NULL,
+    .data_sz = 0,
     .block_sz = 0,      /* block size defined by user */
-    .block = 0          /* current block index */
+    .iblock = 0
 };
 
 void usage(const char *prog);
@@ -73,6 +78,7 @@ int client_set_output_file(const char *s);
 int client_set_payload_file(const char *s);
 int client_set_app_timeout(const char *s);
 int client_save_to_file(const uint8_t *pl, size_t pl_sz);
+int set_payload(ec_client_t *cli, const uint8_t *data, size_t data_sz);
 void cb(ec_client_t *cli);
 
 int main(int ac, char *av[])
@@ -130,7 +136,11 @@ int main(int ac, char *av[])
     con_err_if (client_init());
 
     /* Run, and keep on doing it until all blocks are exhausted. */
-    do { con_err_if (client_run()); } while (g_ctx.bopt.more && !g_ctx.fail);
+    do
+    {
+        con_err_if (client_run());
+    }
+    while ((g_ctx.block1.more || g_ctx.block2.more) && !g_ctx.fail);
 
     con_err_if (g_ctx.fail);
 
@@ -148,6 +158,7 @@ void cb(ec_client_t *cli)
     uint8_t *pl;
     size_t pl_sz;
     uint32_t bnum, max_age;
+    bool more;
    
     /* 
      * Get FSM final state, bail out on !REQ_DONE (or observe).
@@ -177,14 +188,24 @@ void cb(ec_client_t *cli)
     con_err_sifm (pl && client_save_to_file(pl, pl_sz),
             "payload could not be saved");
 
-    /* If fragmented will set g_ctx.bopt. */
-    if ((ec_response_get_block2(cli, &bnum, &g_ctx.bopt.more,
-                &g_ctx.bopt.block_sz) == 0) && g_ctx.bopt.more)
+    /* If it's a reponse to fragmented request (Block1) we set g_ctx.block1. */
+    if ((ec_response_get_block1(cli, &bnum, &more,
+                &g_ctx.block1.block_sz) == 0)) {
+
+        /* Blockwise transfer - make sure requested block was returned. */
+        dbg_err_if (bnum != g_ctx.block1.block_no);
+
+        g_ctx.block1.block_no++;
+    }
+
+    /* If reponse was fragmented (Block2) we set g_ctx.block2. */
+    if ((ec_response_get_block2(cli, &bnum, &g_ctx.block2.more,
+                &g_ctx.block2.block_sz) == 0) && g_ctx.block2.more)
     {
         /* Blockwise transfer - make sure requested block was returned. */
-        dbg_err_if (bnum != g_ctx.bopt.block_no);
+        dbg_err_if (bnum != g_ctx.block2.block_no);
 
-        g_ctx.bopt.block_no = bnum;
+        g_ctx.block2.block_no = bnum;
     }
 
     /* In case we've requested an observation on the resource, see if we've
@@ -246,9 +267,12 @@ int client_init(void)
     dbg_err_if ((g_ctx.coap = ec_init(g_ctx.base, g_ctx.dns)) == NULL);
 
     /* Other local initialisations. */
-    g_ctx.bopt.block_no = 0;
-    g_ctx.bopt.more = 0;
-    g_ctx.bopt.block_sz = 0;
+    g_ctx.block1.block_no = 0;
+    g_ctx.block1.more = 0;
+    g_ctx.block1.block_sz = 0;
+    g_ctx.block2.block_no = 0;
+    g_ctx.block2.more = 0;
+    g_ctx.block2.block_sz = 0;
 
     return 0;
 err:
@@ -266,9 +290,6 @@ void client_term(void)
 
 int client_run(void)
 {
-    uint8_t *payload = NULL;
-    size_t payload_sz;
-
     /* Initialisations */
     g_ctx.fail = false;
 
@@ -282,32 +303,36 @@ int client_run(void)
         dbg_err_if (ec_request_add_observe(g_ctx.cli));
 
     /* First run - initiate early negotiation. */
-	if (g_ctx.block++ == 0 && g_ctx.block_sz)
-        dbg_err_if (ec_request_add_block2(g_ctx.cli, 0, 0, g_ctx.block_sz));
-
-    /* More data available - get next block. */
-    if (g_ctx.bopt.more)
+	if (g_ctx.block_sz && (g_ctx.iblock++ == 0))
     {
-        g_ctx.bopt.block_no++;
+        dbg_err_if (ec_request_add_block2(g_ctx.cli, 0, 0, g_ctx.block_sz));
+    }
+    else if (g_ctx.block2.more)
+    /* More data available - get next block. */
+    {
+        g_ctx.block2.block_no++;
 
-        g_ctx.bopt.block_sz = g_ctx.block_sz ?
-            U_MIN(g_ctx.block_sz, g_ctx.bopt.block_sz) : g_ctx.bopt.block_sz;
+        g_ctx.block2.block_sz = g_ctx.block_sz ?
+            U_MIN(g_ctx.block_sz, g_ctx.block2.block_sz) : g_ctx.block2.block_sz;
 
-        CHAT("requesting block n.%u (size: %u)", g_ctx.bopt.block_no,
-                g_ctx.bopt.block_sz);
+        CHAT("requesting block n.%u (size: %u)", g_ctx.block2.block_no,
+                g_ctx.block2.block_sz);
+        u_dbg("S: %u", g_ctx.block2.block_sz);
 
         /* The client MUST set the M bit of a Block2 Option to zero. */
-        dbg_err_if (ec_request_add_block2(g_ctx.cli, g_ctx.bopt.block_no,
-                    0, g_ctx.bopt.block_sz));
+        dbg_err_if (ec_request_add_block2(g_ctx.cli, g_ctx.block2.block_no,
+                    0, g_ctx.block2.block_sz));
     }
 
     /* In case of POST/PUT load payload from file (if not NULL). */
     if ((g_ctx.method == EC_COAP_POST || g_ctx.method == EC_COAP_PUT) &&
             g_ctx.pfn)
     {
-        dbg_err_if (u_load_file(g_ctx.pfn, 0, (char **) &payload, &payload_sz));
-        dbg_err_if (ec_request_set_payload(g_ctx.cli, payload, payload_sz));
-        u_free(payload), payload = NULL;
+        if (g_ctx.block1.block_no == 0)
+            dbg_err_if (u_load_file(g_ctx.pfn, 0, (char **) &g_ctx.data, &g_ctx.data_sz));
+
+        /* Set payload (or Block if necessary). */
+        dbg_err_if (set_payload(g_ctx.cli, g_ctx.data, g_ctx.data_sz));
 
         /* Add Content-Type option */
         dbg_err_if (ec_request_add_content_type(g_ctx.cli, EC_MT_TEXT_PLAIN));
@@ -315,11 +340,9 @@ int client_run(void)
 
     CHAT("sending request to %s", g_ctx.uri);
     dbg_err_if (ec_request_send(g_ctx.cli, cb, NULL, &g_ctx.app_tout));
-
+    
     return event_base_dispatch(g_ctx.base);
 err:
-    if (payload)
-        u_free(payload);
     return -1;
 }
 
@@ -448,5 +471,42 @@ int client_save_to_file(const uint8_t *pl, size_t pl_sz)
 err:
     if (fp != NULL)
         (void) fclose(fp);
+    return -1;
+}
+
+int set_payload(ec_client_t *cli, const uint8_t *data, size_t data_sz)
+{
+    uint32_t bnum = g_ctx.block1.block_no;
+    bool more;
+    const uint8_t *p;
+    size_t p_sz;
+    size_t block_sz = g_ctx.block_sz ? g_ctx.block_sz : EC_COAP_BLOCK_MAX;
+
+    /* Single block if data fits. */
+    if (data_sz <= block_sz)
+    {
+        p = data;
+        p_sz = data_sz;
+    }
+    else  /* Otherwise we have > 1 blocks and add Block2 option. */
+    {
+        p = data + (bnum * block_sz);
+
+        more = (bnum < (data_sz / block_sz));
+
+        if (more)
+            p_sz = block_sz;
+        else
+            p_sz = data_sz - bnum * block_sz;
+
+        dbg_err_if (ec_request_add_block1(cli, bnum, more, block_sz));
+    }
+
+    (void) ec_request_set_payload(cli, p, p_sz);
+
+    g_ctx.block1.more = more;
+
+    return 0;
+err:
     return -1;
 }
