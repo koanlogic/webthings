@@ -20,7 +20,7 @@
 
 \begin{itemize}
  \item Two I-Ds for three Options :-)
- \item Extend Proxies capabilities to help Sleepy endpoints participate in CoAP networks
+ \item Extend Proxies capabilities to help Sleepy nodes participate in CoAP networks
  \item Each Option employs a different technique to solve specific (orthogonal) issues that surface when the \emph{always on} postulate is negated
 \end{itemize}
 
@@ -31,7 +31,7 @@
 \begin{itemize}
  \item \textbf{Sleepy.}  Allow end to end communication between two sleepy nodes using the Proxy as a \emph{store and forward} agent;
  \vspace{.3cm}
- \item \textbf{Publish.}  Allow generic CoAP endpoints to interact with a resource hosted at a sleepy node by (temporarily) delegating the resource to a Proxy;
+ \item \textbf{Publish.}  Allow generic CoAP nodes to interact with a resource hosted at a sleepy node by (temporarily) delegating the resource to a Proxy;
  \vspace{.3cm}
  \item \textbf{Monitor.}  Make Observe bootstrap possible in case two sleepy nodes are involved.
 \end{itemize}
@@ -57,10 +57,9 @@
 \begin{frame}{Publish \hspace{5cm} {\tiny \texttt{draft-fossati-core-publish-monitor-options-01}}}
 
 \begin{itemize}
- \item Sleepy endpoint asks Proxy to serve its resource(s)
- \item Handle the whole delegation life-time: \mbox{\small{Publish $\rightarrow$ Update $\rightarrow$ ... $\rightarrow$ Update $\rightarrow$ Remove}}
- \item Sleepy endpoint may specify allowed methods %%(support writable resources, default GET only)
- \item No URI proliferation %% the resource original URI is the only way to access the resource
+ \item Sleepy node asks Proxy to serve its resource(s)
+ \item Handle the whole delegation life-time: \mbox{\small{Publish $\rightarrow$ Update $\rightarrow$ ... $\rightarrow$ Update $\rightarrow$ (implicit) Remove}}
+ \item Sleepy node may specify allowed methods %%(support writable resources, default GET only)
 \end{itemize}
 
 \end{frame}
@@ -119,6 +118,19 @@
  \end{center}
 \end{frame}
 
+%%
+%% Pro
+%%
+\begin{frame}{Pro}
+
+\begin{itemize}
+ \item No URI proliferation %% the resource original URI is the only way to access the resource
+ \item No soft state has to be maintained on sleepy client
+ \item Explicit delegation lifetime
+ \item Support writable resources
+ \item Support Observe
+\end{itemize}
+\end{frame}
 
 %%
 %% Open issues
@@ -126,7 +138,8 @@
 \begin{frame}{Open issues}
 
 \begin{itemize}
- \item Strong mutual authentication to authorize the delegation (and subsequent ops -- i.e. updates and deletion) on the resource
+ \item Need \emph{strong mutual authentication} to authorize the delegation (and subsequent ops -- i.e. updates and deletion) on the resource
+ \item Need to be coerced to one only delegation relationship to ensure consistency
 \end{itemize}
 
 \end{frame}
