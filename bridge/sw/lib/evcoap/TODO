@@ -16,3 +16,7 @@ observe
   callback can be called only when it is really needed)
 - add hook to the underlying resource in observe
 
+misc
+- check in evcoap/evcoap_opt whenever we downcast (e.g. from ec_mt_t to u16)
+  that the result argument is initialized to a value that is compatible with 
+  the target type

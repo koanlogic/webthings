@@ -302,7 +302,9 @@ int ec_request_get_content_type(ec_server_t *srv, ec_mt_t *mt)
 
     dbg_return_if (srv == NULL, -1);
     dbg_return_if ((req = srv->req) == NULL, -1);
+    dbg_return_if (mt == NULL, -1);
 
+    *mt = 0;    /* Set to a value compatible with uint16_t. */
     ec_opts_t *opts = &req->opts;
 
     return ec_opts_get_content_type(opts, (uint16_t *) mt);

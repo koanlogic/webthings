@@ -1073,7 +1073,7 @@ static u_uri_t *compose_proxy_uri(ec_opts_t *opts, char uri[U_URI_STRMAX])
             dbg_err_if (u_strlcat(uri, (const char *) o->v, U_URI_STRMAX));
     }
  
-    dbg_err_if (strlen(uri) == 0);
+    nop_err_if (strlen(uri) == 0);
     dbg_err_if (u_uri_crumble(uri, 0, &u));
 
     return u;

@@ -320,8 +320,9 @@ int client_run(void)
     {
         g_ctx.block2.block_no++;
 
-        g_ctx.block2.block_sz = g_ctx.block_sz ?
-            U_MIN(g_ctx.block_sz, g_ctx.block2.block_sz) : g_ctx.block2.block_sz;
+        g_ctx.block2.block_sz = g_ctx.block_sz
+            ? U_MIN(g_ctx.block_sz, g_ctx.block2.block_sz)
+            : g_ctx.block2.block_sz;
 
         CHAT("requesting block n.%u (size: %u)", g_ctx.block2.block_no,
                 g_ctx.block2.block_sz);
@@ -331,13 +332,17 @@ int client_run(void)
         dbg_err_if (ec_request_add_block2(g_ctx.cli, g_ctx.block2.block_no,
                     0, g_ctx.block2.block_sz));
     }
+    
+    if (g_ctx.method == EC_COAP_GET && g_ctx.mt != EC_MT_ANY)
+        dbg_err_if (ec_request_add_accept(g_ctx.cli, g_ctx.mt));
 
     /* In case of POST/PUT load payload from file (if not NULL). */
     if ((g_ctx.method == EC_COAP_POST || g_ctx.method == EC_COAP_PUT) &&
             g_ctx.pfn)
     {
         if (g_ctx.block1.block_no == 0)
-            dbg_err_if (u_load_file(g_ctx.pfn, 0, (char **) &g_ctx.data, &g_ctx.data_sz));
+            dbg_err_if (u_load_file(g_ctx.pfn, 0, (char **) &g_ctx.data, 
+                        &g_ctx.data_sz));
 
         /* Set payload (or Block if necessary). */
         dbg_err_if (set_payload(g_ctx.cli, g_ctx.data, g_ctx.data_sz));

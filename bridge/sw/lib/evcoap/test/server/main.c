@@ -715,24 +715,22 @@ int serve_put(ec_server_t *srv, ec_rep_t *rep)
      * Creation of a resource via PUT is done by the create() routine. */
 
     ec_mt_t mta[1];
-    ec_res_t *res;
     size_t pload_sz;
     uint8_t etag[EC_ETAG_SZ] = { 0 }, *pload;
-    const char *uri = ec_server_get_url(srv);
+    ec_res_t *res = ec_rep_get_res(rep);
 
     /* Get payload and media type (if specified.) */
     pload = ec_request_get_payload(srv, &pload_sz);
     dbg_err_if (ec_request_get_content_type(srv, &mta[1]));
 
-    /* Search resource by URI. */
-    dbg_err_if ((res = ec_filesys_get_resource(g_ctx.fs, uri)) == NULL);
-
     /* Add new representation. */
     dbg_err_if (ec_resource_add_rep(res, pload, pload_sz, mta[1], etag));
 
-    /* Delete old. */
-    (void) ec_rep_del(res, rep);
+    /* Delete old in case media-type matches. */
+    if (mta[1] == rep->media_type)
+        (void) ec_rep_del(res, rep);
 
+    /* Return Etag of the new representation. */
     (void) ec_response_add_etag(srv, etag, sizeof etag);
     (void) ec_response_set_code(srv, EC_CHANGED);
 
