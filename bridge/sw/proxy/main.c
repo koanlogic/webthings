@@ -176,7 +176,8 @@ void process_coap_response(ec_client_t *cli)
 
      switch (rc)
        {
-           case EC_DELETED:
+         case EC_CHANGED:
+         case EC_DELETED:
         	     /*A successful response SHOULD be
         	      * 200 (OK) if the response includes an representation describing the status,
         	      * 202 (Accepted) if the action has not yet been enacted,
@@ -186,7 +187,10 @@ void process_coap_response(ec_client_t *cli)
         	   return;
            case	EC_CREATED:
         	   //return "2.01 (Created)"
-        	   evhttp_send_reply(req, HTTP_OK, "No Content", g_ctx.buf);
+        	   /*
+        	    * ToDO: HTTP_CREATED does not exist in evhttp.h ???
+        	    */
+        	   evhttp_send_reply(req, 201, "Created", g_ctx.buf);
            case EC_CONTENT:
                //return "2.05 (Content)";
            break;
