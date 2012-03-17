@@ -1,6 +1,6 @@
-## TD_COAP_BLOCK_03
+## TD_COAP_BLOCK_04
 ##
-## description: Handle PUT blockwise transfer for large resource
+## description: Handle POST blockwise transfer for large resource
 ## status: incomplete,tested
 
 . ../share/common.sh
@@ -20,8 +20,8 @@ pf=.`basename $0`.payload
 cp /etc/passwd ${pf}
 
 t_cli_set_type CON
-t_cli_set_method PUT
-t_cli_set_path /large_update
+t_cli_set_method POST
+t_cli_set_path /large_create
 t_cli_set_payload ${pf}
 
 out=`t_cli_run`

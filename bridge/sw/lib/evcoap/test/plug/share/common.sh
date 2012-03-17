@@ -11,10 +11,13 @@ EC_PLUG_CLI_ARG_URI="${EC_PLUG_ADDR}"
 EC_PLUG_CLI_ARG_PATH="/test"
 EC_PLUG_CLI_ARG_TYPE="CON"
 EC_PLUG_CLI_ARG_METHOD="GET"
+EC_PLUG_CLI_ARG_OUTPUT="-"
+
+# options
 #EC_PLUG_CLI_ARG_PAYLOAD=""     # default: unset
 #EC_PLUG_CLI_ARG_TOKEN=""       # default: unset
 #EC_PLUG_CLI_ARG_BLOCK=""       # default: unset
-EC_PLUG_CLI_ARG_OUTPUT="-"
+#EC_PLUG_CLI_ARG_OBS=""         # default: unset
 
 # other settings
 #EC_PLUG_VERBOSE=1              # default: unset
@@ -136,6 +139,9 @@ t_cli_run()
     [ -z ${EC_PLUG_CLI_ARG_BLOCK} ] || \
         args="${args} -B ${EC_PLUG_CLI_ARG_BLOCK}"
 
+    [ -z ${EC_PLUG_CLI_ARG_OBS} ] || \
+        args="${args} -O ${EC_PLUG_CLI_ARG_OBS}"
+
     [ -z ${EC_PLUG_CLI_ARG_OUTPUT} ] || \
         args="${args} -o ${EC_PLUG_CLI_ARG_OUTPUT}"
 
@@ -197,6 +203,12 @@ t_cli_set_token()
 t_cli_set_block()
 {
     EC_PLUG_CLI_ARG_BLOCK=$1
+}
+
+# Set client Observe option
+t_cli_set_observe()
+{
+    EC_PLUG_CLI_ARG_OBS=$1
 }
 
 # Get the value of a field.
@@ -325,6 +337,20 @@ t_str2hex()
     hexval=`${ECHO} -n $@ | xxd -p`
 
     ${ECHO} "0x${hexval}"
+}
+
+t_timer_int()
+{
+    sleep $1
+
+    t_dbg "timer expired! killing processes"
+
+    killall coap-server coap-client
+}
+
+t_timer()
+{
+    t_timer_int $1 &
 }
 
 trap t_term 2 9 15

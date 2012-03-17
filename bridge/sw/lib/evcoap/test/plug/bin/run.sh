@@ -13,6 +13,8 @@ echo "#"
 vecs="${V_PATH}/TD_COAP_CORE_*.sh"
 vecs="${vecs} ${V_PATH}/TD_COAP_LINK_*.sh"
 vecs="${vecs} ${V_PATH}/TD_COAP_BLOCK_*.sh"
+
+# these take too long to be automated..
 #vecs="${vecs} ${V_PATH}/TD_COAP_OBS_*.sh"
 
 for v in ${vecs}; do
