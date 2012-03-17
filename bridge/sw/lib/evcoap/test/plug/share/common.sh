@@ -5,6 +5,9 @@ EC_PLUG_ADDR="coap://[::1]:5683"
 EC_PLUG_SRV_CMD="../server/coap-server"
 EC_PLUG_SRV_ARG_URI="${EC_PLUG_ADDR}"
 
+# other server settings
+#EC_PLUG_SRV_ARG_SEP=""         # default: unset
+
 # client settings
 EC_PLUG_CLI_CMD="../../client/coap-client"
 EC_PLUG_CLI_ARG_URI="${EC_PLUG_ADDR}"
@@ -13,13 +16,13 @@ EC_PLUG_CLI_ARG_TYPE="CON"
 EC_PLUG_CLI_ARG_METHOD="GET"
 EC_PLUG_CLI_ARG_OUTPUT="-"
 
-# options
+# client options
 #EC_PLUG_CLI_ARG_PAYLOAD=""     # default: unset
 #EC_PLUG_CLI_ARG_TOKEN=""       # default: unset
 #EC_PLUG_CLI_ARG_BLOCK=""       # default: unset
 #EC_PLUG_CLI_ARG_OBS=""         # default: unset
 
-# other settings
+# other client settings
 #EC_PLUG_VERBOSE=1              # default: unset
 #EC_PLUG_VERBOSE=1              # default: unset
 
@@ -107,11 +110,26 @@ t_srv_run()
 
     args=""
 
-    [ -z ${EC_PLUG_srv_ARG_URI} ] || \
+    [ -z ${EC_PLUG_SRV_ARG_URI} ] || \
         args="${args} -u ${EC_PLUG_SRV_ARG_URI}"
+
+    [ -z ${EC_PLUG_SRV_ARG_SEP} ] || \
+        args="${args} -s ${EC_PLUG_SRV_ARG_SEP}"
 
     t_wrap 1 "${EC_PLUG_SRV_CMD}" "${args}"
     [ $? -eq 0 ] || t_die 1 "client failed! (rc=$?)"
+}
+
+# Set server uri
+t_srv_set_uri()
+{
+    EC_PLUG_SRV_ARG_URI=$1
+}
+
+# Set argument for separate response (seconds)
+t_srv_set_sep()
+{
+    EC_PLUG_SRV_ARG_SEP=$1
 }
 
 # Run a CoAP client.
@@ -339,7 +357,7 @@ t_str2hex()
     ${ECHO} "0x${hexval}"
 }
 
-t_timer_int()
+__t_timer()
 {
     sleep $1
 
@@ -350,7 +368,7 @@ t_timer_int()
 
 t_timer()
 {
-    t_timer_int $1 &
+    __t_timer_int $1 &
 }
 
 trap t_term 2 9 15

@@ -29,12 +29,13 @@ typedef struct
     const char *uri;
     ec_filesys_t *fs;
     size_t block_sz;
+    struct timeval sep;
 
     /* TODO multiclient - 1 context per client */
     u_buf_t *resbuf;
     blockopt_t block1;
 
-    char res_obs[32];   /* changing observed resource */
+    uint8_t res_obs[32];   /* changing observed resource */
 
     bool verbose;
 } ctx_t;
@@ -46,6 +47,7 @@ ctx_t g_ctx = {
     .uri = DEFAULT_URI, 
     .fs = NULL,
     .block_sz = 0,  /* By default Block is fully under user control. */
+    .sep = { .tv_sec = 1, .tv_usec = 0 },
     .resbuf = NULL,
     .verbose = false
 };
@@ -105,7 +107,7 @@ int main(int ac, char *av[])
     /* Initalisations. */
     init_buf(largebuf, sizeof(largebuf));
 
-    while ((c = getopt(ac, av, "u:b:hv")) != -1)
+    while ((c = getopt(ac, av, "u:b:s:hv")) != -1)
     {
         switch (c)
         {
@@ -115,6 +117,10 @@ int main(int ac, char *av[])
                 break;
             case 'b':
                 if (sscanf(optarg, "%zu", &g_ctx.block_sz) != 1)
+                    usage(av[0]);
+                break;
+            case 's':
+                if (sscanf(optarg, "%lld", (long long *)&g_ctx.sep.tv_sec) != 1)
                     usage(av[0]);
                 break;
             case 'v':
@@ -288,6 +294,7 @@ void usage(const char *prog)
         "       -v  be verbose                                          \n"
         "       -u <uri>            (default is "DEFAULT_URI")          \n"
         "       -b <block size>     (enables automatic Block handling)  \n"
+        "       -s <num>            separate response after num seconds \n"
         "                                                               \n"
         ;
 
@@ -347,9 +354,9 @@ const uint8_t *ob_serve(const char *uri, ec_mt_t mt, size_t *p_sz, void *args)
     CHAT("Producing resource representation for observed URI %s", uri);
 
     /* Simple changing resource. */
-    dbg_err_if (u_snprintf(g_ctx.res_obs, sizeof(g_ctx.res_obs), 
+    dbg_err_if (u_snprintf((char *) g_ctx.res_obs, sizeof(g_ctx.res_obs),
                 "hello observe: %d", i++));
-    *p_sz = strlen(g_ctx.res_obs);
+    *p_sz = strlen((char *) g_ctx.res_obs);
 
     return g_ctx.res_obs;
 err:
@@ -524,10 +531,6 @@ err:
 ec_cbrc_t resource_cb_dft(ec_server_t *srv, void *u0, struct timeval *u1, 
         bool u2)
 {
-    ec_mt_t mta[16];
-    size_t mta_sz = sizeof mta / sizeof(ec_mt_t);
-    ec_rep_t *rep;
-    ec_res_t *res;
     const char *url;
     ec_method_t method;
     uint8_t *payload;
@@ -585,8 +588,11 @@ ec_cbrc_t resource_cb_separate(ec_server_t *srv, void *u0, struct timeval *u1,
     if (resched)
         return resource_cb_dft(srv, u0, u1, u2);
 
-    /* !resched: just a sec! */
-    tv->tv_sec = 1;
+    /* !resched: sleep for the configured amount of time */
+    u_dbg("delaying for %d secs", g_ctx.sep.tv_sec);
+
+    tv->tv_sec = g_ctx.sep.tv_sec;
+    tv->tv_usec = 0;
 
     return EC_CBRC_WAIT;
 }

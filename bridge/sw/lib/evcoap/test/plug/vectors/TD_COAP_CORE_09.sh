@@ -1,17 +1,18 @@
 ## TD_COAP_CORE_09
 ##
 ## description: Perform GET transaction with a separate response
-## status: incomplete, tested
+## status: complete, tested
 
 . ../share/common.sh
-
-t_die 1 "# Incomplete!"
-
 
 #
 # Init
 #
 t_init
+c="Hello world!"
+
+# server responds after 1 second
+t_srv_set_sep 1
 t_srv_run
 
 #
@@ -43,8 +44,8 @@ t_dbg "# Step 3"
 
 t_field_check 1 cli T ACK
 t_field_check 1 cli MID "${cmid}"
-
-# TODO check empty payload
+t_field_get 1 cli Payload >/dev/null
+[ $? -eq 0 ] && t_die 1 "field must be undefined!"
 
 #
 # Step 4
@@ -53,7 +54,10 @@ t_dbg "# Step 4"
 
 t_field_check 2 cli T CON
 t_field_check 2 cli Code "2.05 (Content)"
-# TODO check payload=content, content-type
+t_field_check 2 cli Payload `t_str2hex "${c}"`
+t_field_get 2 cli Content-Type >/dev/null
+[ $? -ne 1 ] || t_die 1 "field must be defined!"
+mid=`t_field_get 2 cli MID`
 
 #
 # Step 5
@@ -61,8 +65,9 @@ t_field_check 2 cli Code "2.05 (Content)"
 t_dbg "# Step 5"
 
 t_field_check 2 srv T ACK
-# msgid same as response
-# empty payload
+t_field_check 2 srv MID "${mid}"
+t_field_get 2 srv Payload >/dev/null
+[ $? -eq 0 ] && t_die 1 "field must be undefined!"
 
 #
 # Step 6
@@ -71,7 +76,7 @@ t_dbg "# Step 6"
 
 t_dbg "${out}"
 if [ "${EC_PLUG_MODE}" != "srv" ]; then
-    t_cmp "${out}" "Hello world!"
+    t_cmp "${out}" "${c}"
 fi
 
 #
