@@ -39,7 +39,8 @@ static struct opt_rec {
     { 15, "URI-Query",      EC_OPT_TYPE_STRING },
     { 17, "Block2",         EC_OPT_TYPE_UINT },
     { 19, "Block1",         EC_OPT_TYPE_UINT },
-    { 21, "If-None-Match",  EC_OPT_TYPE_EMPTY }
+    { 21, "If-None-Match",  EC_OPT_TYPE_EMPTY },
+    { 23, "Publish",        EC_OPT_TYPE_UINT }
 };
 #define EC_OPTS_MAX (sizeof g_opts / sizeof(struct opt_rec))
 
@@ -413,6 +414,17 @@ int ec_opt_decode_uint(const uint8_t *v, size_t l, uint64_t *ui)
     return 0;
 }
 
+int ec_opts_add_publish(ec_opts_t *opts, ec_method_mask_t mm)
+{
+    uint8_t methods = 0;
+
+    dbg_return_if (opts == NULL, -1);
+
+    methods = (uint8_t) mm;
+
+    return ec_opts_add_uint(opts, EC_OPT_PUBLISH, methods);
+}
+
 int ec_opts_add_block1(ec_opts_t *opts, uint32_t num, bool more, 
         uint8_t szx)
 {
@@ -722,6 +734,7 @@ ec_rc_t ec_opts_decode(ec_opts_t *opts, const uint8_t *pdu, size_t pdu_sz,
             case EC_OPT_BLOCK2:
             case EC_OPT_BLOCK1:
             case EC_OPT_IF_NONE_MATCH:
+            case EC_OPT_PUBLISH:
                 break;
             case EC_OPT_NONE:
             case EC_OPT_MAX:
@@ -790,6 +803,27 @@ u_uri_t *ec_opts_compose_url(ec_opts_t *opts, struct sockaddr_storage *us,
     return u;
 err:
     return NULL;
+}
+
+int ec_opts_get_publish(ec_opts_t *opts, ec_method_mask_t *mm)
+{
+    uint64_t tmp = 0;
+
+    dbg_return_if (opts == NULL, -1);
+    dbg_return_if (mm == NULL, -1);
+
+    if (ec_opts_get_uint(opts, EC_OPT_PUBLISH, &tmp))
+        return -1;
+
+    dbg_err_ifm (tmp > UINT8_MAX, "Publish encoding overflow");
+
+    /* TODO consistency checks */
+
+    *mm = (ec_method_mask_t) tmp;
+
+    return 0;
+err:
+    return -1;
 }
 
 /* It MUST NOT occur more than once. */

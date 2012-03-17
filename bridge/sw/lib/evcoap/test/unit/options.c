@@ -62,6 +62,12 @@ err:
     return U_TEST_FAILURE;
 }
 
+static int test_publish(u_test_case_t *tc)
+{
+    u_dbg("TODO");
+    return U_TEST_FAILURE;
+}
+
 static int test_block(u_test_case_t *tc)
 {
     size_t i;
@@ -195,6 +201,7 @@ int test_suite_options_register(u_test_t *t)
     con_err_if (u_test_case_register("Proxy-URI", test_proxy_uri, ts));
     con_err_if (u_test_case_register("Fencepost", test_fencepost, ts));
     con_err_if (u_test_case_register("Block1/2", test_block, ts));
+    con_err_if (u_test_case_register("Publish", test_publish, ts));
 
     /* No dependencies. */
 

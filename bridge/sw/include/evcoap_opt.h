@@ -34,8 +34,9 @@ typedef enum
     EC_OPT_BLOCK2,
     EC_OPT_BLOCK1,
     EC_OPT_IF_NONE_MATCH,
+    EC_OPT_PUBLISH,
     
-    EC_OPT_MAX = EC_OPT_IF_NONE_MATCH + 1
+    EC_OPT_MAX = EC_OPT_PUBLISH + 1
 } ec_opt_sym_t;
 #define EC_OPT_SYM_VALID(sy) (sy > EC_OPT_NONE && sy < EC_OPT_MAX)
 
@@ -114,6 +115,7 @@ int ec_opts_add_block1(ec_opts_t *opts, uint32_t num, bool more,
         uint8_t szx);
 int ec_opts_add_block2(ec_opts_t *opts, uint32_t num, bool more,
         uint8_t szx);
+int ec_opts_add_publish(ec_opts_t *opts, ec_method_mask_t mm);
 ec_opt_t *ec_opts_get_nth(ec_opts_t *opts, ec_opt_sym_t sym, size_t n);
 ec_opt_t *ec_opts_get(ec_opts_t *opts, ec_opt_sym_t sym);
 int ec_opts_get_uint(ec_opts_t *opts, ec_opt_sym_t sym, uint64_t *ui);
@@ -133,6 +135,7 @@ int ec_opts_get_block2(ec_opts_t *opts, uint32_t *num, bool *more,
         uint8_t *szx);
 int ec_opts_get_observe(ec_opts_t *opts, uint16_t *obs);
 int ec_opts_get_max_age(ec_opts_t *opts, uint32_t *max_age);
+int ec_opts_get_publish(ec_opts_t *opts, ec_method_mask_t *mm);
 
 int ec_opt_decode_uint(const uint8_t *v, size_t l, uint64_t *ui);
 int ec_opt_encode_uint(uint64_t ui, uint8_t *e, size_t *elen);
