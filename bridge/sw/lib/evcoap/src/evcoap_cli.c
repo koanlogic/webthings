@@ -902,7 +902,7 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     if (!h->code)
     {
         dbg_err_if (ec_client_handle_empty_pdu(cli, h->t, h->mid));
-        goto cleanup;
+        goto dump;
     }
 
     /* Parse options. */
@@ -912,10 +912,6 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     /* Attach payload, if any, to the client context. */
     if ((plen = raw_sz - (olen + EC_COAP_HDR_SIZE)))
         (void) ec_pdu_set_payload(pdu, raw + EC_COAP_HDR_SIZE + olen, plen);
-
-    /* If enabled, dump PDU (server=false). */
-    if (getenv("EC_PLUG_DUMP"))
-        (void) ec_pdu_dump(pdu, false);
 
     /* If there is a token check if it matches the one we sent out with the
      * request. */
@@ -929,9 +925,13 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
 
     /* TODO fill in the residual info (e.g. socket...). */
 
+    /* If enabled, dump the PDU (server=false).
+       It cannot be done it any later because PDU is passed on. */
+    if (getenv("EC_PLUG_DUMP"))
+        (void) ec_pdu_dump(pdu, false);
+
     /* Add response PDU to the client response set. */
-    dbg_err_if (ec_res_set_add(&cli->res_set, pdu));
-    pdu = NULL;
+    dbg_err_if (ec_res_set_add(&cli->res_set, pdu)); pdu = NULL;
 
     /* Check if a (possibly) requested observation has been accepted by the
      * end node and set the client->obs flag in case.  Do this *after* 
@@ -957,8 +957,13 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         return EC_NET_CBRC_SUCCESS; /* non-final */
     }
 
+dump:
+    /* If enabled, dump the PDU (server=false). */
+    if (getenv("EC_PLUG_DUMP"))
+        (void) ec_pdu_dump(pdu, false);
 cleanup:
-    ec_pdu_free(pdu);
+    if (pdu)
+        ec_pdu_free(pdu);
     return EC_NET_CBRC_SUCCESS;
 err:
     if (pdu)

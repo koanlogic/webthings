@@ -274,7 +274,7 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
             {
                 case 1:
                     /* Active observer removed. */
-                    goto cleanup;
+                    goto dump;
                 default:
                     /* Proceed anyway. */
                     u_dbg("Observe handling machinery failed !");
@@ -326,7 +326,7 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         {
             /* Move server to final state and bail out. */
             ec_server_set_state(srv, EC_SRV_STATE_CLIENT_RST);
-            return EC_NET_CBRC_SUCCESS;
+            goto dump;
         }
         else if (h->t == EC_COAP_ACK)
         {
@@ -338,7 +338,7 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
 
             /* Move server context to a final state. */
             ec_server_set_state(srv, EC_SRV_STATE_RESP_DONE);
-            return EC_NET_CBRC_SUCCESS;
+            goto dump;
         }
     }
     else
@@ -355,9 +355,6 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     if ((plen = raw_sz - (olen + EC_COAP_HDR_SIZE)))
         (void) ec_pdu_set_payload(pdu, raw + EC_COAP_HDR_SIZE + olen, plen);
 
-    /* If enabled, dump PDU (server=true).  Doing this here may miss RSTs. */
-    if (getenv("EC_PLUG_DUMP")) (void) ec_pdu_dump(pdu, true);
-
     /* Save requested method. */
     dbg_err_if (ec_flow_set_method(flow, (ec_method_t) h->code));
 
@@ -369,6 +366,11 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
      * XXX Assume NoSec is the sole supported mode. */
     dbg_err_if (ec_flow_save_url(flow, 
                 ec_opts_compose_url(&pdu->opts, &conn->us, nosec)));
+
+    /* If enabled, dump the PDU (server=true).
+       It cannot be done it any later because PDU is passed on. */
+    if (getenv("EC_PLUG_DUMP"))
+        (void) ec_pdu_dump(pdu, true);
 
     /* Everything has gone smoothly, so: attach the incoming PDU to the
      * request hook, create the and attach the response PDU, and set state 
@@ -411,9 +413,13 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
 
     return EC_NET_CBRC_SUCCESS;
 
-    /* Fall through assuming that the right srv state has been set. */
+dump:
+    /* If enabled, dump the PDU (server=true). */
+    if (getenv("EC_PLUG_DUMP"))
+        (void) ec_pdu_dump(pdu, true);
 cleanup:
-    ec_pdu_free(pdu);
+    if (pdu)
+        ec_pdu_free(pdu);
     return EC_NET_CBRC_SUCCESS;
 err:
     if (srv)
