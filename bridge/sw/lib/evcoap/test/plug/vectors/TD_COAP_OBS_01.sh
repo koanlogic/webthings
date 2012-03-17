@@ -19,13 +19,13 @@ t_dbg "# Step 1"
 t_cli_set_type CON
 t_cli_set_method GET
 t_cli_set_path /obs
-t_cli_set_observe 1000
+t_cli_set_observe 9999
 
-# kill processes after 10 seconds
+# kill processes after 2 seconds
 t_dbg "# waiting for notification..."
-t_timer 130
+t_timer 2
 
-t_cli_run 
+t_cli_run 1>&2
 
 #
 # Step 2

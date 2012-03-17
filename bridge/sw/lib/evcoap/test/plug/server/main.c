@@ -174,7 +174,7 @@ int main(int ac, char *av[])
                 "text/plain", (const uint8_t *) "Hello world!",
                 strlen("Hello world!"), &resource_cb_large_create) ||
 
-            resource_add("/obs", EC_GET_MASK, 0, "text/plain", 
+            resource_add("/obs", EC_GET_MASK, 1, "text/plain",
                 (const uint8_t *) "Hello world!", strlen("Hello world!"),
                 &resource_cb_dft) ||
 

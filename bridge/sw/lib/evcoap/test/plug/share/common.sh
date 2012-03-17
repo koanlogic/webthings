@@ -47,7 +47,7 @@ t_die()
 {
     rc=$1
     shift
-    ${ECHO} "$@"
+    ${ECHO} "$@" 1>&2
     t_term
     exit ${rc}
 }
@@ -116,8 +116,8 @@ t_srv_run()
     [ -z ${EC_PLUG_SRV_ARG_SEP} ] || \
         args="${args} -s ${EC_PLUG_SRV_ARG_SEP}"
 
-    t_wrap 1 "${EC_PLUG_SRV_CMD}" "${args}"
-    [ $? -eq 0 ] || t_die 1 "client failed! (rc=$?)"
+    t_wrap 1 "${EC_PLUG_SRV_CMD}" "${args}" "$@"
+    [ $? -eq 0 ] || t_die 1 "server failed! (rc=$?)"
 }
 
 # Set server uri
@@ -163,7 +163,7 @@ t_cli_run()
     [ -z ${EC_PLUG_CLI_ARG_OUTPUT} ] || \
         args="${args} -o ${EC_PLUG_CLI_ARG_OUTPUT}"
 
-    t_wrap 0 "${EC_PLUG_CLI_CMD}" "${args}"
+    t_wrap 0 "${EC_PLUG_CLI_CMD}" "${args}" "$@"
     [ $? -eq 0 ] || t_die 1 "client failed! (rc=$?)"
 }
 
@@ -361,14 +361,14 @@ __t_timer()
 {
     sleep $1
 
-    t_dbg "timer expired! killing processes"
+    t_dbg "timer expired, killing processes!"
 
     killall coap-server coap-client
 }
 
 t_timer()
 {
-    __t_timer_int $1 &
+    __t_timer $1 &
 }
 
 trap t_term 2 9 15
