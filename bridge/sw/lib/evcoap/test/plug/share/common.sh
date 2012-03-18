@@ -24,7 +24,6 @@ EC_PLUG_CLI_ARG_OUTPUT="-"
 
 # other client settings
 #EC_PLUG_VERBOSE=1              # default: unset
-#EC_PLUG_VERBOSE=1              # default: unset
 
 # custom commands 
 ECHO=/bin/echo      # default version on mac doesn't like '-n' arg
@@ -47,9 +46,8 @@ t_die()
 {
     rc=$1
     shift
-    ${ECHO} "$@" 1>&2
-    t_term
-    exit ${rc}
+    ${ECHO} "# $@" 1>&2
+    t_term ${rc}
 }
 
 # Wrap a command by debugging it and showing stderr output only if EC_PLUG_VERBOSE=1.
@@ -99,8 +97,14 @@ t_init()
 # Cleanup test - kills all processes.
 t_term()
 {
+    # no return code specified = success
+    rc=$1
+    [ -z ${rc} ] && rc=0
+
     j=`jobs -p`
     kill ${j} 2>/dev/null
+
+    exit ${rc}
 }
 
 # Run a CoAP server.
@@ -117,7 +121,9 @@ t_srv_run()
         args="${args} -s ${EC_PLUG_SRV_ARG_SEP}"
 
     t_wrap 1 "${EC_PLUG_SRV_CMD}" "${args}" "$@"
-    [ $? -eq 0 ] || t_die 1 "server failed! (rc=$?)"
+
+    # might have been killed intentionally, so don't die!
+    [ $? -eq 0 ] || t_dbg 1 "server failed! (rc=$?)"
 }
 
 # Set server uri
@@ -164,7 +170,9 @@ t_cli_run()
         args="${args} -o ${EC_PLUG_CLI_ARG_OUTPUT}"
 
     t_wrap 0 "${EC_PLUG_CLI_CMD}" "${args}" "$@"
-    [ $? -eq 0 ] || t_die 1 "client failed! (rc=$?)"
+
+    # might have been killed intentionally, so don't die!
+    [ $? -eq 0 ] || t_dbg 1 "client failed! (rc=$?)"
 }
 
 # Set client uri
@@ -278,7 +286,7 @@ t_field_check()
 
     # retrieve line
     xval=`grep "${field}:" "${dump}"`
-    [  $? -eq 0 ] || return 1
+    [  $? -eq 0 ] || t_die 1 "field '${field}' not found!"
 
     # retrieve value
     xval=`${ECHO} ${xval} | cut -d ':' -f 2`
@@ -345,8 +353,8 @@ t_check_len()
 
     xlen=`${ECHO} -n "${s}" | wc -c | sed -e 's/\ //g'`
 
-    [ ${xlen} -ge ${min} ] || t_die 1 "# bad length!"
-    [ ${xlen} -le ${max} ] || t_die 1 "# bad length!"
+    [ ${xlen} -ge ${min} ] || t_die 1 "bad length!"
+    [ ${xlen} -le ${max} ] || t_die 1 "bad length!"
 }
 
 # Convert input string to hex representation.
@@ -354,7 +362,13 @@ t_str2hex()
 {
     hexval=`${ECHO} -n $@ | xxd -p`
 
-    ${ECHO} "0x${hexval}"
+    ${ECHO} -n "0x${hexval}"
+}
+
+# Convert hex data to string.
+t_hex2str()
+{
+    ${ECHO} -n $1 | sed 's/^0x//' | xxd -p -r
 }
 
 __t_timer()

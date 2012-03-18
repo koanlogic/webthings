@@ -52,40 +52,33 @@ ctx_t g_ctx = {
     .verbose = false
 };
 
-int parse_addr(const char *as, char *a, size_t a_sz, int *p);
-void usage(const char *prog);
+static int parse_addr(const char *as, char *a, size_t a_sz, int *p);
+static void usage(const char *prog);
 
-int server_init(void);
-int server_set_uri(const char *a);
-void server_term(void);
-int server_run(void);
+static int server_init(void);
+static int server_set_uri(const char *a);
+static void server_term(void);
+static int server_run(void);
 
-int resource_add(const char *path, ec_method_mask_t methods, uint32_t ma, 
+static int add_resource(const char *path, ec_method_mask_t methods, uint32_t ma,
         const char *media_type, const uint8_t *data, size_t data_sz, 
-        ec_server_cb_t cb);
-ec_cbrc_t resource_cb_dft(ec_server_t *srv, void *u0, struct timeval *u1,
-        bool u2);
-ec_cbrc_t resource_cb_separate(ec_server_t *srv, void *u0, struct timeval *u1,
-        bool u2);
-ec_cbrc_t resource_cb_large_update(ec_server_t *srv, void *u0,
-        struct timeval *u1, bool u2);
-ec_cbrc_t resource_cb_large_create(ec_server_t *srv, void *u0,
-        struct timeval *u1, bool u2);
-#if 0
-ec_cbrc_t resource_cb_seg(ec_server_t *srv, void *u0, struct timeval *u1,
-        bool u2);
-ec_cbrc_t resource_cb_query(ec_server_t *srv, void *u0, struct timeval *u1,
-        bool u2);
-ec_cbrc_t resource_cb_large(ec_server_t *srv, void *u0, struct timeval *u1,
-        bool u2);
-ec_cbrc_t resource_cb_wellknown(ec_server_t *srv, void *u0, struct timeval *u1,
-        bool u2);
-#endif
-static int get_rep(ec_server_t *srv, const char *url);
+        const char *rt, ec_server_cb_t cb);
 static int mod_res(ec_server_t *srv, const char *url, ec_method_mask_t methods,
         uint32_t ma, const char *media_type, const uint8_t *data, size_t data_sz,
         bool create);
 static int set_payload(ec_server_t *srv, const uint8_t *data, size_t data_sz);
+static int get_rep(ec_server_t *srv, const char *url);
+
+static ec_cbrc_t resource_cb_dft(ec_server_t *srv, void *u0, struct timeval *u1,
+        bool u2);
+static ec_cbrc_t resource_cb_separate(ec_server_t *srv, void *u0, struct timeval *u1,
+        bool u2);
+static ec_cbrc_t resource_cb_large_update(ec_server_t *srv, void *u0,
+        struct timeval *u1, bool u2);
+static ec_cbrc_t resource_cb_large_create(ec_server_t *srv, void *u0,
+        struct timeval *u1, bool u2);
+static ec_cbrc_t resource_cb_wkc(ec_server_t *srv, void *u0, struct timeval *u1,
+        bool u2);
 
 /* Fill buf with char values looping from '0' to '9'. */
 static void init_buf(char *s, size_t s_sz)
@@ -146,44 +139,47 @@ int main(int ac, char *av[])
 
     /* Add plugtest resources. */
     dbg_err_ifm (
-            resource_add("/test", EC_METHOD_MASK_ALL, 0, "text/plain", 
+            add_resource("/test", EC_METHOD_MASK_ALL, 0, "text/plain",
                 (const uint8_t *) "Hello world!", strlen("Hello world!"),
-                &resource_cb_dft) ||
+                "GenTest", &resource_cb_dft) ||
 
-            resource_add("/seg1/seg2/seg3", EC_GET_MASK, 0, "text/plain",
+            add_resource("/seg1/seg2/seg3", EC_GET_MASK, 0, "text/plain",
                 (const uint8_t *) "Hello world!", strlen("Hello world!"),
-                &resource_cb_dft) ||
+                "SegmentTest", &resource_cb_dft) ||
 
-            resource_add("/query", EC_GET_MASK, 0, "text/plain",
+            add_resource("/query", EC_GET_MASK, 0, "text/plain",
                 (const uint8_t *) "Hello world!", strlen("Hello world!"),
-                &resource_cb_dft) ||
+                "QueryTest", &resource_cb_dft) ||
 
-            resource_add("/large", EC_GET_MASK, 0, "text/plain",
+            add_resource("/large", EC_GET_MASK, 0, "text/plain",
                 (const uint8_t *) largebuf, sizeof(largebuf),
-                &resource_cb_dft) ||
+                "LargeTest", &resource_cb_dft) ||
 
-            resource_add("/separate", EC_GET_MASK, 0, "text/plain",
+            add_resource("/separate", EC_GET_MASK, 0, "text/plain",
                 (const uint8_t *) "Hello world!", strlen("Hello world!"),
-                &resource_cb_separate) ||
+                "SeparateTest", &resource_cb_separate) ||
 
-            resource_add("/large_update", EC_GET_MASK | EC_PUT_MASK, 0,
+            add_resource("/large_update", EC_GET_MASK | EC_PUT_MASK, 0,
                 "text/plain", (const uint8_t *) "Hello world!",
-                strlen("Hello world!"), &resource_cb_large_update) ||
+                strlen("Hello world!"),
+                "LargeTest", &resource_cb_large_update) ||
 
-            resource_add("/large_create", EC_GET_MASK | EC_POST_MASK, 0,
+            add_resource("/large_create", EC_GET_MASK | EC_POST_MASK, 0,
                 "text/plain", (const uint8_t *) "Hello world!",
-                strlen("Hello world!"), &resource_cb_large_create) ||
+                strlen("Hello world!"),
+                "LargeTest", &resource_cb_large_create) ||
 
-            resource_add("/obs", EC_GET_MASK, 1, "text/plain",
+            add_resource("/obs", EC_GET_MASK, 1, "text/plain",
                 (const uint8_t *) "Hello world!", strlen("Hello world!"),
-                &resource_cb_dft) ||
+                "ObserveTest", &resource_cb_dft) ||
 
-            resource_add("/.well-known/core", EC_GET_MASK, 0,
+            add_resource("/.well-known/core", EC_GET_MASK, 0,
                 "application/link-format", (const uint8_t *) "TODO",
-                strlen("TODO"), &resource_cb_dft),
+                strlen("TODO"),
+                "WKCTest", &resource_cb_wkc),
 
         "failed adding resources");
-    
+
     dbg_err_ifm (server_run(), "server run failed");
 
     return EXIT_SUCCESS;
@@ -193,7 +189,7 @@ err:
     return EXIT_FAILURE;
 }
 
-int server_set_uri(const char *a)
+static int server_set_uri(const char *a)
 {
     dbg_return_if (a == NULL, -1);
 
@@ -201,7 +197,7 @@ int server_set_uri(const char *a)
     return 0;
 }
 
-int server_init(void)
+static int server_init(void)
 {
     dbg_err_if ((g_ctx.base = event_base_new()) == NULL);
     dbg_err_if ((g_ctx.dns = evdns_base_new(g_ctx.base, 1)) == NULL);
@@ -221,12 +217,12 @@ err:
     return -1;
 }
 
-int server_run(void)
+static int server_run(void)
 {
     return event_base_dispatch(g_ctx.base);
 }
 
-void server_term(void)
+static void server_term(void)
 {
     if (g_ctx.coap)
     {
@@ -255,7 +251,7 @@ void server_term(void)
     return;
 }
 
-int parse_addr(const char *as, char *a, size_t a_sz, int *p)
+static int parse_addr(const char *as, char *a, size_t a_sz, int *p)
 {
     u_uri_t *u = NULL;
     const char *scheme, *port;
@@ -284,7 +280,7 @@ err:
     return -1;
 }
 
-void usage(const char *prog)
+static void usage(const char *prog)
 {
     const char *us =
         "Usage: %s [opts]                                               \n"
@@ -304,9 +300,9 @@ void usage(const char *prog)
     return;
 }
 
-int resource_add(const char *path, ec_method_mask_t methods, uint32_t ma, 
+static int add_resource(const char *path, ec_method_mask_t methods, uint32_t ma,
         const char *media_type, const uint8_t *data, size_t data_sz, 
-        ec_server_cb_t cb)
+        const char *rt, ec_server_cb_t cb)
 {
     char uri[U_URI_STRMAX];
     ec_res_t *res = NULL;
@@ -321,6 +317,10 @@ int resource_add(const char *path, ec_method_mask_t methods, uint32_t ma,
     /* Create resource. */
     dbg_err_ifm ((res = ec_resource_new(uri, methods, ma)) == NULL,
             "resource creation failed");
+
+    /* If Resource Type is defined, use it. */
+    if (rt)
+        dbg_err_if (ec_res_attrs_set_rt(res, rt));
 
     /* Convert representation type. */
     dbg_err_ifm (ec_mt_from_string(media_type, &mt), "media type map error");
@@ -346,7 +346,7 @@ err:
 }
 
 /* Payload serving callback. */
-const uint8_t *ob_serve(const char *uri, ec_mt_t mt, size_t *p_sz, void *args)
+static const uint8_t *ob_serve(const char *uri, ec_mt_t mt, size_t *p_sz, void *args)
 {
     static int i=0;
     u_unused_args(mt, args);
@@ -528,8 +528,8 @@ err:
     return -1;
 }
 
-ec_cbrc_t resource_cb_dft(ec_server_t *srv, void *u0, struct timeval *u1, 
-        bool u2)
+static ec_cbrc_t resource_cb_dft(ec_server_t *srv, void *u0,
+        struct timeval *u1, bool u2)
 {
     const char *url;
     ec_method_t method;
@@ -577,8 +577,8 @@ err:
     return EC_CBRC_ERROR;
 }
 
-ec_cbrc_t resource_cb_separate(ec_server_t *srv, void *u0, struct timeval *u1,
-        bool u2)
+static ec_cbrc_t resource_cb_separate(ec_server_t *srv, void *u0, 
+        struct timeval *u1, bool u2)
 {
     bool resched = u2;
     struct timeval *tv = u1;
@@ -597,8 +597,8 @@ ec_cbrc_t resource_cb_separate(ec_server_t *srv, void *u0, struct timeval *u1,
     return EC_CBRC_WAIT;
 }
 
-ec_cbrc_t resource_cb_large_update(ec_server_t *srv, void *u0, struct timeval *u1, 
-        bool u2)
+static ec_cbrc_t resource_cb_large_update(ec_server_t *srv, void *u0, 
+        struct timeval *u1, bool u2)
 {
     const char *url;
     ec_method_t method;
@@ -636,8 +636,8 @@ err:
     return EC_CBRC_ERROR;
 }
 
-ec_cbrc_t resource_cb_large_create(ec_server_t *srv, void *u0, struct timeval *u1, 
-        bool u2)
+static ec_cbrc_t resource_cb_large_create(ec_server_t *srv, void *u0, 
+        struct timeval *u1, bool u2)
 {
     const char *url;
     ec_method_t method;
@@ -675,44 +675,34 @@ err:
     return EC_CBRC_ERROR;
 }
 
-#if 0
-ec_cbrc_t resource_cb_seg(ec_server_t *srv, void *u0, struct timeval *u1, 
-        bool u2)
+static ec_cbrc_t resource_cb_wkc(ec_server_t *srv, void *u0, 
+        struct timeval *u1, bool u2)
 {
-    u_unused_args(srv, u0, u1, u2);
+    ec_method_t method;
+    char wkc[EC_WKC_MAX] = { '\0' };
 
-    CHAT("[%s]", __FUNCTION__);
-    
-    return EC_CBRC_READY;
-}
-
-ec_cbrc_t resource_cb_query(ec_server_t *srv, void *u0, struct timeval *u1, 
-        bool u2)
-{
     u_unused_args(srv, u0, u1, u2);
 
     CHAT("[%s]", __FUNCTION__);
 
-    return EC_CBRC_READY;
-}
+    method = ec_server_get_method(srv);
 
-ec_cbrc_t resource_cb_large(ec_server_t *srv, void *u0, struct timeval *u1, 
-        bool u2)
-{
-    u_unused_args(srv, u0, u1, u2);
+    /* No operation other than GET is allowed on the /.well-known/core. */
+    if (method != EC_COAP_GET)
+    {
+        (void) ec_response_set_code(srv, EC_METHOD_NOT_ALLOWED);
+        return 0;
+    }
 
-    CHAT("[%s]", __FUNCTION__);
+    dbg_err_if(ec_filesys_well_known_core(g_ctx.fs,
+            ec_request_get_uri_origin(srv),
+            ec_request_get_uri_query(srv), wkc) == NULL);
 
-    return EC_CBRC_READY;
-}
-
-ec_cbrc_t resource_cb_wellknown(ec_server_t *srv, void *u0, struct timeval *u1, 
-        bool u2)
-{
-    u_unused_args(srv, u0, u1, u2);
-
-    CHAT("[%s]", __FUNCTION__);
+    (void) ec_response_set_code(srv, EC_CONTENT);
+    (void) ec_response_set_payload(srv, (uint8_t *) wkc, strlen(wkc));
+    (void) ec_response_add_content_type(srv, EC_MT_APPLICATION_LINK_FORMAT);
 
     return EC_CBRC_READY;
+err:
+    return EC_CBRC_ERROR;
 }
-#endif
