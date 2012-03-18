@@ -43,6 +43,11 @@ typedef struct
     blockopt_t block2;
     size_t iblock;      /* index of current block */
     ec_mt_t mt;
+    bool publish;
+    ec_method_mask_t allowed_methods;
+    bool use_proxy;
+    char proxy_host[256];
+    uint16_t proxy_port;
 } ctx_t;
 
 ctx_t g_ctx = {
@@ -65,7 +70,9 @@ ctx_t g_ctx = {
     .data_sz = 0,
     .block_sz = 0,      /* block size defined by user */
     .iblock = 0,
-    .mt = EC_MT_ANY
+    .mt = EC_MT_ANY,
+    .publish = false,
+    .use_proxy = false,
 };
 
 void usage(const char *prog);
@@ -79,16 +86,21 @@ int client_set_observe(const char *s);
 int client_set_output_file(const char *s);
 int client_set_payload_file(const char *s);
 int client_set_app_timeout(const char *s);
+int client_set_publish_mask(const char *s);
+int client_set_proxy(const char *s);
 int client_save_to_file(const uint8_t *pl, size_t pl_sz);
 int client_set_media_type(const char *s);
 int set_payload(ec_client_t *cli, const uint8_t *data, size_t data_sz);
 void cb(ec_client_t *cli);
 
+/* TODO Same as in test/server: move to share/ */
+int parse_addr(const char *ap, char *a, size_t a_sz, uint16_t *p);
+
 int main(int ac, char *av[])
 {
     int c;
 
-    while ((c = getopt(ac, av, "c:hu:m:M:O:o:p:vt:B:T")) != -1)
+    while ((c = getopt(ac, av, "c:hu:m:M:O:o:p:x:vt:B:P:T")) != -1)
     {
         switch (c)
         {
@@ -132,6 +144,14 @@ int main(int ac, char *av[])
                 break;
             case 'B':
                 con_err_if (u_atol(optarg, (long *) &g_ctx.block_sz));
+                break;
+            case 'P':
+                if (client_set_publish_mask(optarg))
+                    usage(av[0]);
+                break;
+            case 'x':
+                if (client_set_proxy(optarg))
+                    usage(av[0]);
                 break;
             case 'h':
             default:
@@ -260,6 +280,8 @@ void usage(const char *prog)
         "          generate Block2 option        late negotiation only)     \n"
         "       -O <number of notifications> try to observe the resource    \n"
         "       -c <media-type>                  (default is any)           \n"
+        "       -P <all|none|GET|PUT|POST|DELETE>                           \n"
+        "       -x <addr[+port]>                 proxy address and opt port \n"
         "                                                                   \n"
         ;
 
@@ -301,8 +323,15 @@ int client_run(void)
     /* Initialisations */
     g_ctx.fail = false;
 
-    dbg_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, g_ctx.method, 
-                    g_ctx.uri, g_ctx.model)) == NULL);
+    g_ctx.cli = !g_ctx.use_proxy
+        ? ec_request_new(g_ctx.coap, g_ctx.method, g_ctx.uri, g_ctx.model)
+        : ec_proxy_request_new(g_ctx.coap, g_ctx.method, g_ctx.uri, g_ctx.model,
+                g_ctx.proxy_host, g_ctx.proxy_port);
+
+    dbg_err_if (g_ctx.cli == NULL);
+
+    if (g_ctx.publish)
+        dbg_err_if (ec_request_add_publish(g_ctx.cli, g_ctx.allowed_methods));
 
 	if (g_ctx.token)
         dbg_err_if (ec_request_add_token(g_ctx.cli, NULL, 0));
@@ -457,6 +486,79 @@ int client_set_output_file(const char *s)
     dbg_return_if (s == NULL, -1);
     
     g_ctx.ofn = s;
+
+    return 0;
+}
+
+int client_set_proxy(const char *s)
+{
+    con_return_ifm (parse_addr(s, g_ctx.proxy_host, sizeof g_ctx.proxy_host,
+                &g_ctx.proxy_port), -1, "bad proxy address %s", s);
+
+    g_ctx.use_proxy = true;
+
+    return 0;
+}
+
+int parse_addr(const char *ap, char *a, size_t a_sz, uint16_t *p)
+{
+    int tmp;
+    char *ptr;
+    size_t alen;
+
+    dbg_return_if(ap == NULL, -1);
+    dbg_return_if(a == NULL, -1);
+    dbg_return_if(a_sz == 0, -1);
+    dbg_return_if(p == NULL, -1);
+
+    /* Extract port, if specified. */
+    if ((ptr = strchr(ap, '+')) != NULL && ptr[1] != '\0')
+    {
+        con_err_ifm(u_atoi(++ptr, &tmp), "could not parse port %s", ptr);
+        *p = (uint16_t) tmp;
+    }
+    else
+    {
+        ptr = (char *)(ap + strlen(ap) + 1);
+        *p = EC_COAP_DEFAULT_PORT;
+    }
+
+    alen = (size_t)(ptr - ap - 1);
+
+    con_err_ifm(alen >= a_sz,
+            "not enough bytes (%zu vs %zu) to copy %s", alen, a_sz, ap);
+
+    (void) strncpy(a, ap, alen);
+    a[alen] = '\0';
+
+    return 0;
+err:
+    return -1;
+}
+
+int client_set_publish_mask(const char *s)
+{
+    dbg_return_if (s == NULL, -1);
+
+    if (strcasestr(s, "get"))
+        g_ctx.allowed_methods |= EC_GET_MASK;
+
+    if (strcasestr(s, "put"))
+        g_ctx.allowed_methods |= EC_PUT_MASK;
+
+    if (strcasestr(s, "post"))
+        g_ctx.allowed_methods |= EC_POST_MASK;
+
+    if (strcasestr(s, "delete"))
+        g_ctx.allowed_methods |= EC_DELETE_MASK;
+
+    if (strcasestr(s, "all"))
+        g_ctx.allowed_methods = EC_METHOD_MASK_ALL;
+
+    if (strcasestr(s, "none"))
+        g_ctx.allowed_methods = EC_METHOD_MASK_UNSET;
+
+    g_ctx.publish = true;
 
     return 0;
 }

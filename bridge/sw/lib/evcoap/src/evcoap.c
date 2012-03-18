@@ -355,6 +355,20 @@ int ec_request_get_publish(ec_server_t *srv, ec_method_mask_t *allowed_methods)
     return ec_opts_get_publish(opts, (uint8_t *) allowed_methods);
 }
 
+const char *ec_request_get_uri(ec_server_t *srv, char uri[U_URI_STRMAX],
+        bool *is_proxy)
+{
+    ec_pdu_t *req;
+
+    dbg_return_if (srv == NULL, NULL);
+    dbg_return_if (uri == NULL, NULL);
+    dbg_return_if ((req = srv->req) == NULL, NULL);
+
+    ec_flow_t *flow = req->flow; 
+
+    return ec_flow_get_url(flow, uri, is_proxy);
+}
+
 const char *ec_request_get_uri_origin(ec_server_t *srv)
 {
     ec_pdu_t *req;

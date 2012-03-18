@@ -179,3 +179,18 @@ ec_rc_t ec_flow_get_resp_code(ec_flow_t *flow)
 
     return flow->resp_code;
 }
+
+const char *ec_flow_get_url(ec_flow_t *flow, char url[U_URI_STRMAX],
+        bool *is_proxy)
+{
+    dbg_return_if (flow == NULL, NULL);
+    dbg_return_if (url == NULL, NULL);
+    dbg_return_if (is_proxy == NULL, NULL);
+
+    dbg_err_if (u_uri_knead(flow->uri, url));
+    *is_proxy = flow->proxy_uri;
+
+    return url;
+err:
+    return NULL;
+}

@@ -36,6 +36,8 @@ int ec_flow_get_token(ec_flow_t *flow, uint8_t token[8], size_t *token_sz);
 const char *ec_flow_get_urlstr(ec_flow_t *flow);
 ec_method_t ec_flow_get_method(ec_flow_t *flow);
 u_uri_t *ec_flow_get_uri(ec_flow_t *flow);
+const char *ec_flow_get_url(ec_flow_t *flow, char url[U_URI_STRMAX], 
+        bool *is_proxy);
 ec_rc_t ec_flow_get_resp_code(ec_flow_t *flow);
 int ec_flow_set_method(ec_flow_t *flow, ec_method_t method);
 int ec_flow_set_resp_code(ec_flow_t *flow, ec_rc_t rc);

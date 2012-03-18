@@ -104,6 +104,8 @@ int ec_request_get_content_type(ec_server_t *srv, ec_mt_t *mt);
 const char *ec_request_get_uri_origin(ec_server_t *srv);
 const char *ec_request_get_uri_query(ec_server_t *srv);
 const char *ec_request_get_uri_path(ec_server_t *srv);
+const char *ec_request_get_uri(ec_server_t *srv, char uri[U_URI_STRMAX],
+        bool *is_proxy);
 
 int ec_response_set_payload(ec_server_t *srv, const uint8_t *pload, size_t sz);
 int ec_response_set_code(ec_server_t *srv, ec_rc_t rc);
