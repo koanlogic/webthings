@@ -33,7 +33,7 @@ struct ec_pdu_s
     /* Set in reply PDU to refer to the message that initiated the exchange. */
     struct ec_pdu_s *sibling;
 
-    /* Message flow. */
+    /* Reference to the message flow (owned by parent client/server.) */
     ec_flow_t *flow;
 
     TAILQ_ENTRY(ec_pdu_s) next;

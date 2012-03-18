@@ -64,7 +64,36 @@ err:
 
 static int test_publish(u_test_case_t *tc)
 {
-    u_dbg("TODO");
+    size_t i;
+    ec_opts_t in, out;
+    uint8_t mma[] = {
+        [0] = (uint8_t) EC_METHOD_MASK_ALL,
+        [1] = (uint8_t) EC_GET_MASK,
+        [2] = (uint8_t) EC_PUT_MASK,
+        [3] = (uint8_t) EC_POST_MASK,
+        [4] = (uint8_t) EC_DELETE_MASK
+    };
+
+    (void) ec_opts_init(&in);
+    (void) ec_opts_init(&out);
+
+    for (i = 0; i < sizeof mma / sizeof(ec_method_mask_t); ++i)
+    {
+        uint8_t mm_out = 0;
+
+        u_test_err_if (ec_opts_add_publish(&in, mma[i]));
+        u_test_err_if (encdec(&in, &out));
+        u_test_err_if (ec_opts_get_publish(&out, &mm_out));
+
+        u_test_err_ifm (mma[i] != mm_out,
+                "[%zu] exp(%u) != got(%u)", i, mma[i], mm_out);
+
+        ec_opts_clear(&in);
+        ec_opts_clear(&out);
+    }
+
+    return U_TEST_SUCCESS;
+err:
     return U_TEST_FAILURE;
 }
 

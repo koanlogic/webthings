@@ -179,13 +179,13 @@ void ec_client_free(ec_client_t *cli)
         /* Unregister me from list of clients and events. */
         ec_client_unregister(cli);
 
-        /* Close socket. */
-        evutil_closesocket(conn->socket);
+        /* Terminate the underlying flow. */
+        ec_flow_term(&cli->flow);
 
-        /* Free URI. */
-        u_uri_free(flow->uri);
-
+        /* Remove response set. */
         ec_res_set_clear(&cli->res_set);
+
+        /* Cleanup options. */
         ec_opts_clear(&cli->req.opts);
 
         u_free(cli);

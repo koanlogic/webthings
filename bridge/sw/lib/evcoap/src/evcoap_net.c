@@ -260,6 +260,20 @@ int ec_conn_init(ec_conn_t *conn)
 
     /* TODO something finer grained. */
     memset(conn, 0, sizeof *conn);
+    conn->socket = -1;
 
     return 0;
+}
+
+void ec_conn_term(ec_conn_t *conn)
+{
+    if (conn)
+    {
+        if (conn->socket == -1)
+        {
+            evutil_closesocket(conn->socket);
+            conn->socket = -1;
+        }
+    }
+    return;
 }

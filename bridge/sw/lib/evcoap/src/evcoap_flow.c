@@ -10,6 +10,17 @@ int ec_flow_init(ec_flow_t *flow)
     return 0;
 }
 
+void ec_flow_term(ec_flow_t *flow)
+{
+    if (flow)
+    {
+        if (flow->uri)
+           u_uri_free(flow->uri); 
+        ec_conn_term(&flow->conn);
+    }
+    return;
+}
+
 int ec_flow_save_token(ec_flow_t *flow, const uint8_t *tok, size_t tok_sz)
 {
     dbg_return_if (flow == NULL, -1);
@@ -28,7 +39,7 @@ int ec_flow_save_token(ec_flow_t *flow, const uint8_t *tok, size_t tok_sz)
     return 0;
 }
 
-int ec_flow_save_url(ec_flow_t *flow, u_uri_t *u)
+int ec_flow_save_url(ec_flow_t *flow, u_uri_t *u, bool is_proxy)
 {
     char saved_q[U_TOKEN_SZ];
 
@@ -48,6 +59,7 @@ int ec_flow_save_url(ec_flow_t *flow, u_uri_t *u)
     (void) u_uri_set_query(u, saved_q);
 
     flow->uri = u;
+    flow->proxy_uri = is_proxy;
 
     return 0;
 err:

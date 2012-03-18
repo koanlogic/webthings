@@ -254,6 +254,25 @@ err:
     return -1;
 }
 
+int ec_request_add_publish(ec_client_t *cli, ec_method_mask_t allowed_methods)
+{
+    uint8_t tmp;
+    ec_opts_t *opts;
+
+    dbg_return_if (cli == NULL, -1);
+
+    dbg_err_if ((opts = ec_client_get_request_options(cli)) == NULL);
+
+    dbg_err_ifm (ec_opts_get_publish(opts, &tmp) == 0,
+            "Publish Option MUST NOT occur more than once");
+
+    dbg_err_if (ec_opts_add_publish(opts, (uint8_t) allowed_methods));
+
+    return 0;
+err:
+    return -1;
+}
+
 /**
  *  \brief  TODO
  */
@@ -320,6 +339,20 @@ int ec_request_get_content_type(ec_server_t *srv, ec_mt_t *mt)
     ec_opts_t *opts = &req->opts;
 
     return ec_opts_get_content_type(opts, (uint16_t *) mt);
+}
+
+int ec_request_get_publish(ec_server_t *srv, ec_method_mask_t *allowed_methods)
+{
+    ec_pdu_t *req;
+
+    dbg_return_if (srv == NULL, -1);
+    dbg_return_if ((req = srv->req) == NULL, -1);
+    dbg_return_if (allowed_methods == NULL, -1);
+
+    *allowed_methods = 0;    /* Initialize to a value fitting uint8_t. */
+    ec_opts_t *opts = &req->opts;
+
+    return ec_opts_get_publish(opts, (uint8_t *) allowed_methods);
 }
 
 const char *ec_request_get_uri_origin(ec_server_t *srv)

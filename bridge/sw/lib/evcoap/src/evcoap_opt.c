@@ -414,15 +414,11 @@ int ec_opt_decode_uint(const uint8_t *v, size_t l, uint64_t *ui)
     return 0;
 }
 
-int ec_opts_add_publish(ec_opts_t *opts, ec_method_mask_t mm)
+int ec_opts_add_publish(ec_opts_t *opts, uint8_t mm)
 {
-    uint8_t methods = 0;
-
     dbg_return_if (opts == NULL, -1);
 
-    methods = (uint8_t) mm;
-
-    return ec_opts_add_uint(opts, EC_OPT_PUBLISH, methods);
+    return ec_opts_add_uint(opts, EC_OPT_PUBLISH, mm);
 }
 
 int ec_opts_add_block1(ec_opts_t *opts, uint32_t num, bool more, 
@@ -788,24 +784,30 @@ err:
 }
 
 u_uri_t *ec_opts_compose_url(ec_opts_t *opts, struct sockaddr_storage *us,
-        bool nosec)
+        bool nosec, bool *is_proxy)
 {
     u_uri_t *u;
     char url[U_URI_STRMAX];
 
     dbg_return_if (opts == NULL, NULL);
+    dbg_return_if (is_proxy == NULL, NULL);
+
+    *is_proxy = true;
 
     /* [Proxy-URI] MAY occur one or more times and MUST take precedence over 
      * any of the Uri-Host, Uri-Port, Uri-Path or Uri-Query options. */
     if ((u = compose_proxy_uri(opts, url)) == NULL)
+    {
+        *is_proxy = false;
         dbg_err_if ((u = compose_uri(opts, us, nosec, url)) == NULL);
+    }
 
     return u;
 err:
     return NULL;
 }
 
-int ec_opts_get_publish(ec_opts_t *opts, ec_method_mask_t *mm)
+int ec_opts_get_publish(ec_opts_t *opts, uint8_t *mm)
 {
     uint64_t tmp = 0;
 
@@ -819,7 +821,7 @@ int ec_opts_get_publish(ec_opts_t *opts, ec_method_mask_t *mm)
 
     /* TODO consistency checks */
 
-    *mm = (ec_method_mask_t) tmp;
+    *mm = (uint8_t) tmp;
 
     return 0;
 err:

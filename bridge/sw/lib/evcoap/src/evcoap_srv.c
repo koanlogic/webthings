@@ -180,6 +180,8 @@ void ec_server_free(ec_server_t *srv)
         if (srv->octrl)
             ec_pdu_free(srv->octrl);
 
+        ec_flow_term(&srv->flow);
+
         if (srv->parent)
             ec_server_del(srv, srv->parent);
 
@@ -199,13 +201,14 @@ void ec_server_input(evutil_socket_t sd, short u, void *arg)
 static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
         struct sockaddr_storage *peer, void *arg)
 {
+    u_uri_t *u = NULL;
     ec_rescb_t *r;
     size_t olen = 0, plen;
     int flags = 0;
     ec_pdu_t *pdu = NULL;
     ec_server_t *srv = NULL;
     ec_t *coap;
-    bool nosec = true;
+    bool nosec = true, is_px;
     ec_rc_t rc = EC_RC_UNSET;
 
 #define RC_ERR(resp_code, ...)  \
@@ -364,8 +367,9 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
 
     /* Recompose the requested URI and save it into the server context.
      * XXX Assume NoSec is the sole supported mode. */
-    dbg_err_if (ec_flow_save_url(flow, 
-                ec_opts_compose_url(&pdu->opts, &conn->us, nosec)));
+    u = ec_opts_compose_url(&pdu->opts, &conn->us, nosec, &is_px);
+    dbg_err_if (ec_flow_save_url(flow, u, is_px));
+    u = NULL;   /* Ownership is given to flow_t */
 
     /* If enabled, dump the PDU (server=true).
        It cannot be done it any later because PDU is passed on. */
@@ -420,8 +424,11 @@ dump:
 cleanup:
     if (pdu)
         ec_pdu_free(pdu);
+    if (u)
+        u_uri_free(u);
     return EC_NET_CBRC_SUCCESS;
 err:
+    if (u) u_uri_free(u);
     if (srv)
     {
         /* Send the selected error (default to 5.00 Internal Server Error.) */
@@ -431,6 +438,7 @@ err:
     }
     if (pdu)
         ec_pdu_free(pdu);
+
     return EC_NET_CBRC_ERROR;
 #undef RC_ERR
 }

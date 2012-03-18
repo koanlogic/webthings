@@ -76,6 +76,7 @@ int ec_request_add_if_match(ec_client_t *cli, const uint8_t *im,
 int ec_request_add_uri_query(ec_client_t *cli, const char *uq);
 int ec_request_add_if_none_match(ec_client_t *cli);
 int ec_request_add_observe(ec_client_t *cli);
+int ec_request_add_publish(ec_client_t *cli, ec_method_mask_t allowed_methods);
 
 ec_rc_t ec_response_get_code(ec_client_t *cli);
 int ec_response_get_content_type(ec_client_t *cli, ec_mt_t *ct);
@@ -86,6 +87,7 @@ int ec_response_get_block2(ec_client_t *cli, uint32_t *bnum, bool *more,
 int ec_response_get_observe(ec_client_t *cli, uint16_t *o);
 int ec_response_get_max_age(ec_client_t *cli, uint32_t *max_age);
 int ec_request_get_if_none_match(ec_server_t *srv);
+int ec_request_get_publish(ec_server_t *srv, ec_method_mask_t *allowed_methods);
 
 uint8_t *ec_response_get_payload(ec_client_t *cli, size_t *sz);
 

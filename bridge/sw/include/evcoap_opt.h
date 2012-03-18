@@ -115,7 +115,7 @@ int ec_opts_add_block1(ec_opts_t *opts, uint32_t num, bool more,
         uint8_t szx);
 int ec_opts_add_block2(ec_opts_t *opts, uint32_t num, bool more,
         uint8_t szx);
-int ec_opts_add_publish(ec_opts_t *opts, ec_method_mask_t mm);
+int ec_opts_add_publish(ec_opts_t *opts, uint8_t mm);
 ec_opt_t *ec_opts_get_nth(ec_opts_t *opts, ec_opt_sym_t sym, size_t n);
 ec_opt_t *ec_opts_get(ec_opts_t *opts, ec_opt_sym_t sym);
 int ec_opts_get_uint(ec_opts_t *opts, ec_opt_sym_t sym, uint64_t *ui);
@@ -135,7 +135,7 @@ int ec_opts_get_block2(ec_opts_t *opts, uint32_t *num, bool *more,
         uint8_t *szx);
 int ec_opts_get_observe(ec_opts_t *opts, uint16_t *obs);
 int ec_opts_get_max_age(ec_opts_t *opts, uint32_t *max_age);
-int ec_opts_get_publish(ec_opts_t *opts, ec_method_mask_t *mm);
+int ec_opts_get_publish(ec_opts_t *opts, uint8_t *mm);
 
 int ec_opt_decode_uint(const uint8_t *v, size_t l, uint64_t *ui);
 int ec_opt_encode_uint(uint64_t ui, uint8_t *e, size_t *elen);
@@ -145,7 +145,7 @@ ec_rc_t ec_opts_decode(ec_opts_t *opts, const uint8_t *pdu, size_t pdu_sz,
         uint8_t oc, size_t *olen);
 
 u_uri_t *ec_opts_compose_url(ec_opts_t *opts, struct sockaddr_storage *us,
-        bool nosec);
+        bool nosec, bool *is_proxy);
 
 int ec_opts_count_sym(ec_opts_t *opts, ec_opt_sym_t sym, size_t *n);
 
