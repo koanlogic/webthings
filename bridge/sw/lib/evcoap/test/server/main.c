@@ -759,12 +759,15 @@ ec_cbrc_t create(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
     size_t pload_sz;
     ec_res_t *res = NULL;
     ec_method_t method;
+    bool is_proxy = false;
+    char uri[U_URI_STRMAX];
     ec_mt_t mt;
+    ec_method_mask_t mm = EC_METHOD_MASK_ALL;
 
     u_unused_args(u0, u1, u2);
 
     /* Get the requested URI and method. */
-    const char *uri = ec_server_get_url(srv);
+    (void) ec_request_get_uri(srv, uri, &is_proxy);
 
     if ((method = ec_server_get_method(srv)) != EC_COAP_PUT)
     {
@@ -772,10 +775,17 @@ ec_cbrc_t create(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
         return EC_CBRC_READY;
     }
 
+    /* Support for Publish option. */
+    if (is_proxy)
+    {
+        con_err_ifm (ec_request_get_publish(srv, &mm),
+                "Proxy-Uri supported for Publish Option only");
+    }
+
     CHAT("adding resource for: %s", uri);
 
     /* Create resource with all methods allowed. */
-    con_err_ifm((res = ec_resource_new(uri, EC_METHOD_MASK_ALL, 3600)) == NULL,
+    con_err_ifm((res = ec_resource_new(uri, mm, 3600)) == NULL,
             "resource creation failed");
 
     /* Get payload (may be empty/NULL). */
