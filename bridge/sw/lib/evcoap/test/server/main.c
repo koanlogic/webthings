@@ -719,6 +719,19 @@ int serve_put(ec_server_t *srv, ec_rep_t *rep)
     uint8_t etag[EC_ETAG_SZ] = { 0 }, *pload;
     ec_res_t *res = ec_rep_get_res(rep);
 
+    /* Check conditionals:
+     * 1) If-None-Match
+     * "If the target resource does exist, then the server MUST NOT perform
+     *  the requested method.  Instead, the server MUST respond with the 4.12
+     *  (Precondition Failed) response code." */
+    if (res && ec_request_get_if_none_match(srv) == 0)
+    {
+        (void) ec_response_set_code(srv, EC_PRECONDITION_FAILED);
+        return 0;
+    }
+
+    /* 2) If-Match (TODO) */
+
     /* Get payload and media type (if specified.) */
     pload = ec_request_get_payload(srv, &pload_sz);
     dbg_err_if (ec_request_get_content_type(srv, &mta[1]));

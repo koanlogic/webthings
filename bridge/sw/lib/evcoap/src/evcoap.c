@@ -296,6 +296,18 @@ int ec_request_get_acceptable_media_types(ec_server_t *srv, ec_mt_t *mta,
     return ec_opts_get_accept_all(opts, mta, mta_sz);
 }
 
+int ec_request_get_if_none_match(ec_server_t *srv)
+{
+    ec_pdu_t *req;
+
+    dbg_return_if (srv == NULL, -1);
+    dbg_return_if ((req = srv->req) == NULL, -1);
+
+    ec_opts_t *opts = &req->opts;
+
+    return ec_opts_get_if_none_match(opts);
+}
+
 int ec_request_get_content_type(ec_server_t *srv, ec_mt_t *mt)
 {
     ec_pdu_t *req;
