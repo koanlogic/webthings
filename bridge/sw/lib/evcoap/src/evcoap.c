@@ -417,6 +417,18 @@ int ec_request_get_observe(ec_server_t *srv)
     return ec_opts_get_observe(opts, NULL);
 }
 
+int ec_request_get_max_age(ec_server_t *srv, uint32_t *max_age)
+{
+    ec_pdu_t *req;
+
+    dbg_return_if (srv == NULL, -1);
+    dbg_return_if ((req = srv->req) == NULL, -1);
+
+    ec_opts_t *opts = &req->opts;
+
+    return ec_opts_get_max_age(opts, max_age);
+}
+
 static int ec_request_get_block(ec_server_t *srv, ec_opt_sym_t which,
         uint32_t *bnum, bool *more, size_t *bsz)
 {

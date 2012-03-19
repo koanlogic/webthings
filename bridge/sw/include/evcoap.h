@@ -88,8 +88,10 @@ int ec_response_get_block2(ec_client_t *cli, uint32_t *bnum, bool *more,
         size_t *bsz);
 int ec_response_get_observe(ec_client_t *cli, uint16_t *o);
 int ec_response_get_max_age(ec_client_t *cli, uint32_t *max_age);
+
 int ec_request_get_if_none_match(ec_server_t *srv);
 int ec_request_get_publish(ec_server_t *srv, ec_method_mask_t *allowed_methods);
+int ec_request_get_max_age(ec_server_t *srv, uint32_t *max_age);
 
 uint8_t *ec_response_get_payload(ec_client_t *cli, size_t *sz);
 
