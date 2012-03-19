@@ -78,6 +78,8 @@ int ec_request_add_if_none_match(ec_client_t *cli);
 int ec_request_add_observe(ec_client_t *cli);
 int ec_request_add_publish(ec_client_t *cli, ec_method_mask_t allowed_methods);
 
+bool ec_request_via_proxy(ec_server_t *srv);
+
 ec_rc_t ec_response_get_code(ec_client_t *cli);
 int ec_response_get_content_type(ec_client_t *cli, ec_mt_t *ct);
 int ec_response_get_block1(ec_client_t *cli, uint32_t *bnum, bool *more,

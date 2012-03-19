@@ -502,7 +502,7 @@ err:
 static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args, 
         struct timeval *tv, bool resched)
 {
-    bool is_con = false;
+    bool is_con = false, is_proxy = false;
 
     /* We do trust the caller here. */
 
@@ -511,6 +511,7 @@ static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args,
     ec_conn_t *conn = &flow->conn;
 
     dbg_err_if (ec_conn_get_confirmable(conn, &is_con));
+    dbg_err_if (ec_flow_get_proxied(flow, &is_proxy));
 
     switch (f(srv, args, tv, resched))
     {
@@ -543,7 +544,11 @@ static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args,
                     dbg_err_if (ec_server_send_separate_ack(srv));
                 }
                 dbg_err_if (ec_server_add(srv, &coap->servers));
-                dbg_err_if (ec_server_reschedule_userfn(f, srv, args, tv));
+                /* If this is a proxied flow, the user callback must not
+                 * be rescheduled.  It is on the user to provide the return
+                 * path callback programmatically. */
+                if (!is_proxy)
+                    dbg_err_if (ec_server_reschedule_userfn(f, srv, args, tv));
                 /* Fake the ACK_SENT state for NON (this allows more uniform
                  * handling of actions.) */
                 ec_server_set_state(srv, EC_SRV_STATE_ACK_SENT);

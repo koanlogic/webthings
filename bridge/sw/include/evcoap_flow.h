@@ -23,7 +23,7 @@ typedef struct
     u_uri_t *uri;
     char urlstr[U_URI_STRMAX];  /* URI string \minus the query */
     char origin[U_URI_STRMAX];  /* URI string \minus path and query. */
-    bool proxy_uri;             /* true if decoded URI was a Proxy-URI. */
+    bool proxy_uri;             /* true if decoded URI is Proxy-URI. */
     uint8_t token[8];
     size_t token_sz;
 } ec_flow_t;
@@ -38,6 +38,7 @@ ec_method_t ec_flow_get_method(ec_flow_t *flow);
 u_uri_t *ec_flow_get_uri(ec_flow_t *flow);
 const char *ec_flow_get_url(ec_flow_t *flow, char url[U_URI_STRMAX], 
         bool *is_proxy);
+int ec_flow_get_proxied(ec_flow_t *flow, bool *is_proxy);
 ec_rc_t ec_flow_get_resp_code(ec_flow_t *flow);
 int ec_flow_set_method(ec_flow_t *flow, ec_method_t method);
 int ec_flow_set_resp_code(ec_flow_t *flow, ec_rc_t rc);

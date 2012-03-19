@@ -453,6 +453,13 @@ int ec_request_get_block2(ec_server_t *srv, uint32_t *bnum, bool *more,
     return (ec_request_get_block(srv, EC_OPT_BLOCK2, bnum, more, bsz));
 }
 
+bool ec_request_via_proxy(ec_server_t *srv)
+{
+    dbg_return_if (srv == NULL, false);
+
+    return srv->flow.proxy_uri;
+}
+
 /**
  *  \brief  TODO (user may set a custom response code.)
  */

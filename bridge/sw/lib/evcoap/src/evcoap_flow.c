@@ -180,6 +180,15 @@ ec_rc_t ec_flow_get_resp_code(ec_flow_t *flow)
     return flow->resp_code;
 }
 
+int ec_flow_get_proxied(ec_flow_t *flow, bool *is_proxy)
+{
+    dbg_return_if (flow == NULL, -1);
+
+    *is_proxy = flow->proxy_uri;
+
+    return 0;
+}
+
 const char *ec_flow_get_url(ec_flow_t *flow, char url[U_URI_STRMAX],
         bool *is_proxy)
 {

@@ -65,10 +65,10 @@ const char *ec_method_str(ec_method_t method);
 typedef enum
 {
     EC_METHOD_MASK_UNSET    = 0,
-    EC_GET_MASK             = (1 << 0),
-    EC_PUT_MASK             = (1 << 1),
-    EC_POST_MASK            = (1 << 2),
-    EC_DELETE_MASK          = (1 << 3),
+    EC_GET_MASK             = (1 << (EC_COAP_GET - 1)),
+    EC_POST_MASK            = (1 << (EC_COAP_POST - 1)),
+    EC_PUT_MASK             = (1 << (EC_COAP_PUT - 1)),
+    EC_DELETE_MASK          = (1 << (EC_COAP_DELETE - 1)),
     EC_METHOD_MASK_ALL      = (EC_GET_MASK | EC_PUT_MASK | EC_POST_MASK |
                                EC_DELETE_MASK)
 } ec_method_mask_t;
