@@ -1149,10 +1149,13 @@ static size_t fenceposts_encsz(size_t cur, size_t last)
 {
     size_t i, fpsz = 0;
 
-    for (i = last; i < cur; ++i)
+    if ((cur - last) > 14)
     {
-        if (EC_OPT_NUM_IS_FENCEPOST(i))
-            fpsz += 1;  /* Each FP consumes 1 byte. */
+        for (i = last; i < cur; ++i)
+        {
+            if (EC_OPT_NUM_IS_FENCEPOST(i))
+                fpsz += 1;  /* Each FP consumes 1 byte. */
+        }
     }
 
     return fpsz;

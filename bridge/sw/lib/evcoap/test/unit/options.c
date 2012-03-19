@@ -191,6 +191,7 @@ static int test_codec_bunch(u_test_case_t *tc)
     u_test_err_if (ec_opts_add_max_age(&in, 3600));
     u_test_err_if (ec_opts_add_proxy_uri(&in, g_split_uri));
     u_test_err_if (ec_opts_add_etag(&in, etag, sizeof etag));
+    u_test_err_if (ec_opts_add_if_none_match(&in));
 
     /* Encode 'in' and decode to 'out'. */
     u_test_err_if (encdec(&in, &out));
