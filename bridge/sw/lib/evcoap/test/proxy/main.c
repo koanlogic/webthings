@@ -50,9 +50,9 @@ void proxy_term(void);
 ec_cbrc_t cache_serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2);
 ec_cbrc_t proxy_req(ec_server_t *s, void *u0, struct timeval *u1, bool u2);
 void proxy_res(ec_client_t *cli);
-
+int cache_put(ec_server_t *srv, const char *uri);
+int cache_get(ec_server_t *srv, const char *uri, ec_mt_t *mta, size_t mta_sz);
 void usage(const char *prog);
-
 
 int main(int ac, char *av[])
 {
@@ -215,11 +215,127 @@ void usage(const char *prog)
     return;
 }
 
+int cache_put(ec_server_t *srv, const char *uri)
+{
+    ec_mt_t mt[1];
+    ec_method_mask_t mm;
+    ec_res_t *res;
+    ec_rep_t *rep;
+    uint8_t *pload, etag[EC_ETAG_SZ] = { 0 };
+    size_t pload_sz;
+   
+    res = ec_filesys_get_resource(g_ctx.cache, uri);
+
+    /* Test If-None-Match */
+    if (res && ec_request_get_if_none_match(srv) == 0)
+    {
+        (void) ec_response_set_code(srv, EC_PRECONDITION_FAILED);
+        return 0;
+    }
+
+    /* Catch Publish updates. */
+    if (ec_request_via_proxy(srv)
+            && ec_request_get_publish(srv, &mm) == 0)
+    {
+        /* Bad allowed-methods mask. */
+        if (mm == EC_METHOD_MASK_UNSET) 
+        {
+            dbg_if (ec_response_set_code(srv, EC_BAD_OPTION));
+            return 0;
+        }
+
+        /* Get payload and media type (if specified.) */
+        pload = ec_request_get_payload(srv, &pload_sz);
+        dbg_err_if (ec_request_get_content_type(srv, &mt[0]));
+
+        /* Search for a matching representation before creating the
+         * new one. */
+        rep = ec_resource_get_suitable_rep(res, mt, 1, NULL);
+
+        /* Add new representation. */
+        dbg_err_if (ec_resource_add_rep(res, pload, pload_sz, mt[0], etag));
+
+        /* Delete old in case it exists. */
+        if (rep)
+            dbg_if (ec_rep_del(res, rep));
+
+        /* Return Etag of the new representation. */
+        dbg_if (ec_response_add_etag(srv, etag, sizeof etag));
+        dbg_if (ec_response_set_code(srv, EC_CHANGED));
+
+        return 0;
+    }
+
+    /* TODO handle PUTs on !Publish'ed resources. */
+    dbg_if (ec_response_set_code(srv, EC_NOT_IMPLEMENTED));
+
+    return 0;
+err:
+    return -1;
+}
+
+int cache_get(ec_server_t *srv, const char *uri, ec_mt_t *mta, size_t mta_sz)
+{
+    ec_rep_t *rep;
+    ec_res_t *res;
+    
+    /* Retrieve resource representation (TODO conditional GET.) */
+    rep = ec_filesys_get_suitable_rep(g_ctx.cache, uri, mta, mta_sz, NULL);
+    if (rep == NULL)
+    {
+        dbg_if (ec_response_set_code(srv, EC_NOT_FOUND));
+        return 0;
+    }
+
+    /* Add payload and Etag. */
+    dbg_if (ec_response_set_payload(srv, rep->data, rep->data_sz));
+    dbg_if (ec_response_add_etag(srv, rep->etag, sizeof rep->etag));
+
+    /* Add Content-Type if multiple Accept were supplied. */
+    if (mta_sz)
+        dbg_if (ec_response_add_content_type(srv, rep->media_type));
+
+    res = ec_rep_get_res(rep);
+
+    /* Add Max-Age if different from default. */
+    if (res->max_age != EC_COAP_DEFAULT_MAX_AGE)
+        dbg_if (ec_response_add_max_age(srv, res->max_age));
+
+    /* 2.05 Content */
+    dbg_if (ec_response_set_code(srv, EC_CONTENT));
+
+    /* TODO handle possible Observe. */
+
+    return 0;
+}
+
 ec_cbrc_t cache_serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
 {
     u_unused_args(u0, u1, u2);
 
-    dbg_err_if (1);
+    char uri[U_URI_STRMAX];
+    bool is_proxy;
+    ec_method_t method;
+    ec_mt_t mta[16];
+    size_t mta_sz = sizeof mta / sizeof(ec_mt_t);
+
+    /* Retrieve method, URI and Accept'able media types. */
+    dbg_err_if ((method = ec_server_get_method(srv)) == EC_METHOD_UNSET);
+    dbg_err_if (ec_request_get_uri(srv, uri, &is_proxy));
+    dbg_err_if (ec_request_get_acceptable_media_types(srv, mta, &mta_sz));
+
+    switch (method)
+    {
+        case EC_COAP_GET:
+            dbg_err_if (cache_get(srv, uri, mta, mta_sz));
+            break;
+        case EC_COAP_PUT:
+            dbg_err_if (cache_put(srv, uri));
+        case EC_COAP_DELETE:
+        case EC_COAP_POST:
+            ec_response_set_code(srv, EC_NOT_IMPLEMENTED);
+            break;
+    }
 
     return EC_CBRC_READY;
 err:
@@ -234,6 +350,8 @@ ec_cbrc_t proxy_req(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
     char uri[U_URI_STRMAX];
     bool is_proxy;
     ec_msg_model_t mm = EC_COAP_NON;
+    ec_method_mask_t mask;
+    ec_res_t *res = NULL;
 
     /* Get URI of the requested resource. */
     dbg_err_if (ec_request_get_uri(srv, uri, &is_proxy) == NULL);
@@ -249,6 +367,46 @@ ec_cbrc_t proxy_req(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
     ec_method_t m = ec_server_get_method(srv);
     dbg_err_if (m == EC_METHOD_UNSET);
 
+    /* Catch Publish requests. */
+    if (m == EC_COAP_PUT && ec_request_get_publish(srv, &mask) == 0)
+    {
+        ec_mt_t mt;
+        uint32_t max_age;
+        const uint8_t *pload;
+        size_t pload_sz;
+
+        /* Publication default lifetime is 3600 seconds unless specified
+         * otherwise via Max-Age. */
+        if (ec_request_get_max_age(srv, &max_age))
+            max_age = 3600;
+
+        /* Create new cache resource with allowed methods' mask and max-age. */
+        dbg_err_if ((res = ec_resource_new(uri, mask, max_age)) == NULL);
+
+        /* Get payload (may be empty/NULL). */
+        pload = ec_request_get_payload(srv, &pload_sz);
+
+        /* Get media type (if unspecified default to text/plain.) */
+        if (ec_request_get_content_type(srv, &mt))
+            mt = EC_MT_TEXT_PLAIN;
+
+        /* Create new resource representation with the requested media type. */
+        /* (use auto Etag) */
+        dbg_err_if (ec_resource_add_rep(res, pload, pload_sz, mt, NULL));
+
+        /* Attach resource to FS. */
+        dbg_err_if (ec_filesys_put_resource(g_ctx.cache, res));
+        res = NULL;
+
+        /* Register the callback that will serve this URI. */
+        dbg_err_if (ec_register_cb(g_ctx.coap, uri, cache_serve, NULL));
+
+        /* Return 2.01 Created */
+        (void) ec_response_set_code(srv, EC_CREATED);
+
+        return EC_CBRC_READY;        
+    }
+
     /* Create request towards final destination (TODO extract message model.) */
     dbg_err_if ((cli = ec_request_new(g_ctx.coap, m, uri, mm)) == NULL);
 
@@ -259,6 +417,7 @@ ec_cbrc_t proxy_req(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
     return EC_CBRC_WAIT;
 err:
     if (cli) ec_client_free(cli);
+    if (res) ec_resource_free(res);
     return EC_CBRC_ERROR;
 }
 

@@ -121,7 +121,7 @@
 %%
 %% Pro
 %%
-\begin{frame}{Pro}
+\begin{frame}{Pros}
 
 \begin{itemize}
  \item No URI proliferation %% the resource original URI is the only way to access the resource
@@ -129,14 +129,52 @@
  \item Explicit delegation lifetime
  \item Support writable resources
  \item Support Observe
- \item Trivial patch to the Proxy logics
+ \item The sleepy node may never need to listen on the radio
+ \item Trivial patch to the Proxy logics 
 \end{itemize}
 \end{frame}
 
-\begin{frame}{Pro (cont)}
-TODO paste Publish patch
+\begin{frame}[fragile]{Pros (cont)}
+
+
+{\tiny 
+\begin{verbatim}
+$ git diff
+@@ -249,6 +251,46 @@ ec_cbrc_t proxy_req(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
++    /* Catch Publish requests. */
++    if (m == EC_COAP_PUT && ec_request_get_publish(srv, &mask) == 0)
++    {
++        ec_mt_t mt;
++        size_t pload_sz;
++        uint32_t max_age;
++
++        if (ec_request_get_max_age(srv, &max_age))
++            max_age = 3600;
++
++        if (ec_request_get_content_type(srv, &mt))
++            mt = EC_MT_TEXT_PLAIN;
++
++        const uint8_t *pload = ec_request_get_payload(srv, &pload_sz);
++
++        dbg_err_if ((res = ec_resource_new(uri, mask, max_age)) == NULL);
++        dbg_err_if (ec_resource_add_rep(res, pload, pload_sz, mt, NULL));
++        dbg_err_if (ec_filesys_put_resource(g_ctx.cache, res));
++        res = NULL;
++
++        dbg_err_if (ec_register_cb(g_ctx.coap, uri, cache_serve, NULL));
++
++        dbg_if (ec_response_set_code(srv, EC_CREATED));
++        return EC_CBRC_READY;        
++    }
+\end{verbatim}
+}
 \end{frame}
 
+\begin{frame}{Cons}
+\begin{itemize}
+ \item Can't go through Proxies (necessarily stops at first Proxy)
+\end{itemize}
+\end{frame}
 
 %%
 %% Open issues
