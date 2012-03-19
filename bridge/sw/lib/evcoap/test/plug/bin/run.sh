@@ -26,7 +26,7 @@ for v in ${vecs}; do
 
     # Print exit status.
     if [ $? -eq 0 ]; then
-        t_dbg "# [ok]."
+        t_dbg "[ok]."
     else
         echo "# [***KO***]."
     fi

@@ -25,6 +25,10 @@ EC_PLUG_CLI_ARG_OUTPUT="-"
 # other client settings
 #EC_PLUG_VERBOSE=1              # default: unset
 
+# other settings
+EC_PLUG_PIDS=""
+EC_PLUG_PIDS_FILE=".pids"
+
 # custom commands 
 ECHO=/bin/echo      # default version on mac doesn't like '-n' arg
 
@@ -36,7 +40,7 @@ ECHO=/bin/echo      # default version on mac doesn't like '-n' arg
 # If EC_PLUG_VERBOSE=1, debugs all strings to standard error.
 t_dbg()
 {
-    [ "${EC_PLUG_VERBOSE}" = "1" ] && ${ECHO} $@ 1>&2
+    [ "${EC_PLUG_VERBOSE}" = "1" ] && ${ECHO} "# $@" 1>&2
     
     return 0
 }
@@ -46,7 +50,9 @@ t_die()
 {
     rc=$1
     shift
-    ${ECHO} "# $@" 1>&2
+
+    t_dbg "$@"
+
     t_term ${rc}
 }
 
@@ -59,7 +65,7 @@ t_wrap()
     bg=$1
     shift
 
-    t_dbg "# $@ (bg=${bg})"
+    t_dbg "$@ (bg=${bg})"
 
     if [ "${EC_PLUG_VERBOSE}" = "1" ]; then
         if [ ${bg} -eq 1 ]; then
@@ -74,12 +80,14 @@ t_wrap()
             $@ 2>/dev/null
         fi
     fi
+
+    t_dbg "pid: $!"
 }
 
 # Compare two strings and fail if they are different.
 t_cmp()
 {
-    t_dbg "# checking value '$1'"
+    t_dbg "checking value '$1'"
 
     if [ "$1" = "$2" ]; then
         return 0
@@ -88,10 +96,11 @@ t_cmp()
     fi
 }
 
-# Initialise test - does nothing yet.
+# Initialise test
 t_init()
 {
-    return 0
+    # remove any pre-existing dump or cache files
+    rm -f *.dump "${EC_PLUG_PIDS_FILE}"
 }
 
 # Cleanup test - kills all processes.
@@ -101,8 +110,22 @@ t_term()
     rc=$1
     [ -z ${rc} ] && rc=0
 
-    j=`jobs -p`
-    kill ${j} 2>/dev/null
+    if [ ${rc} -eq 0 ]; then
+        t_dbg "success"
+    else 
+        t_dbg "failure (rc=${rc})"
+    fi
+    
+    # kill specified pids
+    kill ${EC_PLUG_PIDS} 2>/dev/null
+
+    # kill processes spawned by children
+    if [ -r ${EC_PLUG_PIDS_FILE} ]; then
+        kill `cat "${EC_PLUG_PIDS_FILE}"` 2>/dev/null
+    fi
+
+    # kill anything remaining
+    kill `jobs -p` 2>/dev/null
 
     exit ${rc}
 }
@@ -120,7 +143,10 @@ t_srv_run()
     [ -z ${EC_PLUG_SRV_ARG_SEP} ] || \
         args="${args} -s ${EC_PLUG_SRV_ARG_SEP}"
 
-    t_wrap 1 "${EC_PLUG_SRV_CMD}" "${args}" "$@"
+    t_wrap 1 "${EC_PLUG_SRV_CMD}" "${args}" "$@"    
+
+    # since command was backgrounded, add to list of processes to be killed
+    t_pid_add $!
 
     # might have been killed intentionally, so don't die!
     [ $? -eq 0 ] || t_dbg 1 "server failed! (rc=$?)"
@@ -169,7 +195,10 @@ t_cli_run()
     [ -z ${EC_PLUG_CLI_ARG_OUTPUT} ] || \
         args="${args} -o ${EC_PLUG_CLI_ARG_OUTPUT}"
 
-    t_wrap 0 "${EC_PLUG_CLI_CMD}" "${args}" "$@"
+    t_wrap 1 "${EC_PLUG_CLI_CMD}" "${args}" "$@"
+
+    # since command was backgrounded, add to list of processes to be killed
+    t_pid_add $!
 
     # might have been killed intentionally, so don't die!
     [ $? -eq 0 ] || t_dbg 1 "client failed! (rc=$?)"
@@ -251,9 +280,9 @@ t_field_get()
     field=$3
     dump="${id}-${srv}.dump"
 
-    t_dbg "# retrieving field '${field}'"
+    t_dbg "retrieving field '${field}' from '${dump}'"
 
-    [ -r "${dump}" ] || t_die 1 "could not find dump file (${dump})!"
+    [ -r "${dump}" ] || return 1
 
     # retrieve line
     xval=`grep "${field}:" "${dump}"`
@@ -282,7 +311,7 @@ t_field_check()
     val=$4
     dump="${id}-${srv}.dump"
 
-    [ -r "${dump}" ] || t_die 1 "could not find dump file (${dump})!"
+    [ -r "${dump}" ] || return 1
 
     # retrieve line
     xval=`grep "${field}:" "${dump}"`
@@ -294,7 +323,7 @@ t_field_check()
     # remove leading space
     xtrim=`${ECHO} ${xval} | sed 's/^ //'`
 
-    t_dbg "# checking message ${dump} field '${field}': '${xtrim}'"
+    t_dbg "checking message ${dump} field '${field}': '${xtrim}'"
 
     # compare result with value    
     [ "${xtrim}" = "${val}" ] || t_die 1 \
@@ -317,7 +346,7 @@ t_field_diff()
     val=$4
     dump="${id}-${srv}.dump"
 
-    [ -r "${dump}" ] || t_die 1 "could not find dump file (${dump})!"
+    [ -r "${dump}" ] || return 1
 
     # retrieve line
     xval=`grep "${field}:" "${dump}"`
@@ -329,7 +358,7 @@ t_field_diff()
     # remove leading space
     xtrim=`${ECHO} ${xval} | sed 's/^ //'`
 
-    t_dbg "# checking message ${dump} field '${field}' != '${xtrim}'"
+    t_dbg "checking message ${dump} field '${field}' != '${xtrim}'"
 
     # compare result with value    
     [ "${xtrim}" != "${val}" ] || t_die 1 \
@@ -349,7 +378,7 @@ t_check_len()
     min=$2
     max=$3
 
-    t_dbg "# checking length of '${s}' (>=${min}, <=${max})"
+    t_dbg "checking length of '${s}' (>=${min}, <=${max})"
 
     xlen=`${ECHO} -n "${s}" | wc -c | sed -e 's/\ //g'`
 
@@ -358,6 +387,8 @@ t_check_len()
 }
 
 # Convert input string to hex representation.
+#
+# $1    input string
 t_str2hex()
 {
     hexval=`${ECHO} -n $@ | xxd -p`
@@ -366,6 +397,8 @@ t_str2hex()
 }
 
 # Convert hex data to string.
+# 
+# $1    input hex representation
 t_hex2str()
 {
     ${ECHO} -n $1 | sed 's/^0x//' | xxd -p -r
@@ -375,14 +408,39 @@ __t_timer()
 {
     sleep $1
 
-    t_dbg "timer expired, killing processes!"
+    shift
 
-    killall coap-server coap-client
+    for cmd in "$@"; do
+        t_dbg "running command: '${cmd}'"
+        ${cmd} 1>&2
+    done
+
+    ${ECHO} -n "`jobs -p` " >> ${EC_PLUG_PIDS_FILE}
 }
 
+# Run commands after a number of seconds
+#
+# $1    seconds
+# $@    string of commands
 t_timer()
 {
-    __t_timer $1 &
+    [ -z $1 ] && t_die 1 "seconds undefined!"
+    s=$1
+    [ -z "$2" ] && t_die 1 "commands undefined!"
+
+    t_dbg "timer secs: $1"
+
+    shift
+
+    t_dbg "timer cmds: $@"
+
+    __t_timer ${s} "$@" &
+}
+
+# Append to list of PIDS to be killed upon termination
+t_pid_add()
+{
+    EC_PLUG_PIDS="${EC_PLUG_PIDS} $@"
 }
 
 trap t_term 2 9 15

@@ -16,7 +16,8 @@ t_srv_run
 #
 # Step 1
 #
-t_dbg "# Step 1"
+t_dbg "[Step 1] Client is requested retrieve Server’s list of resource of a"\
+      "specific type Type1."
 
 t_cli_set_type CON
 t_cli_set_method GET
@@ -27,7 +28,8 @@ out=`t_cli_run`
 #
 # Step 2
 #
-t_dbg "# Step 2"
+t_dbg "[Step 2] Client sends a GET request to Server for /.well-known/core"\
+      "resource containing URI-Query indicating “rt=Type1”."
 
 t_field_check 1 srv T CON
 t_field_check 1 srv Code GET
@@ -37,7 +39,9 @@ t_field_check 1 srv URI-Query "rt=${rt}"
 #
 # Step 3
 #
-t_dbg "# Step 3"
+t_dbg "[Step 3] Server sends response containing: Content-Type option"\
+      "indicating 40 (application/link-format); payload indicating only"\
+      "the links of type Type1 available on Server."
 
 t_field_check 1 cli Code "2.05 (Content)"
 v=`t_field_get 1 srv MID`
@@ -55,7 +59,8 @@ ${ECHO} -n "${wkc}" | grep -v "rt=\"${rt}\""
 #
 # Step 4
 #
-t_dbg "# Step 4"
+t_dbg "[Step 4] Client displays the list of resources of type Type1"\
+      "available on Server."
 
 t_dbg "${out}"
 
