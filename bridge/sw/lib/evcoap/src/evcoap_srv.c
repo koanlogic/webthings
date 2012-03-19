@@ -35,6 +35,7 @@ static bool ec_server_state_is_final(ec_srv_state_t state);
 static int ec_server_reschedule_userfn(ec_server_cb_t f, ec_server_t *srv,
         void *args, const struct timeval *tv);
 static void resched_userfn(evutil_socket_t u0, short u1, void *a);
+static int ec_server_ready(ec_server_t *srv, bool is_con);
 
 static int ec_srv_start_coap_timer(ec_server_t *srv);
 static int ec_srv_restart_coap_timer(ec_server_t *srv);
@@ -142,6 +143,21 @@ err:
     if (srv)
         ec_server_free(srv);
     return NULL;
+}
+
+int ec_server_wakeup(ec_server_t *srv)
+{
+    bool is_con = false;
+
+    dbg_return_if (srv == NULL, -1);
+
+    ec_t *coap = srv->base;
+    ec_flow_t *flow = &srv->flow;
+    ec_conn_t *conn = &flow->conn;
+
+    dbg_return_if (ec_conn_get_confirmable(conn, &is_con), -1);
+
+    return ec_server_ready(srv, is_con);
 }
 
 static int ec_server_new_response(ec_server_t *srv)
@@ -499,6 +515,32 @@ err:
     return -1;
 }
 
+static int ec_server_ready(ec_server_t *srv, bool is_con)
+{
+    dbg_return_if (srv == NULL, -1);
+
+    if (srv->state == EC_SRV_STATE_ACK_SENT
+            || srv->state == EC_SRV_STATE_REQ_OK)
+    {
+        /* Be it one-shot NON or CON w/piggyback ACK, or separate CON 
+         * response or delayed NON, they are all handled the same way:
+         * the ec_server_send_resp() function takes care of sending
+         * what is needed depending on current FSM state. */
+        dbg_err_if (ec_server_send_resp(srv));
+
+        ec_server_set_state(srv, 
+                is_con && srv->state == EC_SRV_STATE_ACK_SENT
+                ? EC_SRV_STATE_WAIT_ACK
+                : EC_SRV_STATE_RESP_DONE);
+    }
+    else
+        dbg_err("unexpected state: %s", ec_srv_state_str(srv->state));
+
+    return 0;
+err:
+    return -1;
+}
+
 static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args, 
         struct timeval *tv, bool resched)
 {
@@ -516,23 +558,7 @@ static int ec_server_userfn(ec_server_t *srv, ec_server_cb_t f, void *args,
     switch (f(srv, args, tv, resched))
     {
         case EC_CBRC_READY:
-            if (srv->state == EC_SRV_STATE_ACK_SENT
-                    || srv->state == EC_SRV_STATE_REQ_OK)
-            {
-                /* Be it one-shot NON or CON w/piggyback ACK, or separate CON 
-                 * response or delayed NON, they are all handled the same way:
-                 * the ec_server_send_resp() function takes care of sending
-                 * what is needed depending on current FSM state. */
-                dbg_err_if (ec_server_send_resp(srv));
-
-                ec_server_set_state(srv, 
-                        is_con && srv->state == EC_SRV_STATE_ACK_SENT
-                        ? EC_SRV_STATE_WAIT_ACK
-                        : EC_SRV_STATE_RESP_DONE);
-            }
-            else
-                dbg_err("unexpected state: %s", ec_srv_state_str(srv->state));
-
+            dbg_err_if (ec_server_ready(srv, is_con));
             break;
 
         case EC_CBRC_WAIT:

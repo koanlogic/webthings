@@ -3,7 +3,7 @@ include ../../../../Makefile.conf
 include ../Makefile.common
 
 SRCS = main.c
-PROG = coap-server
+PROG = coap-proxy
 
 include prog.mk
 
