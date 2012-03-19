@@ -118,7 +118,7 @@ void process_http_request(struct evhttp_request *req, void *arg)
 		process_set_coap_headers(req,req->type);
 
 		//set payload
-		unsigned char *tmp = malloc(len+1);
+		char *tmp = malloc(len+1);
 		memcpy(tmp, evbuffer_pullup(body, -1), len);
 		tmp[len] = '\0';
 		ec_request_set_payload(g_ctx.cli,tmp,len);
@@ -139,7 +139,7 @@ void process_http_request(struct evhttp_request *req, void *arg)
 		process_set_coap_headers(req,req->type);
 
 		//set payload
-		unsigned char *tmp = malloc(len+1);
+		char *tmp = malloc(len+1);
 		memcpy(tmp, evbuffer_pullup(body, -1), len);
 		tmp[len] = '\0';
 		ec_request_set_payload(g_ctx.cli,tmp,len);
@@ -296,11 +296,12 @@ void process_set_coap_headers(struct evhttp_request *req, ec_rc_t rc){
 		if (strcmp(header->key,"Content-Type")==0)
 		{
 			//set Content-Type
+printf("content-type %s \n", header->value);
 			ec_mt_from_string(header->value,&pmt);
 			ec_request_add_content_type(g_ctx.cli, pmt);
 		} else if (strcmp(header->key,"Accept")==0 && rc!=EVHTTP_REQ_PUT && rc!=EVHTTP_REQ_POST)
 		{
-			//set Content-Type
+			//set Accept
 			ec_mt_from_string(header->value,&pmt);
 			ec_request_add_accept(g_ctx.cli, pmt);
 		}
@@ -311,18 +312,30 @@ void process_set_coap_headers(struct evhttp_request *req, ec_rc_t rc){
 void process_set_http_headers(struct evhttp_request *req)
 {
 	ec_opts_t *opts;
-    uint16_t ct;
-    ec_opt_sym_t sym;
+	ec_opt_t *o;
+	ec_opt_t *o_tmp;
+	ec_mt_t ct;
 
-    for (sym = EC_OPT_NONE + 1; sym < EC_OPT_MAX; ++sym)
-    {
-        switch (sym)
-        {
+	nop_err_if ((opts = ec_client_get_response_options(g_ctx.cli)) == NULL);
+	TAILQ_FOREACH(o, &opts->bundle, next)
+	{
+
+
+		uint64_t tmp;
+		char *etag;
+		int etag_size;
+
+		(void) (uint16_t) ec_opts_get_uint(opts, o->sym, &tmp);
+		if (ec_opts_get_uint(opts, o->sym, &tmp))
+			return;
+
+		switch ((uint16_t) o->sym) {
+
+		case EC_OPT_PROXY_URI:
 		case EC_OPT_CONTENT_TYPE:
-			if (ec_opts_get_content_type(opts, &ct))
-                continue;
+			ec_opts_get_content_type(opts, &ct);
+			switch ((int) tmp) {
 
-			switch (ct) {
 			case EC_MT_TEXT_PLAIN:
 				evhttp_add_header(evhttp_request_get_output_headers(req),
 						"Content-Type", "text/plain; charset=UTF-8");
@@ -352,61 +365,56 @@ void process_set_http_headers(struct evhttp_request *req)
 						"Content-Type", "application/xml");
 			}
 			break;
+			case EC_OPT_MAX_AGE:
 
-        case EC_OPT_MAX_AGE:
-            {
-                char s[128];
-                uint32_t max_age;
+	        case EC_OPT_ETAG:
+	            {
+	                uint8_t *et;
+	                ec_opt_t *o;
+	                size_t et_sz, i;
 
-                (void) ec_opts_get_max_age(opts, &max_age);
-                dbg_if (u_snprintf(s, sizeof s, "max-age=%s", max_age));
-                evhttp_add_header(evhttp_request_get_output_headers(req),
-                        "Cache-Control", s);
-            }
-            break;
+	                for (i = 0;
+	                        (et = ec_opts_get_etag_nth(opts, &et_sz, i)) != NULL;
+	                        ++i)
+	                {
+                       if (!et_sz) continue;
 
-        case EC_OPT_ETAG:
-            {
-                uint8_t *et;
-                size_t et_sz, i;
+	                    char s[U_B64_LENGTH(et_sz) + 1];
 
-                for (i = 0; 
-                        (et = ec_opts_get_etag_nth(opts, &et_sz, i)) != NULL;
-                        ++i)
-                {
-                    if (!et_sz) continue;
+	                    //if (u_b64_encode(et, &et_sz, s, sizeof s) == 0)
+(void)u_b64_encode(et, &et_sz, s, sizeof s);
+	                    {
+	                        evhttp_add_header(
+	                                evhttp_request_get_output_headers(req),
+	                                "ETag", s);
+	                    }
+	                }
+	            }
+	            break;
 
-                    char s[U_B64_LENGTH(et_sz) + 1];
+			case EC_OPT_URI_HOST:
+			case EC_OPT_LOCATION_PATH:
+			case EC_OPT_URI_PORT:
+			case EC_OPT_LOCATION_QUERY:
+			case EC_OPT_URI_PATH:
+			case EC_OPT_OBSERVE:
+			case EC_OPT_TOKEN:
+			case EC_OPT_ACCEPT:
+			case EC_OPT_IF_MATCH:
+			case EC_OPT_URI_QUERY:
+			case EC_OPT_BLOCK2:
+			case EC_OPT_BLOCK1:
+			case EC_OPT_IF_NONE_MATCH:
+				break;
+			case EC_OPT_NONE:
+			case EC_OPT_MAX:
+			default:
+				break;
+		}
+	}
 
-                    if (u_b64_encode(et, et_sz, s, sizeof s) == 0)
-                    {
-                        evhttp_add_header(
-                                evhttp_request_get_output_headers(req),
-                                "ETag", s);
-                    }
-                }
-            }
-            break;
 
-        case EC_OPT_PROXY_URI:
-        case EC_OPT_URI_HOST:
-        case EC_OPT_LOCATION_PATH:
-        case EC_OPT_URI_PORT:
-        case EC_OPT_LOCATION_QUERY:
-        case EC_OPT_URI_PATH:
-        case EC_OPT_OBSERVE:
-        case EC_OPT_TOKEN:
-        case EC_OPT_ACCEPT:
-        case EC_OPT_IF_MATCH:
-        case EC_OPT_URI_QUERY:
-        case EC_OPT_BLOCK2:
-        case EC_OPT_BLOCK1:
-        case EC_OPT_IF_NONE_MATCH:
-        default:
-            break;
-        }
-    }
-
+	err:
 	return;
 }
 
