@@ -572,8 +572,11 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
     {
         dbg_err_if((res = ec_rep_get_res(rep)) == NULL);
 
-        /* Make sure resource supports the requested method. */
-        if (ec_resource_check_method(res, method))
+        /* Make sure resource supports the requested method.
+         * Bypass check for Proxy-Uri requests because of Publish admin 
+         * operations (will be checked in PUT/DELETE handlers.) */
+        if (!ec_request_via_proxy(srv)
+                && ec_resource_check_method(res, method))
         {
             (void) ec_response_set_code(srv, EC_METHOD_NOT_ALLOWED);
             return EC_CBRC_READY;
@@ -677,7 +680,25 @@ int serve_get(ec_server_t *srv, ec_rep_t *rep)
 int serve_delete(ec_server_t *srv)
 {
     int rc;
-    const char *uri = ec_server_get_url(srv);
+    char uri[U_URI_STRMAX];
+    bool is_proxy;
+    ec_method_mask_t mm;
+
+    (void) ec_request_get_uri(srv, uri, &is_proxy);
+
+    /* Admin ops for delegated resource bypass method mask check.
+     * Here we check that in case the resource is accessed through
+     * a Proxy-Uri, the DELETE op is admin only. */
+    if (is_proxy)
+    {
+        if (ec_request_get_publish(srv, &mm)
+                || mm != EC_METHOD_MASK_UNSET)
+        {
+            u_dbg("DELETE on a Proxy-Uri is allowed only for Publish removal");
+            (void) ec_response_set_code(srv, EC_BAD_OPTION);
+            return 0;
+        }
+    }
 
     if ((rc = ec_filesys_del_resource(g_ctx.fs, uri)) == 0)
     {
@@ -716,8 +737,23 @@ int serve_put(ec_server_t *srv, ec_rep_t *rep)
 
     ec_mt_t mta[1];
     size_t pload_sz;
+    ec_method_mask_t mm;
     uint8_t etag[EC_ETAG_SZ] = { 0 }, *pload;
     ec_res_t *res = ec_rep_get_res(rep);
+
+    /* Admin ops for delegated resource bypass method mask check.
+     * Here we check that in case the resource is accessed through
+     * a Proxy-Uri, the DELETE op is admin only. */
+    if (ec_request_via_proxy(srv))
+    {
+        if (ec_request_get_publish(srv, &mm)
+                || mm == EC_METHOD_MASK_UNSET)
+        {
+            u_dbg("no Publish Option, or bad methods' mask");
+            (void) ec_response_set_code(srv, EC_BAD_OPTION);
+            return 0;
+        }
+    }
 
     /* Check conditionals:
      * 1) If-None-Match
@@ -769,22 +805,24 @@ ec_cbrc_t create(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
     /* Get the requested URI and method. */
     (void) ec_request_get_uri(srv, uri, &is_proxy);
 
+    /* Resource creation is done via PUT. */
     if ((method = ec_server_get_method(srv)) != EC_COAP_PUT)
     {
         (void) ec_response_set_code(srv, EC_NOT_FOUND);
         return EC_CBRC_READY;
     }
 
-    /* Support for Publish option. */
-    if (is_proxy)
+    /* Experimental support for the Publish option. */
+    if (is_proxy && ec_request_get_publish(srv, &mm))
     {
-        con_err_ifm (ec_request_get_publish(srv, &mm),
-                "Proxy-Uri supported for Publish Option only");
+        u_dbg("Proxy-Uri supported only for testing the Publish Option");
+        (void) ec_response_set_code(srv, EC_PROXYING_NOT_SUPPORTED);
+        return EC_CBRC_READY;
     }
 
     CHAT("adding resource for: %s", uri);
 
-    /* Create resource with all methods allowed. */
+    /* When !publish, create resource with all methods allowed. */
     con_err_ifm((res = ec_resource_new(uri, mm, 3600)) == NULL,
             "resource creation failed");
 
@@ -806,7 +844,10 @@ ec_cbrc_t create(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
             "adding resource failed");
     res = NULL;
 
-    /* Register the callback that will serve this URI. */
+    /* Register the callback that will serve this URI. 
+     * XXX If we get an error here it's really a bad thing because 
+     * the resource has been already registered and we go into an 
+     * inconsistent state. */
     con_err_ifm(ec_register_cb(g_ctx.coap, uri, serve, NULL),
             "registering callback for %s failed", uri);
 
