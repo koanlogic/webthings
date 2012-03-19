@@ -99,6 +99,7 @@ void process_http_request(struct evhttp_request *req, void *arg)
 
 	switch (req->type)
 	{
+	case EVHTTP_REQ_HEAD:
 	case EVHTTP_REQ_GET:
 		con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_GET,
 				g_ctx.curi, EC_COAP_CON)) == NULL);
@@ -112,6 +113,27 @@ void process_http_request(struct evhttp_request *req, void *arg)
 		int len = evbuffer_get_length(body);
 
 		con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_PUT,
+				g_ctx.curi, EC_COAP_CON)) == NULL);
+
+		process_set_coap_headers(req,req->type);
+
+		//set payload
+		char *tmp = malloc(len+1);
+		memcpy(tmp, evbuffer_pullup(body, -1), len);
+		tmp[len] = '\0';
+		ec_request_set_payload(g_ctx.cli,tmp,len);
+
+		free(tmp);
+	}
+	break;
+	case EVHTTP_REQ_POST:
+	{
+
+		struct evbuffer *body = evhttp_request_get_input_buffer(req);
+
+		int len = evbuffer_get_length(body);
+
+		con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_POST,
 				g_ctx.curi, EC_COAP_CON)) == NULL);
 
 		process_set_coap_headers(req,req->type);
@@ -276,7 +298,7 @@ process_set_coap_headers(struct evhttp_request *req, ec_rc_t rc){
 			//set Content-Type
 			ec_mt_from_string(header->value,&pmt);
 			ec_request_add_content_type(g_ctx.cli, pmt);
-		} else if (strcmp(header->key,"Accept")==0 && rc!=EVHTTP_REQ_PUT)
+		} else if (strcmp(header->key,"Accept")==0 && rc!=EVHTTP_REQ_PUT && rc!=EVHTTP_REQ_POST)
 		{
 			//set Content-Type
 			ec_mt_from_string(header->value,&pmt);
@@ -364,7 +386,6 @@ void process_set_http_headers(struct evhttp_request *req)
 			case EC_OPT_MAX:
 			default:
 				break;
-
 		}
 	}
 
