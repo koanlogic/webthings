@@ -24,7 +24,7 @@ typedef struct
     bool verbose;
     struct timeval sep;
     struct timeval app_tout;
-    char *addr;
+    char addr[128];
     uint16_t port;
 } ctx_t;
 
@@ -53,12 +53,13 @@ void proxy_res(ec_client_t *cli);
 int cache_put(ec_server_t *srv, const char *uri);
 int cache_get(ec_server_t *srv, const char *uri, ec_mt_t *mta, size_t mta_sz);
 void usage(const char *prog);
+int parse_addr(const char *ap, char *a, size_t a_sz, uint16_t *p);
 
 int main(int ac, char *av[])
 {
     int c;
 
-    while ((c = getopt(ac, av, "b:hRs:v")) != -1)
+    while ((c = getopt(ac, av, "a:b:hRs:v")) != -1)
     {
         switch (c)
         {
@@ -71,6 +72,11 @@ int main(int ac, char *av[])
                 break;
             case 's':
                 if (sscanf(optarg, "%lld", (long long *)&g_ctx.sep.tv_sec) != 1)
+                    usage(av[0]);
+                break;
+            case 'a':
+                if (parse_addr(optarg, g_ctx.addr, sizeof g_ctx.addr, 
+                            &g_ctx.port))
                     usage(av[0]);
                 break;
             case 'h':
@@ -204,6 +210,7 @@ void usage(const char *prog)
         "   where opts is one of:                                       \n"
         "       -h  this help                                           \n"
         "       -v  be verbose                                          \n"
+        "       -a <addr[+port]>    listening address and port          \n"
         "       -b <block size>     enables automatic Block handling    \n"
         "       -s <num>            separate response after num seconds \n"
         "                                                               \n"

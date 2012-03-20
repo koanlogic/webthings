@@ -69,7 +69,8 @@ static int ec_client_del(ec_client_t *cli, ec_clients_t *clts)
     dbg_return_if (cli == NULL, -1);
     dbg_return_if (clts == NULL, -1);
 
-    TAILQ_REMOVE(&clts->h, cli, next);
+    if (!TAILQ_EMPTY(&clts->h))
+        TAILQ_REMOVE(&clts->h, cli, next);
     cli->parent = NULL;
 
     return 0;
