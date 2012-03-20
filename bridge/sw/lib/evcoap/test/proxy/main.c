@@ -46,7 +46,7 @@ ec_cbrc_t cache_serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2);
 ec_cbrc_t proxy_req(ec_server_t *s, void *u0, struct timeval *u1, bool u2);
 int cache_get(ec_server_t *srv, const char *uri, ec_mt_t *mta, size_t mta_sz);
 int cache_put(ec_server_t *srv, const char *uri);
-int map_options_forward(ec_opts_t *src, ec_opts_t *dst, ec_client_t *cli);
+int map_options_forward(ec_opts_t *src, ec_client_t *cli);
 int map_options_backward(ec_opts_t *src, ec_opts_t *dst);
 int parse_addr(const char *ap, char *a, size_t a_sz, uint16_t *p);
 int proxy_bind(void);
@@ -391,7 +391,7 @@ ec_cbrc_t cache_serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
 
     /* Retrieve method, URI and Accept'able media types. */
     dbg_err_if ((method = ec_server_get_method(srv)) == EC_METHOD_UNSET);
-    dbg_err_if (ec_request_get_uri(srv, uri, &is_proxy));
+    dbg_err_if (ec_request_get_uri(srv, uri, &is_proxy) == NULL);
     dbg_err_if (ec_request_get_acceptable_media_types(srv, mta, &mta_sz));
 
     switch (method)
@@ -486,8 +486,7 @@ ec_cbrc_t proxy_req(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
     dbg_err_if ((cli = ec_request_new(g_ctx.coap, m, uri, mm)) == NULL);
 
     /* Map Options in the forward direction (request to request). */
-    dbg_err_if (map_options_forward(ec_server_get_request_options(srv),
-                ec_client_get_request_options(cli), cli));
+    dbg_err_if (map_options_forward(ec_server_get_request_options(srv), cli));
 
     dbg_err_if (ec_request_send(cli, proxy_res, srv, &g_ctx.app_tout));
 
@@ -678,12 +677,15 @@ int map_options_backward(ec_opts_t *src, ec_opts_t *dst)
 
     return 0;
 }
-int map_options_forward(ec_opts_t *src, ec_opts_t *dst, ec_client_t *cli)
+int map_options_forward(ec_opts_t *src, ec_client_t *cli)
 {
     ec_opt_sym_t sym;
+    ec_opts_t *dst;
 
     dbg_return_if (src == NULL, -1);
-    dbg_return_if (dst == NULL, -1);
+    dbg_return_if (cli == NULL, -1);
+
+    dbg_return_if ((dst = ec_client_get_request_options(cli)) == NULL, -1);
 
     /* Looping this way instead of FOREACH'ing over the opts is 
      * less efficient, but lets us do deep inspection on forwarded

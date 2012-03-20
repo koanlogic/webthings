@@ -120,7 +120,10 @@ ec_opt_sym_t ec_opt_num2sym(size_t num)
             return (ec_opt_sym_t) i;
     }
 
-    u_dbg("option with number %zu could not be resolved", num);
+    if (EC_OPT_NUM_IS_FENCEPOST(num))
+        u_dbg("fencepost (%zu)", num);
+    else
+        u_dbg("option with number %zu is unknown", num);
 
     return EC_OPT_NONE;
 }
