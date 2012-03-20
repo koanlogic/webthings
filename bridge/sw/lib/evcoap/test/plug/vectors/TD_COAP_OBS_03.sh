@@ -28,7 +28,7 @@ t_cli_set_observe 9999
 # reboot the server after a few seconds
 t_timer 1 "t_dbg rebooting server" "kill ${spid}" "t_srv_run_bg"
 
-t_cli_run_bg 1>&2
+t_cli_run_bg 1>&2 2>/dev/null
 
 #
 # Step 2
@@ -61,9 +61,11 @@ sleep 3
 t_field_check 1 srv Code GET
 mid2=`t_field_get 1 srv MID` 
 
+if [ "${EC_PLUG_DUMP}" = "1" ]; then
 # after rebooting the server, id is reset back to 1 so make sure message is
 # different
-[ "${mid1}" = "${mid2}" ] && t_die 1 "message ID must be different!"
+    [ "${mid1}" = "${mid2}" ] && t_die 1 "message ID must be different!"
+fi
 
 #
 # Step 5
