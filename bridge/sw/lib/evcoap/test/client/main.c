@@ -355,7 +355,6 @@ int client_run(void)
 
         CHAT("requesting block n.%u (size: %u)", g_ctx.block2.block_no,
                 g_ctx.block2.block_sz);
-        u_dbg("S: %u", g_ctx.block2.block_sz);
 
         /* The client MUST set the M bit of a Block2 Option to zero. */
         dbg_err_if (ec_request_add_block2(g_ctx.cli, g_ctx.block2.block_no,
@@ -580,7 +579,6 @@ int client_save_to_file(const uint8_t *pl, size_t pl_sz)
     {
         con_err_sifm (fwrite(pl, pl_sz, 1, stdout) != 1,
                 "could not write to %s", g_ctx.ofn);
-        (void) fputs("\n", stdout);
         return 0;
     }
 

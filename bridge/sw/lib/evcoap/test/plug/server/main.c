@@ -159,12 +159,12 @@ int main(int ac, char *av[])
                 (const uint8_t *) "Hello world!", strlen("Hello world!"),
                 "SeparateTest", &resource_cb_separate) ||
 
-            add_resource("/large_update", EC_GET_MASK | EC_PUT_MASK, 0,
+            add_resource("/large-update", EC_GET_MASK | EC_PUT_MASK, 0,
                 "text/plain", (const uint8_t *) "Hello world!",
                 strlen("Hello world!"),
                 "LargeTest", &resource_cb_large_update) ||
 
-            add_resource("/large_create", EC_GET_MASK | EC_POST_MASK, 0,
+            add_resource("/large-create", EC_GET_MASK | EC_POST_MASK, 0,
                 "text/plain", (const uint8_t *) "Hello world!",
                 strlen("Hello world!"),
                 "LargeTest", &resource_cb_large_create) ||
@@ -663,6 +663,7 @@ static ec_cbrc_t resource_cb_large_create(ec_server_t *srv, void *u0,
         case EC_COAP_POST:
             dbg_err_if (mod_res(srv, url, EC_GET_MASK | EC_PUT_MASK, 0,
                         "text/plain", payload, payload_sz, true));
+            (void) ec_response_set_code(srv, EC_CREATED);
             break;
         
         default:

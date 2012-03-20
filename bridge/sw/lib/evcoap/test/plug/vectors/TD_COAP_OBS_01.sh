@@ -9,8 +9,11 @@
 # Init
 #
 t_init
-t_srv_run
+t_srv_run_bg
 spid=$!
+
+# terminate test in 2 seconds
+t_timer 2 "t_dbg terminating test" "kill ${spid}"
 
 #
 # Step 1
@@ -25,9 +28,6 @@ t_cli_run 1>&2 2>/dev/null
 
 # stop server after 2 seconds
 t_dbg "waiting for notification..."
-
-sleep 2
-kill ${spid}
 
 #
 # Step 2

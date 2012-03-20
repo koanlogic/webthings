@@ -11,7 +11,7 @@ rt="LargeTest"
 # Init
 #
 t_init
-t_srv_run
+t_srv_run_bg
 
 #
 # Step 1

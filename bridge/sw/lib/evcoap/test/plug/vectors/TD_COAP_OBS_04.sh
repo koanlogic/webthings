@@ -9,7 +9,7 @@
 # Init
 #
 t_init
-t_srv_run
+t_srv_run_bg
 
 #
 # Step 1
@@ -23,7 +23,9 @@ t_cli_set_path /obs
 # long-running observation
 t_cli_set_observe 9999
 
-t_cli_run 1>&2 2>/dev/null
+
+
+t_cli_run_bg 1>&2 2>/dev/null
 cpid=$!
 t_dbg "client pid: $cpid"
 
