@@ -1,8 +1,7 @@
 ## TD_COAP_OBS_02
 ##
 ## description: Stop resource observation
-## status: complete,failure
-## notes: Observe field in response from server should be undefined (Step 3)
+## status: complete,tested
 
 . ../share/common.sh
 
@@ -10,7 +9,7 @@
 # Init
 #
 t_init
-t_srv_run
+t_srv_run_bg
 
 #
 # Step 1
@@ -26,19 +25,16 @@ t_cli_set_observe 2
 
 t_cli_run 1>&2
 
-sleep 2
-
 #
 # Step 2
 #
 t_dbg "[Step 2] Client sends GET request not containing Observe option."
 
-# first message from client (observing)
-t_field_check 1 srv Code GET
-t_field_check 1 srv Observe 0
+# unset observe field and make a new request
+t_cli_set_observe
+t_cli_run 1>&2
 
-# second message from client (stopping)
-t_field_get 2 srv Observe >/dev/null
+t_field_get 3 srv Observe >/dev/null
 [ $? -eq 0 ] && t_die 1 "field must be undefined!"
 
 #
@@ -46,12 +42,8 @@ t_field_get 2 srv Observe >/dev/null
 #
 t_dbg "[Step 3] Server sends response not containing Observe option."
 
-# first message from server (observing)
-t_field_get 1 cli Observe >/dev/null
-[ $? -ne 1 ] || t_die 1 "field must be defined!"
-
 # second message from server (stopping)
-t_field_get 2 cli Observe >/dev/null
+t_field_get 3 cli Observe >/dev/null
 [ $? -eq 0 ] && t_die 1 "field must be undefined!"
 
 #

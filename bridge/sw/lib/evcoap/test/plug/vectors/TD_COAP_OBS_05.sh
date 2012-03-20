@@ -9,7 +9,7 @@
 # Init
 #
 t_init
-t_srv_run
+t_srv_run_bg
 
 #
 # Step 1
@@ -23,16 +23,18 @@ t_cli_set_path /obs
 # long-running observation
 t_cli_set_observe 9999
 
-t_cli_run 1>&2 2>/dev/null
+t_cli_run_bg 1>&2
 cpid=$!
 t_dbg "client pid: $cpid"
 
-# kill the client after a few seconds
-sleep 2
+# reboot client 
+sleep 1
 kill ${cpid} 
-t_cli_run 1>&2 
+t_cli_run_bg 1>&2 
+cpid=$!
 
-sleep 3
+# TODO should no longer receive
+sleep 1
 
 #
 # Step 2

@@ -115,6 +115,8 @@ t_term()
     else 
         t_dbg "failure (rc=${rc})"
     fi
+
+    #t_dbg "jobs left: `jobs -p`"
     
     # kill specified pids
     kill ${EC_PLUG_PIDS} 2>/dev/null
@@ -130,12 +132,12 @@ t_term()
     exit ${rc}
 }
 
-# Run a CoAP server.
-t_srv_run()
+__t_srv_run()
 {
     [ "${EC_PLUG_MODE}" != "cli" ] || return 2
 
     args=""
+    fg=$1
 
     [ -z ${EC_PLUG_SRV_ARG_URI} ] || \
         args="${args} -u ${EC_PLUG_SRV_ARG_URI}"
@@ -143,32 +145,49 @@ t_srv_run()
     [ -z ${EC_PLUG_SRV_ARG_SEP} ] || \
         args="${args} -s ${EC_PLUG_SRV_ARG_SEP}"
 
-    t_wrap 1 "${EC_PLUG_SRV_CMD}" "${args}" "$@"    
+    t_wrap ${fg} "${EC_PLUG_SRV_CMD}" "${args}" "$@"
+}
 
-    # since command was backgrounded, add to list of processes to be killed
-    t_pid_add $!
+# Run a CoAP server in foreground.
+t_srv_run()
+{
+    __t_srv_run 0
 
     # might have been killed intentionally, so don't die!
     [ $? -eq 0 ] || t_dbg 1 "server failed! (rc=$?)"
 }
 
+# Run a CoAP server in background.
+t_srv_run_bg()
+{
+    __t_srv_run 1
+
+    # add pid to list of processes to be killed
+    t_pid_add $!
+}
+
+
 # Set server uri
 t_srv_set_uri()
 {
+    [ -z $1 ] && t_die 1 "URI must be defined!"
+
     EC_PLUG_SRV_ARG_URI=$1
 }
 
 # Set argument for separate response (seconds)
 t_srv_set_sep()
 {
+    [ -z $1 ] && unset EC_PLUG_CLI_ARG_SEP
+
     EC_PLUG_SRV_ARG_SEP=$1
 }
 
-# Run a CoAP client.
-t_cli_run()
+__t_cli_run()
 {
     [ "${EC_PLUG_MODE}" != "srv" ] || return 2
 
+    fg=$1
     args=""
 
     [ -z ${EC_PLUG_CLI_ARG_URI} ] || \
@@ -195,24 +214,40 @@ t_cli_run()
     [ -z ${EC_PLUG_CLI_ARG_OUTPUT} ] || \
         args="${args} -o ${EC_PLUG_CLI_ARG_OUTPUT}"
 
-    t_wrap 1 "${EC_PLUG_CLI_CMD}" "${args}" "$@"
+    t_wrap ${fg} "${EC_PLUG_CLI_CMD}" "${args}" "$@"
+}
 
-    # since command was backgrounded, add to list of processes to be killed
-    t_pid_add $!
+# Run a CoAP client in foreground.
+t_cli_run()
+{
+    __t_cli_run 0
 
     # might have been killed intentionally, so don't die!
     [ $? -eq 0 ] || t_dbg 1 "client failed! (rc=$?)"
 }
 
+# Run a CoAP client in background.
+t_cli_run_bg()
+{
+    __t_cli_run 1
+
+    # add pid to list of processes to be killed
+    t_pid_add $!
+}
+
 # Set client uri
 t_cli_set_uri()
 {
+    [ -z $1 ] && t_die 1 "URI must be defined!"
+
     EC_PLUG_CLI_ARG_URI=$1
 }
 
 # Set client path
 t_cli_set_path()
 {
+    [ -z $1 ] && t_die 1 "Path must be defined!"
+
     EC_PLUG_CLI_ARG_PATH=$1
 }
 
@@ -232,6 +267,8 @@ t_cli_set_type()
 # Set client method
 t_cli_set_method()
 {
+    [ -z $1 ] && t_die 1 "Method must be defined!"
+
     m=$1
 
     case "${m}" in
@@ -245,24 +282,32 @@ t_cli_set_method()
 # Set client payload
 t_cli_set_payload()
 {
+    [ -z $1 ] && unset EC_PLUG_CLI_ARG_PAYLOAD
+
     EC_PLUG_CLI_ARG_PAYLOAD=$1
 }
 
 # Activate client Token option
 t_cli_set_token()
 {
+    [ -z $1 ] && unset EC_PLUG_CLI_ARG_TOKEN
+
     EC_PLUG_CLI_ARG_TOKEN=1
 }
 
 # Set client Block option
 t_cli_set_block()
 {
+    [ -z $1 ] && unset EC_PLUG_CLI_ARG_BLOCK
+
     EC_PLUG_CLI_ARG_BLOCK=$1
 }
 
 # Set client Observe option
 t_cli_set_observe()
 {
+    [ -z $1 ] && unset EC_PLUG_CLI_ARG_OBS
+
     EC_PLUG_CLI_ARG_OBS=$1
 }
 

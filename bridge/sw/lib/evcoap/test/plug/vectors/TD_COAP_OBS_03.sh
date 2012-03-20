@@ -9,7 +9,7 @@
 # Init
 #
 t_init
-t_srv_run
+t_srv_run_bg
 spid=$!
 t_dbg "server pid: $spid"
 
@@ -25,12 +25,11 @@ t_cli_set_path /obs
 # long-running observation
 t_cli_set_observe 9999
 
-t_cli_run 1>&2 2>/dev/null
-
 # reboot the server after a few seconds
-sleep 2 
-kill ${spid} 
-t_srv_run
+t_timer 2 "t_dbg rebooting server" "kill ${spid}"
+t_srv_run_bg
+
+t_cli_run 1>&2 2>/dev/null
 
 #
 # Step 2
@@ -51,10 +50,10 @@ t_dbg "[Step 3] Client does not display updated information."
 #
 t_dbg "[Step 4] After Max-Age expiration, Client sends a new GET with Observe"\
       "option for Server's observable resource."
+sleep 2
 
 echo "# [warn] incomplete!!"
 
-sleep 2
 #t_cli_set_observe 2
 #t_cli_run 1>&2
 

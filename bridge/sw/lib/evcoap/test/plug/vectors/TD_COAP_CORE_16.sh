@@ -13,7 +13,7 @@ c="Hello world!"
 
 # server responds after 1 second
 t_srv_set_sep 1
-t_srv_run
+t_srv_run_bg
 
 #
 # Step 1
