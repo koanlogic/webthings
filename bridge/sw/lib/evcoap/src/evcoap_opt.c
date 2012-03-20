@@ -806,6 +806,16 @@ err:
     return NULL;
 }
 
+const char *ec_opts_get_location_path(ec_opts_t *opts)
+{
+    return ec_opts_get_string(opts, EC_OPT_LOCATION_PATH);
+}
+
+const char *ec_opts_get_location_query(ec_opts_t *opts)
+{
+    return ec_opts_get_string(opts, EC_OPT_LOCATION_QUERY);
+}
+
 int ec_opts_get_publish(ec_opts_t *opts, uint8_t *mm)
 {
     uint64_t tmp = 0;

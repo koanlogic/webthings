@@ -46,7 +46,8 @@ ec_cbrc_t cache_serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2);
 ec_cbrc_t proxy_req(ec_server_t *s, void *u0, struct timeval *u1, bool u2);
 int cache_get(ec_server_t *srv, const char *uri, ec_mt_t *mta, size_t mta_sz);
 int cache_put(ec_server_t *srv, const char *uri);
-int map_options_forward(ec_opts_t *src, ec_opts_t *dst);
+int map_options_forward(ec_opts_t *src, ec_opts_t *dst, ec_client_t *cli);
+int map_options_backward(ec_opts_t *src, ec_opts_t *dst);
 int parse_addr(const char *ap, char *a, size_t a_sz, uint16_t *p);
 int proxy_bind(void);
 int proxy_init(void);
@@ -447,6 +448,8 @@ ec_cbrc_t proxy_req(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
         const uint8_t *pload;
         size_t pload_sz;
 
+        CHAT("Handling Publish request for %s", uri);
+
         /* Publication default lifetime is 3600 seconds unless specified
          * otherwise via Max-Age. */
         if (ec_request_get_max_age(srv, &max_age))
@@ -484,9 +487,11 @@ ec_cbrc_t proxy_req(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
 
     /* Map Options in the forward direction (request to request). */
     dbg_err_if (map_options_forward(ec_server_get_request_options(srv),
-                ec_client_get_request_options(cli)));
+                ec_client_get_request_options(cli), cli));
 
     dbg_err_if (ec_request_send(cli, proxy_res, srv, &g_ctx.app_tout));
+
+    CHAT("Forwarding request to %s", uri);
 
     return EC_CBRC_WAIT;
 err:
@@ -519,7 +524,14 @@ void proxy_res(ec_client_t *cli)
             break;
     }
 
-    /* TODO map Options. */
+    CHAT("Got response");
+
+    /* Map Options backwards (response to response). */
+    if (s == EC_CLI_STATE_REQ_DONE)
+    {
+        dbg_err_if (map_options_backward(ec_client_get_response_options(cli),
+                    ec_server_get_response_options(srv)));
+    }
 
     /* Try to get payload. */
     if ((pl = ec_response_get_payload(cli, &pl_sz)) != NULL)
@@ -536,7 +548,137 @@ err:
     return;
 }
 
-int map_options_forward(ec_opts_t *src, ec_opts_t *dst)
+int map_options_backward(ec_opts_t *src, ec_opts_t *dst)
+{
+    ec_opt_sym_t sym;
+
+    dbg_return_if (src == NULL, -1);
+    dbg_return_if (dst == NULL, -1);
+
+    /* Looping this way instead of FOREACH'ing over the opts is 
+     * less efficient, but lets us do deep inspection on forwarded
+     * Options, which may be useful in case any mapping policy is
+     * taken into consideration at a further stage. */
+    for (sym = EC_OPT_NONE + 1; sym < EC_OPT_MAX; ++sym)
+    {
+        switch (sym)
+        {
+            /* Really not expected in a response. */
+            case EC_OPT_PROXY_URI:
+            case EC_OPT_URI_HOST:
+            case EC_OPT_URI_PORT:
+            case EC_OPT_URI_PATH:
+            case EC_OPT_URI_QUERY:
+            case EC_OPT_ACCEPT:
+            case EC_OPT_IF_MATCH:
+            case EC_OPT_IF_NONE_MATCH:
+                break;
+
+            /* Publish can't be forwarded. */
+            case EC_OPT_PUBLISH:
+                break;
+
+            case EC_OPT_LOCATION_PATH:
+            {
+                const char *s;
+
+                if ((s = ec_opts_get_location_path(src)) != NULL)
+                    dbg_if (ec_opts_add_location_path(dst, s));
+                break;
+            }
+
+            case EC_OPT_LOCATION_QUERY:
+            {
+                const char *s;
+
+                if ((s = ec_opts_get_location_query(src)) != NULL)
+                    dbg_if (ec_opts_add_location_query(dst, s));
+                break;
+            }
+
+            case EC_OPT_CONTENT_TYPE:
+            {
+                uint16_t ct;
+
+                /* It MUST NOT occur more than once. */
+                if (ec_opts_get_content_type(src, &ct) == 0)
+                    dbg_if (ec_opts_add_content_type(dst, ct));
+                break;
+            }
+
+            case EC_OPT_MAX_AGE:
+            {
+                uint32_t ma;
+
+                /* It MAY occur one or more times in a request (?!). */
+                if (ec_opts_get_max_age(src, &ma) == 0)
+                    dbg_if (ec_opts_add_max_age(dst, ma));
+                break;
+            }
+
+            case EC_OPT_ETAG:
+            {
+                uint8_t *et;
+                size_t et_sz, i = 0;
+
+                /* It MAY occur one or more times in a request. */
+                for (; (et = ec_opts_get_etag_nth(src, &et_sz, i)) != NULL; ++i)
+                {
+                    if (et_sz)
+                       dbg_if (ec_opts_add_etag(dst, et, et_sz));
+                }
+                break;
+            }
+
+            case EC_OPT_OBSERVE:
+            {
+                /* It MUST NOT occur more than once. */
+                if (ec_opts_get_observe(src, NULL) == 0) 
+                    dbg_if (ec_opts_add_observe(dst, 0));
+                break;
+            }
+
+            case EC_OPT_TOKEN:
+            {
+                uint8_t *token;
+                size_t token_sz;
+
+                /* It MUST NOT occur more than once. */
+                if ((token = ec_opts_get_token(src, &token_sz)) != NULL)
+                    dbg_if (ec_opts_add_token(dst, token, token_sz));
+                break;
+            }
+
+            case EC_OPT_BLOCK2:
+            {
+                uint8_t szx;
+                bool more;
+                uint32_t num;
+
+                if (ec_opts_get_block2(src, &num, &more, &szx) == 0)
+                    dbg_if (ec_opts_add_block2(dst, num, more, szx));
+                break;
+            }
+
+            case EC_OPT_BLOCK1:
+            {
+                uint8_t szx;
+                bool more;
+                uint32_t num;
+
+                if (ec_opts_get_block1(src, &num, &more, &szx) == 0)
+                    dbg_if (ec_opts_add_block1(dst, num, more, szx));
+                break;
+            }
+
+            default:
+                break;
+        }
+    }
+
+    return 0;
+}
+int map_options_forward(ec_opts_t *src, ec_opts_t *dst, ec_client_t *cli)
 {
     ec_opt_sym_t sym;
 
@@ -617,7 +759,7 @@ int map_options_forward(ec_opts_t *src, ec_opts_t *dst)
 
                 /* It MUST NOT occur more than once. */
                 if ((token = ec_opts_get_token(src, &token_sz)) != NULL)
-                    dbg_if (ec_opts_add_token(dst, token, token_sz));
+                    dbg_if (ec_request_add_token(cli, token, token_sz));
                 break;
             }
 

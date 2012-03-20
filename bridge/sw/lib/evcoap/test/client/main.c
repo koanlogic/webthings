@@ -61,7 +61,6 @@ ctx_t g_ctx = {
     .cli = NULL,
     .base = NULL,
     .dns = NULL,
-    .sig_ev = NULL,
     .uri = DEFAULT_URI,
     .method = EC_COAP_GET,
     .model = EC_COAP_NON,

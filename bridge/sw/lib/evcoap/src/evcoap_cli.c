@@ -916,10 +916,11 @@ static ec_net_cbrc_t ec_client_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
 
     /* If there is a token check if it matches the one we sent out with the
      * request. */
-    t = ec_opts_get(&pdu->opts, EC_OPT_TOKEN);
-    if (t)
+    if ((t = ec_opts_get(&pdu->opts, EC_OPT_TOKEN)) != NULL)
+    {
         dbg_err_ifm (t->l != flow->token_sz || memcmp(t->v, flow->token, t->l),
                 "received token mismatch");
+    }
 
     /* Attach response code to the client context. */
     dbg_err_if (ec_flow_set_resp_code(flow, (ec_rc_t) h->code));

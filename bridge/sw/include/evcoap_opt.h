@@ -120,6 +120,8 @@ ec_opt_t *ec_opts_get(ec_opts_t *opts, ec_opt_sym_t sym);
 int ec_opts_get_uint(ec_opts_t *opts, ec_opt_sym_t sym, uint64_t *ui);
 const char *ec_opts_get_string(ec_opts_t *opts, ec_opt_sym_t sym);
 const char *ec_opts_get_uri_host(ec_opts_t *opts);
+const char *ec_opts_get_location_path(ec_opts_t *opts);
+const char *ec_opts_get_location_query(ec_opts_t *opts);
 int ec_opts_get_uri_port(ec_opts_t *opts, uint16_t *port);
 int ec_opts_get_if_none_match(ec_opts_t *opts);
 int ec_opts_get_accept_all(ec_opts_t *opts, ec_mt_t *mta, size_t *mta_sz);

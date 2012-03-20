@@ -205,6 +205,21 @@ void ec_server_free(ec_server_t *srv)
     }
 }
 
+ec_opts_t *ec_server_get_response_options(ec_server_t *srv)
+{
+    ec_pdu_t *res;
+    ec_opts_t *opts;
+
+    dbg_return_if (srv == NULL, NULL);
+
+    dbg_err_if ((res = ec_server_get_response_pdu(srv)) == NULL);
+
+    return &res->opts;
+err:
+    return NULL;
+
+}
+
 ec_opts_t *ec_server_get_request_options(ec_server_t *srv)
 {
     ec_pdu_t *req;
@@ -972,4 +987,11 @@ ec_pdu_t *ec_server_get_request_pdu(ec_server_t *srv)
     dbg_return_if (srv == NULL, NULL);
 
     return srv->req;
+}
+
+ec_pdu_t *ec_server_get_response_pdu(ec_server_t *srv)
+{
+    dbg_return_if (srv == NULL, NULL);
+
+    return srv->res;
 }
