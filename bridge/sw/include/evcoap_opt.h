@@ -62,7 +62,6 @@ struct ec_opt_s
     TAILQ_ENTRY(ec_opt_s) next;
 };
 
-
 struct ec_opts_s
 {
     uint8_t enc[EC_OPTS_MAX_LEN];
@@ -125,7 +124,9 @@ int ec_opts_get_uri_port(ec_opts_t *opts, uint16_t *port);
 int ec_opts_get_if_none_match(ec_opts_t *opts);
 int ec_opts_get_accept_all(ec_opts_t *opts, ec_mt_t *mta, size_t *mta_sz);
 int ec_opts_get_content_type(ec_opts_t *opts, uint16_t *ct);
+uint8_t *ec_opts_get_token(ec_opts_t *opts, size_t *token_sz);
 uint8_t *ec_opts_get_etag_nth(ec_opts_t *opts, size_t *etag_sz, size_t n);
+uint8_t *ec_opts_get_if_match_nth(ec_opts_t *opts, size_t *etag_sz, size_t n);
 const char *ec_opts_get_proxy_uri(ec_opts_t *opts, char url[U_URI_STRMAX]);
 int ec_opts_get_block(ec_opts_t *opts, uint32_t *num, bool *more,
         uint8_t *szx, ec_opt_sym_t which);

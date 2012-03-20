@@ -351,7 +351,6 @@ ec_opt_t *ec_opts_get(ec_opts_t *opts, ec_opt_sym_t sym)
 
 const char *ec_opts_get_string(ec_opts_t *opts, ec_opt_sym_t sym)
 {
-
     dbg_return_if (ec_opt_sym2type(sym) != EC_OPT_TYPE_STRING, NULL);
 
     /* Assume that the setter has NUL-terminated the value buffer. */
@@ -923,6 +922,36 @@ uint8_t *ec_opts_get_etag_nth(ec_opts_t *opts, size_t *etag_sz, size_t n)
         return NULL;
 
     *etag_sz = o->l;
+
+    return o->v;
+}
+
+uint8_t *ec_opts_get_if_match_nth(ec_opts_t *opts, size_t *etag_sz, size_t n)
+{
+    ec_opt_t *o;
+
+    dbg_return_if (opts == NULL, NULL);
+    dbg_return_if (etag_sz == NULL, NULL);
+
+    if ((o = ec_opts_get_nth(opts, EC_OPT_IF_MATCH, n)) == NULL)
+        return NULL;
+
+    *etag_sz = o->l;
+
+    return o->v;
+}
+
+uint8_t *ec_opts_get_token(ec_opts_t *opts, size_t *token_sz)
+{
+    ec_opt_t *o;
+
+    dbg_return_if (opts == NULL, NULL);
+    dbg_return_if (token_sz == NULL, NULL);
+    
+    if ((o = ec_opts_get(opts, EC_OPT_TOKEN)) == NULL)
+        return NULL;
+
+    *token_sz = o->l;
 
     return o->v;
 }

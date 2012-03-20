@@ -120,6 +120,13 @@ err:
     return NULL;
 }
 
+bool ec_resource_is_empty(ec_res_t *res)
+{
+    dbg_return_if (res == NULL, true);
+
+    return TAILQ_EMPTY(&res->reps) ? true : false;
+}
+
 int ec_rep_del(ec_res_t *res, ec_rep_t *rep)
 {
     dbg_return_if (res == NULL, -1);

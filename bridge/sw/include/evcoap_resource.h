@@ -73,6 +73,7 @@ int ec_resource_add_rep(ec_res_t *res, const uint8_t *data, size_t data_sz,
         ec_mt_t mt, uint8_t etag[EC_ETAG_SZ]);
 int ec_resource_update_rep(ec_res_t *res, const uint8_t *data, size_t data_sz,
         ec_mt_t media_type, uint8_t etag[EC_ETAG_SZ]);
+bool ec_resource_is_empty(ec_res_t *res);
 
 /* Link formatter & friends. */
 char *ec_res_link_format_str(const ec_res_t *res, const char *origin,

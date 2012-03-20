@@ -205,6 +205,20 @@ void ec_server_free(ec_server_t *srv)
     }
 }
 
+ec_opts_t *ec_server_get_request_options(ec_server_t *srv)
+{
+    ec_pdu_t *req;
+    ec_opts_t *opts;
+
+    dbg_return_if (srv == NULL, NULL);
+
+    dbg_err_if ((req = ec_server_get_request_pdu(srv)) == NULL);
+
+    return &req->opts;
+err:
+    return NULL;
+}
+
 void ec_server_input(evutil_socket_t sd, short u, void *arg)
 {
     ec_t *coap = (ec_t *) arg;
