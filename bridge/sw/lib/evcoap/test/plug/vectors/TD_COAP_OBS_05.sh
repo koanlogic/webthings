@@ -27,21 +27,43 @@ t_cli_run_bg 1>&2
 cpid=$!
 t_dbg "client pid: $cpid"
 
-# reboot client 
 sleep 1
-kill ${cpid} 
-t_cli_run_bg 1>&2 
-cpid=$!
 
-# TODO should no longer receive
-sleep 1
+# reboot client by sending it a SIGHUP
+t_dbg "rebooting"
+kill -HUP ${cpid} 
+
+sleep 2
 
 #
 # Step 2
 #
 t_dbg "[Step 2] Server sends response containing Observe option."
 
-echo "# [warn] incomplete!"
+t_field_get 1 cli Observe >/dev/null
+[ $? -ne 1 ] || t_die 1 "field must be defined!"
+t_field_get 2 cli Observe >/dev/null
+[ $? -ne 1 ] || t_die 1 "field must be defined!"
+
+#
+# Step 3
+#
+t_dbg "[Step 3] Client discards response and does not display information."
+
+#
+# Step 4
+#
+t_dbg "[Step 4] Client sends RST to Server."
+
+t_field_check srv 2 T RST 
+
+#
+# Step 5
+#
+t_dbg "[Step 5] Server does not send further response."
+
+t_field_get 4 cli Observe >/dev/null
+[ $? -eq 0 ] && t_die 1 "field must be undefined!"
 
 #
 # Cleanup

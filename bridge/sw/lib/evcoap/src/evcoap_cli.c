@@ -721,8 +721,6 @@ bool ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
     if ((is_final_state = ec_client_state_is_final(state))
             || cli->state == EC_CLI_STATE_WAIT_NFY)
     {
-        (void) ec_client_invoke_user_callback(cli);
-
         /* Check if the user has canceled the observation and in case set
          * the "final state" indicator to allow clean disposal of the client
          * context. */
@@ -731,6 +729,8 @@ bool ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
             dbg_if (ec_client_rst_peer(cli));
             is_final_state = true;
         }
+        else
+            (void) ec_client_invoke_user_callback(cli);
     }
 
     if (is_final_state)

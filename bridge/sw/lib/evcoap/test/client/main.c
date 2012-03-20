@@ -1,8 +1,12 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <strings.h>
-#include <evcoap.h>
+#include <signal.h>
 #include <u/libu.h>
+#include <event2/event.h>
+#include <event2/event_struct.h>
+#include <event2/event_compat.h>
+#include <evcoap.h>
 
 #define CHAT(...)   do { if (g_ctx.verbose) u_con(__VA_ARGS__); } while (0)
 
@@ -25,6 +29,8 @@ typedef struct
     ec_client_t *cli;
     struct event_base *base;
     struct evdns_base *dns;
+    struct event *ev_sig;
+    struct event sig_ev;
     const char *uri;
     ec_method_t method;
     ec_msg_model_t model;
@@ -55,6 +61,7 @@ ctx_t g_ctx = {
     .cli = NULL,
     .base = NULL,
     .dns = NULL,
+    .sig_ev = NULL,
     .uri = DEFAULT_URI,
     .method = EC_COAP_GET,
     .model = EC_COAP_NON,
@@ -91,7 +98,8 @@ int client_set_proxy(const char *s);
 int client_save_to_file(const uint8_t *pl, size_t pl_sz);
 int client_set_media_type(const char *s);
 int set_payload(ec_client_t *cli, const uint8_t *data, size_t data_sz);
-void cb(ec_client_t *cli);
+void response_cb(ec_client_t *cli);
+void sighup_cb(evutil_socket_t fd, short event, void *arg);
 
 /* TODO Same as in test/server: move to share/ */
 int parse_addr(const char *ap, char *a, size_t a_sz, uint16_t *p);
@@ -178,7 +186,15 @@ err:
     return EXIT_FAILURE;
 }
 
-void cb(ec_client_t *cli)
+void sighup_cb(evutil_socket_t fd, short event, void *arg)
+{
+    u_unused_args(fd, event, arg);
+
+    /* Simulate reboot by cancelling any running observations. */
+    (void) ec_client_cancel_observation(g_ctx.cli);
+}
+
+void response_cb(ec_client_t *cli)
 {
     ec_rc_t rc;
     ec_cli_state_t s;
@@ -296,6 +312,12 @@ int client_init(void)
     dbg_err_if ((g_ctx.dns = evdns_base_new(g_ctx.base, 1)) == NULL);
     dbg_err_if ((g_ctx.coap = ec_init(g_ctx.base, g_ctx.dns)) == NULL);
 
+    /* Set up signals */
+    g_ctx.ev_sig = evsignal_new(g_ctx.base, SIGHUP, sighup_cb, NULL);
+    dbg_err_if (g_ctx.ev_sig == NULL);
+
+    dbg_err_if (event_add(g_ctx.ev_sig, NULL));
+
     /* Other local initialisations. */
     g_ctx.block1.block_no = 0;
     g_ctx.block1.more = 0;
@@ -312,6 +334,9 @@ err:
 
 void client_term(void)
 {
+    if (g_ctx.ev_sig)
+        event_free(g_ctx.ev_sig);
+
     if (g_ctx.coap)
         ec_term(g_ctx.coap);
 
@@ -381,7 +406,7 @@ int client_run(void)
     }
 
     CHAT("sending request to %s", g_ctx.uri);
-    dbg_err_if (ec_request_send(g_ctx.cli, cb, NULL, &g_ctx.app_tout));
+    dbg_err_if (ec_request_send(g_ctx.cli, response_cb, NULL, &g_ctx.app_tout));
     
     return event_base_dispatch(g_ctx.base);
 err:
