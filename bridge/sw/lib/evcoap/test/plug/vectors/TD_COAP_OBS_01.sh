@@ -10,10 +10,6 @@
 #
 t_init
 t_srv_run_bg
-spid=$!
-
-# terminate test in 2 seconds
-t_timer 2 "t_dbg terminating test" "kill ${spid}"
 
 #
 # Step 1
@@ -24,10 +20,8 @@ t_cli_set_type CON
 t_cli_set_method GET
 t_cli_set_path /obs
 t_cli_set_observe 9999
-t_cli_run 1>&2 2>/dev/null
-
-# stop server after 2 seconds
-t_dbg "waiting for notification..."
+t_cli_run_bg 1>&2
+sleep 1
 
 #
 # Step 2

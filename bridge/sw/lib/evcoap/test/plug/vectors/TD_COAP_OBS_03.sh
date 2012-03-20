@@ -26,10 +26,9 @@ t_cli_set_path /obs
 t_cli_set_observe 9999
 
 # reboot the server after a few seconds
-t_timer 2 "t_dbg rebooting server" "kill ${spid}"
-t_srv_run_bg
+t_timer 1 "t_dbg rebooting server" "kill ${spid}" "t_srv_run_bg"
 
-t_cli_run 1>&2 2>/dev/null
+t_cli_run_bg 1>&2
 
 #
 # Step 2
@@ -50,38 +49,57 @@ t_dbg "[Step 3] Client does not display updated information."
 #
 t_dbg "[Step 4] After Max-Age expiration, Client sends a new GET with Observe"\
       "option for Server's observable resource."
-sleep 2
 
-echo "# [warn] incomplete!!"
+sleep 1
 
-#t_cli_set_observe 2
-#t_cli_run 1>&2
+t_field_check 1 srv Code GET
+mid1=`t_field_get 1 srv MID` 
+
+# wait for kill
+sleep 3
+
+t_field_check 1 srv Code GET
+mid2=`t_field_get 1 srv MID` 
+
+# after rebooting the server, id is reset back to 1 so make sure message is
+# different
+[ "${mid1}" = "${mid2}" ] && t_die 1 "message ID must be different!"
 
 #
 # Step 5
 #
-#t_dbg "[Step 5] Sent request contains Observe option indicating 0."
+t_dbg "[Step 5] Sent request contains Observe option indicating 0."
+
+t_field_check 1 srv Observe 0
 
 #
 # Step 6
 #
-#t_dbg "[Step 6] Server sends response containing Observe option."
+t_dbg "[Step 6] Server sends response containing Observe option."
+
+obs1=`t_field_get 3 cli Observe`
+[ $? -ne 1 ] || t_die 1 "field must be defined!"
 
 #
 # Step 7
 #
-#t_dbg "[Step 7] Client displays the received information."
+t_dbg "[Step 7] Client displays the received information."
 
 #
 # Step 8
 #
-#t_dbg "[Step 8] Server sends response containing Observe option indicating"
-#increasing values, as resource changes."
+t_dbg "[Step 8] Server sends response containing Observe option indicating"\
+      "increasing values, as resource changes."
+
+obs2=`t_field_get 4 cli Observe`
+[ $? -ne 1 ] || t_die 1 "field must be defined!"
+
+[ ${obs2} -gt ${obs1} ] || t_die 1 "Observe must have increasing values!"
 
 #
 # Step 9
 #
-#t_dbg "[Step 9] Client displays the updated information."
+t_dbg "[Step 9] Client displays the updated information."
 
 #
 # Cleanup

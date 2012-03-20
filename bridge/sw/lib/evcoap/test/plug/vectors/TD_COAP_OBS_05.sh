@@ -1,7 +1,7 @@
 ## TD_COAP_OBS_05
 ##
 ## description: Server detection of deregistration (explicit RST)
-## status: incomplete,tested
+## status: complete,tested
 
 . ../share/common.sh
 
@@ -55,7 +55,7 @@ t_dbg "[Step 3] Client discards response and does not display information."
 #
 t_dbg "[Step 4] Client sends RST to Server."
 
-t_field_check srv 2 T RST 
+t_field_check 2 srv T RST 
 
 #
 # Step 5

@@ -29,8 +29,7 @@ typedef struct
     ec_client_t *cli;
     struct event_base *base;
     struct evdns_base *dns;
-    struct event *ev_sig;
-    struct event sig_ev;
+    struct event *evsig;
     const char *uri;
     ec_method_t method;
     ec_msg_model_t model;
@@ -61,6 +60,7 @@ ctx_t g_ctx = {
     .cli = NULL,
     .base = NULL,
     .dns = NULL,
+    .evsig = NULL,
     .uri = DEFAULT_URI,
     .method = EC_COAP_GET,
     .model = EC_COAP_NON,
@@ -166,6 +166,7 @@ int main(int ac, char *av[])
         }
     }
 
+retry:
     /* Set up the client transaction. */
     con_err_if (client_init());
 
@@ -176,9 +177,14 @@ int main(int ac, char *av[])
     }
     while ((g_ctx.block1.more || g_ctx.block2.more) && !g_ctx.fail);
 
-    con_err_if (g_ctx.fail);
-
     client_term();
+
+    if (g_ctx.fail)
+    {
+        u_dbg("client failed! retrying");
+        goto retry;
+    }
+
     return EXIT_SUCCESS;
 err:
     client_term();
@@ -312,10 +318,10 @@ int client_init(void)
     dbg_err_if ((g_ctx.coap = ec_init(g_ctx.base, g_ctx.dns)) == NULL);
 
     /* Set up signals */
-    g_ctx.ev_sig = evsignal_new(g_ctx.base, SIGHUP, sighup_cb, NULL);
-    dbg_err_if (g_ctx.ev_sig == NULL);
+    g_ctx.evsig = evsignal_new(g_ctx.base, SIGHUP, sighup_cb, NULL);
+    dbg_err_if (g_ctx.evsig == NULL);
 
-    dbg_err_if (event_add(g_ctx.ev_sig, NULL));
+    dbg_err_if (event_add(g_ctx.evsig, NULL));
 
     /* Other local initialisations. */
     g_ctx.block1.block_no = 0;
@@ -333,8 +339,8 @@ err:
 
 void client_term(void)
 {
-    if (g_ctx.ev_sig)
-        event_free(g_ctx.ev_sig);
+    if (g_ctx.evsig)
+        event_free(g_ctx.evsig);
 
     if (g_ctx.coap)
         ec_term(g_ctx.coap);

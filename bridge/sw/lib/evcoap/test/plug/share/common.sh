@@ -356,7 +356,7 @@ t_field_check()
     val=$4
     dump="${id}-${srv}.dump"
 
-    [ -r "${dump}" ] || return 1
+    [ -r "${dump}" ] || t_die 1 "missing dump: '${dump}'"
 
     # retrieve line
     xval=`grep "${field}:" "${dump}"`
@@ -391,7 +391,7 @@ t_field_diff()
     val=$4
     dump="${id}-${srv}.dump"
 
-    [ -r "${dump}" ] || return 1
+    [ -r "${dump}" ] || t_die 1 "missing dump: '${dump}'"
 
     # retrieve line
     xval=`grep "${field}:" "${dump}"`
