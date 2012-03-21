@@ -178,6 +178,7 @@ __t_srv_run()
 
     args=""
     fg=$1
+    shift
 
     [ -z ${EC_PLUG_SRV_ARG_URI} ] || \
         args="${args} -u ${EC_PLUG_SRV_ARG_URI}"
@@ -228,6 +229,7 @@ __t_cli_run()
     [ "${EC_PLUG_MODE}" != "srv" ] || return ${EC_PLUG_RC_NOTAPPLICABLE}
 
     fg=$1
+    shift
     args=""
 
     [ -z ${EC_PLUG_CLI_ARG_URI} ] || \
