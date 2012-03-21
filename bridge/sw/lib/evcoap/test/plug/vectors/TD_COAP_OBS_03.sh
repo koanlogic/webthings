@@ -50,20 +50,18 @@ t_dbg "[Step 3] Client does not display updated information."
 t_dbg "[Step 4] After Max-Age expiration, Client sends a new GET with Observe"\
       "option for Server's observable resource."
 
-sleep 1
-
 t_field_check 1 srv Code GET
 mid1=`t_field_get 1 srv MID` 
 
 # wait for kill
-sleep 3
+sleep 2
 
 t_field_check 1 srv Code GET
 mid2=`t_field_get 1 srv MID` 
 
 if [ "${EC_PLUG_DUMP}" = "1" ]; then
-# after rebooting the server, id is reset back to 1 so make sure message is
-# different
+    # after rebooting the server, id is reset back to 1 so make sure message is
+    # different
     [ "${mid1}" = "${mid2}" ] && t_die ${EC_PLUG_RC_GENERR} "message ID must be different!"
 fi
 
@@ -79,7 +77,7 @@ t_field_check 1 srv Observe 0
 #
 t_dbg "[Step 6] Server sends response containing Observe option."
 
-obs1=`t_field_get 3 cli Observe`
+obs1=`t_field_get 2 cli Observe`
 [ $? -ne 1 ] || t_die ${EC_PLUG_RC_GENERR} "field must be defined!"
 
 #
@@ -93,7 +91,7 @@ t_dbg "[Step 7] Client displays the received information."
 t_dbg "[Step 8] Server sends response containing Observe option indicating"\
       "increasing values, as resource changes."
 
-obs2=`t_field_get 4 cli Observe`
+obs2=`t_field_get 3 cli Observe`
 [ $? -ne 1 ] || t_die ${EC_PLUG_RC_GENERR} "field must be defined!"
 
 [ ${obs2} -gt ${obs1} ] || t_die ${EC_PLUG_RC_GENERR} "Observe must have increasing values!"
