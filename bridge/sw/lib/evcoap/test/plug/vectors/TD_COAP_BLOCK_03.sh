@@ -17,8 +17,7 @@ t_srv_run_bg
 t_dbg "[Step 1] Client is requested to update resource /large-update on"\
       "Server."
 
-pf=.`basename $0`.payload
-cp /etc/passwd ${pf}
+pf=../data/more_than_5k_chars
 
 t_cli_set_type CON
 t_cli_set_method PUT
@@ -65,5 +64,4 @@ diff .fout ${pf}
 # Cleanup
 #
 rm -f .fout
-rm -f ${pf}
 t_term

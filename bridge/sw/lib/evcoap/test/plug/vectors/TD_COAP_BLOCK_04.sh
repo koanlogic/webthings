@@ -16,8 +16,7 @@ t_srv_run_bg
 #
 t_dbg "[Step 1] Client is requested to create a new resource on Server."
 
-pf=.`basename $0`.payload
-cp /etc/passwd ${pf}
+pf=../data/more_than_5k_chars
 
 t_cli_set_type CON
 t_cli_set_method POST
