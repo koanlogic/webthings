@@ -1,15 +1,21 @@
 # base address for clients and servers
-EC_PLUG_ADDR="coap://[::1]:5683"
+if [ -z ${EC_PLUG_ADDR} ]; then
+    EC_PLUG_ADDR="coap://[::1]:5683"
+fi
 
 # server settings
-EC_PLUG_SRV_CMD="../server/coap-server"
+if [ -z ${EC_PLUG_SRV_CMD} ]; then
+    EC_PLUG_SRV_CMD="../server/coap-server"
+fi
 EC_PLUG_SRV_ARG_URI="${EC_PLUG_ADDR}"
 
 # other server settings
 #EC_PLUG_SRV_ARG_SEP=""         # default: unset
 
 # client settings
-EC_PLUG_CLI_CMD="../../client/coap-client"
+if [ -z ${EC_PLUG_CLI_CMD} ]; then
+    EC_PLUG_CLI_CMD="../../client/coap-client"
+fi
 EC_PLUG_CLI_ARG_URI="${EC_PLUG_ADDR}"
 EC_PLUG_CLI_ARG_PATH="/test"
 EC_PLUG_CLI_ARG_TYPE="CON"

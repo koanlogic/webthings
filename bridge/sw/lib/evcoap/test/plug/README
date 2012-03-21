@@ -33,3 +33,7 @@ Environment variables
 * To activate dumping of input PDUs:
     EC_PLUG_DUMP=1
 
+* Other test variables which can be overridden:
+    EC_PLUG_ADDR        server/client address
+    EC_PLUG_SRV_CMD     server command
+    EC_PLUG_CLI_CMD     client command
