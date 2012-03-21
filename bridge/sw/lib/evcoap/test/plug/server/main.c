@@ -475,6 +475,11 @@ static int mod_res(ec_server_t *srv, const char *url, ec_method_mask_t methods,
 
         u_buf_free(g_ctx.resbuf);
         g_ctx.resbuf = NULL;
+
+        /* Reinitialise Block1 values. */
+        g_ctx.block1.block_no = 0;
+        g_ctx.block1.more = 0;
+        g_ctx.block1.block_sz = 0;
     }
 
     (void) ec_response_set_code(srv, EC_CHANGED);
