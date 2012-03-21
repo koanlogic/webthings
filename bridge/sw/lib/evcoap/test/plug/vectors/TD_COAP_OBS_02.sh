@@ -35,7 +35,7 @@ t_cli_set_observe
 t_cli_run 1>&2
 
 t_field_get 3 srv Observe >/dev/null
-[ $? -eq 0 ] && t_die 1 "field must be undefined!"
+[ $? -eq 0 ] && t_die ${EC_PLUG_RC_GENERR} "field must be undefined!"
 
 #
 # Step 3
@@ -44,7 +44,7 @@ t_dbg "[Step 3] Server sends response not containing Observe option."
 
 # second message from server (stopping)
 t_field_get 3 cli Observe >/dev/null
-[ $? -eq 0 ] && t_die 1 "field must be undefined!"
+[ $? -eq 0 ] && t_die ${EC_PLUG_RC_GENERR} "field must be undefined!"
 
 #
 # Step 4
@@ -58,7 +58,7 @@ t_dbg "[Step 5] Server does not send further response."
 
 # futher messages must not exist
 t_field_get 3 cli Code >/dev/null
-[ $? -eq 0 ] && t_die 1 "no messages should exist!"
+[ $? -eq 0 ] && t_die ${EC_PLUG_RC_GENERR} "no messages should exist!"
 
 #
 # Step 6 - info already (not) displayed

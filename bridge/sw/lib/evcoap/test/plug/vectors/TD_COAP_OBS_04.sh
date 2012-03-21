@@ -31,8 +31,7 @@ t_dbg "client pid: $cpid"
 sleep 2
 kill ${cpid}
 
-echo "# [warn] INCOMPLETE! (CON notifications unimplemented)"
-t_term
+t_die ${EC_PLUG_RC_UNIMPLEMENTED} "CON notifications unimplemented!"
 
 #
 # Step 2

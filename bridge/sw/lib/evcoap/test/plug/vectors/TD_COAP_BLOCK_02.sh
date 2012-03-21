@@ -30,7 +30,7 @@ t_dbg "[Step 2] Client sends a GET request not containing Block2 option."
 t_field_check 1 srv T CON
 t_field_check 1 srv Code GET
 t_field_get 1 srv Block2 1>/dev/null
-[ $? -eq 0 ] && t_die 1 "field must be undefined!"
+[ $? -eq 0 ] && t_die ${EC_PLUG_RC_GENERR} "field must be undefined!"
 
 #
 # Step 3

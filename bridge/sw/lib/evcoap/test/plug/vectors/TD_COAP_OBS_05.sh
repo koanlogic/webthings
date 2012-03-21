@@ -41,9 +41,9 @@ sleep 2
 t_dbg "[Step 2] Server sends response containing Observe option."
 
 t_field_get 1 cli Observe >/dev/null
-[ $? -ne 1 ] || t_die 1 "field must be defined!"
+[ $? -ne 1 ] || t_die ${EC_PLUG_RC_GENERR} "field must be defined!"
 t_field_get 2 cli Observe >/dev/null
-[ $? -ne 1 ] || t_die 1 "field must be defined!"
+[ $? -ne 1 ] || t_die ${EC_PLUG_RC_GENERR} "field must be defined!"
 
 #
 # Step 3
@@ -63,7 +63,7 @@ t_field_check 2 srv T RST
 t_dbg "[Step 5] Server does not send further response."
 
 t_field_get 4 cli Observe >/dev/null
-[ $? -eq 0 ] && t_die 1 "field must be undefined!"
+[ $? -eq 0 ] && t_die ${EC_PLUG_RC_GENERR} "field must be undefined!"
 
 #
 # Cleanup

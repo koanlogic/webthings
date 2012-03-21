@@ -37,7 +37,7 @@ t_dbg "[Step 2] Server does not send notifications."
 
 # server does not send notifications
 t_field_get 3 cli Code >/dev/null
-[ $? -eq 0 ] && t_die 1 "no further notifications should exist!"
+[ $? -eq 0 ] && t_die ${EC_PLUG_RC_GENERR} "no further notifications should exist!"
 
 #
 # Step 3
@@ -64,7 +64,7 @@ mid2=`t_field_get 1 srv MID`
 if [ "${EC_PLUG_DUMP}" = "1" ]; then
 # after rebooting the server, id is reset back to 1 so make sure message is
 # different
-    [ "${mid1}" = "${mid2}" ] && t_die 1 "message ID must be different!"
+    [ "${mid1}" = "${mid2}" ] && t_die ${EC_PLUG_RC_GENERR} "message ID must be different!"
 fi
 
 #
@@ -80,7 +80,7 @@ t_field_check 1 srv Observe 0
 t_dbg "[Step 6] Server sends response containing Observe option."
 
 obs1=`t_field_get 3 cli Observe`
-[ $? -ne 1 ] || t_die 1 "field must be defined!"
+[ $? -ne 1 ] || t_die ${EC_PLUG_RC_GENERR} "field must be defined!"
 
 #
 # Step 7
@@ -94,9 +94,9 @@ t_dbg "[Step 8] Server sends response containing Observe option indicating"\
       "increasing values, as resource changes."
 
 obs2=`t_field_get 4 cli Observe`
-[ $? -ne 1 ] || t_die 1 "field must be defined!"
+[ $? -ne 1 ] || t_die ${EC_PLUG_RC_GENERR} "field must be defined!"
 
-[ ${obs2} -gt ${obs1} ] || t_die 1 "Observe must have increasing values!"
+[ ${obs2} -gt ${obs1} ] || t_die ${EC_PLUG_RC_GENERR} "Observe must have increasing values!"
 
 #
 # Step 9

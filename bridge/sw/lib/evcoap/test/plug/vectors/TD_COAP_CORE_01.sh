@@ -43,7 +43,7 @@ v=`t_field_get 1 srv MID`
 t_field_check 1 cli MID "${v}"
 
 t_field_get 1 cli Content-Type 1>/dev/null
-[ $? -ne 1 ] || t_die 1 "field must be defined!"
+[ $? -ne 1 ] || t_die ${EC_PLUG_RC_GENERR} "field must be defined!"
 
 #
 # Step 4

@@ -36,11 +36,11 @@ t_field_check 1 srv Code GET
 if [ "${EC_PLUG_DUMP}" = "1" ]; then
     f="1-srv.dump"
     grep "URI-Path: seg1" "${f}" >/dev/null
-    [ $? -eq 0 ] || t_die 1 "seg1 not found!"
+    [ $? -eq 0 ] || t_die ${EC_PLUG_RC_GENERR} "seg1 not found!"
     grep "URI-Path: seg2" "${f}" >/dev/null
-    [ $? -eq 0 ] || t_die 1 "seg2 not found!"
+    [ $? -eq 0 ] || t_die ${EC_PLUG_RC_GENERR} "seg2 not found!"
     grep "URI-Path: seg3" "${f}" >/dev/null
-    [ $? -eq 0 ] || t_die 1 "seg3 not found!"
+    [ $? -eq 0 ] || t_die ${EC_PLUG_RC_GENERR} "seg3 not found!"
 fi
 
 #
@@ -55,7 +55,7 @@ t_field_check 1 cli Code "2.05 (Content)"
 t_field_check 1 cli Payload `t_str2hex "Hello world!"`
 
 t_field_get 1 cli Content-Type 1>/dev/null
-[ $? -ne 1 ] || t_die 1 "field must be defined!"
+[ $? -ne 1 ] || t_die ${EC_PLUG_RC_GENERR} "field must be defined!"
 
 #
 # Step 4

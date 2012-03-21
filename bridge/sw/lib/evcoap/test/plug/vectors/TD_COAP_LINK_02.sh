@@ -54,7 +54,7 @@ wkc=`t_hex2str "${p}"`
 
 # grep should fail (no results returned)
 ${ECHO} -n "${wkc}" | grep -v "rt=\"${rt}\""
-[ $? -eq 0 ] && t_die 1 "found bad resource types!"
+[ $? -eq 0 ] && t_die ${EC_PLUG_RC_GENERR} "found bad resource types!"
 
 #
 # Step 4

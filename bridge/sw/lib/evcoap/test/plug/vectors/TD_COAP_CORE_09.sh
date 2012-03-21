@@ -37,7 +37,7 @@ t_field_check 1 srv T CON
 t_field_check 1 srv Code GET
 
 cmid=`t_field_get 1 srv MID`
-[ $? -ne 1 ] || t_die 1 "field must be defined!"
+[ $? -ne 1 ] || t_die ${EC_PLUG_RC_GENERR} "field must be defined!"
 
 #
 # Step 3
@@ -48,7 +48,7 @@ t_dbg "[Step 3] Server sends response containing: Type = 2 (ACK); message ID"\
 t_field_check 1 cli T ACK
 t_field_check 1 cli MID "${cmid}"
 t_field_get 1 cli Payload >/dev/null
-[ $? -eq 0 ] && t_die 1 "field must be undefined!"
+[ $? -eq 0 ] && t_die ${EC_PLUG_RC_GENERR} "field must be undefined!"
 
 #
 # Step 4
@@ -61,7 +61,7 @@ t_field_check 2 cli T CON
 t_field_check 2 cli Code "2.05 (Content)"
 t_field_check 2 cli Payload `t_str2hex "${c}"`
 t_field_get 2 cli Content-Type >/dev/null
-[ $? -ne 1 ] || t_die 1 "field must be defined!"
+[ $? -ne 1 ] || t_die ${EC_PLUG_RC_GENERR} "field must be defined!"
 mid=`t_field_get 2 cli MID`
 
 #
@@ -73,7 +73,7 @@ t_dbg "[Step 5] Client sends response containing: Type = 2 (ACK); message ID"\
 t_field_check 2 srv T ACK
 t_field_check 2 srv MID "${mid}"
 t_field_get 2 srv Payload >/dev/null
-[ $? -eq 0 ] && t_die 1 "field must be undefined!"
+[ $? -eq 0 ] && t_die ${EC_PLUG_RC_GENERR} "field must be undefined!"
 
 #
 # Step 6

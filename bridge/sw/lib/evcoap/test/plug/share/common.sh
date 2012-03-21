@@ -38,6 +38,15 @@ EC_PLUG_PIDS_FILE=".pids"
 # custom commands 
 ECHO=/bin/echo      # default version on mac doesn't like '-n' arg
 
+# error codes
+EC_PLUG_RC_SUCCESS=0            # test succeeded
+EC_PLUG_RC_GENERR=1             # test failed
+EC_PLUG_RC_BADPARAMS=2          # bad input parameters
+EC_PLUG_RC_NOTAPPLICABLE=3      # test not applicable given settings
+EC_PLUG_RC_UNIMPLEMENTED=4      # feature not implemented
+EC_PLUG_RC_INTERRUPTED=5        # interrupted by signal
+
+# startup warnings
 [ "${EC_PLUG_DUMP}" = "1" ] || \
         ${ECHO} "# [warn] EC_PLUG_DUMP not set,"\
              "no 'check' steps will be performed"
@@ -48,7 +57,7 @@ t_dbg()
 {
     [ "${EC_PLUG_VERBOSE}" = "1" ] && ${ECHO} "# $@" 1>&2
     
-    return 0
+    return ${EC_PLUG_RC_SUCCESS}
 }
 
 # Print a message and exit with return code $1.
@@ -57,9 +66,32 @@ t_die()
     rc=$1
     shift
 
-    t_dbg "$@"
+    echo "$@"
 
     t_term ${rc}
+}
+
+# Convert a return code to string representation
+t_rc2str()
+{
+    rc=$1
+
+    case ${rc} in
+        ${EC_PLUG_RC_SUCCESS})
+            echo "success" ;;
+        ${EC_PLUG_RC_GENERR})
+            echo "test failed" ;;
+        ${EC_PLUG_RC_BADPARAMS})
+            echo "bad parameters" ;;
+        ${EC_PLUG_RC_NOTAPPLICABLE})
+            echo "test not applicable" ;;
+        ${EC_PLUG_RC_UNIMPLEMENTED})
+            echo "not implemented" ;;
+        ${EC_PLUG_RC_INTERRUPTED})
+            echo "interrupted by signal" ;;
+        *)
+            t_die ${EC_PLUG_RC_GENERR} "Bad return code: ${rc}!"
+    esac
 }
 
 # Wrap a command by debugging it and showing stderr output only if EC_PLUG_VERBOSE=1.
@@ -96,9 +128,9 @@ t_cmp()
     t_dbg "checking value '$1'"
 
     if [ "$1" = "$2" ]; then
-        return 0
+        return ${EC_PLUG_RC_SUCCESS}
     else 
-        t_die 1 "comparison failed! ($1,$2)"
+        t_die ${EC_PLUG_RC_GENERR} "comparison failed! ($1,$2)"
     fi
 }
 
@@ -116,10 +148,12 @@ t_term()
     rc=$1
     [ -z ${rc} ] && rc=0
 
+    rcs=`t_rc2str ${rc}`
+
     if [ ${rc} -eq 0 ]; then
         t_dbg "success"
     else 
-        t_dbg "failure (rc=${rc})"
+        echo "failure (rc=${rc}: '${rcs}')"
     fi
 
     #t_dbg "jobs left: `jobs -p`"
@@ -140,7 +174,7 @@ t_term()
 
 __t_srv_run()
 {
-    [ "${EC_PLUG_MODE}" != "cli" ] || return 2
+    [ "${EC_PLUG_MODE}" != "cli" ] || return ${EC_PLUG_RC_NOTAPPLICABLE}
 
     args=""
     fg=$1
@@ -176,7 +210,7 @@ t_srv_run_bg()
 # Set server uri
 t_srv_set_uri()
 {
-    [ -z $1 ] && t_die 1 "URI must be defined!"
+    [ -z $1 ] && t_die ${EC_PLUG_RC_BADPARAMS} "URI must be defined!"
 
     EC_PLUG_SRV_ARG_URI=$1
 }
@@ -191,7 +225,7 @@ t_srv_set_sep()
 
 __t_cli_run()
 {
-    [ "${EC_PLUG_MODE}" != "srv" ] || return 2
+    [ "${EC_PLUG_MODE}" != "srv" ] || return ${EC_PLUG_RC_NOTAPPLICABLE}
 
     fg=$1
     args=""
@@ -244,7 +278,7 @@ t_cli_run_bg()
 # Set client uri
 t_cli_set_uri()
 {
-    [ -z $1 ] && t_die 1 "URI must be defined!"
+    [ -z $1 ] && t_die ${EC_PLUG_RC_BADPARAMS} "URI must be defined!"
 
     EC_PLUG_CLI_ARG_URI=$1
 }
@@ -252,7 +286,7 @@ t_cli_set_uri()
 # Set client path
 t_cli_set_path()
 {
-    [ -z $1 ] && t_die 1 "Path must be defined!"
+    [ -z $1 ] && t_die ${EC_PLUG_RC_BADPARAMS} "Path must be defined!"
 
     EC_PLUG_CLI_ARG_PATH=$1
 }
@@ -266,14 +300,14 @@ t_cli_set_type()
         CON|NON)
             EC_PLUG_CLI_ARG_TYPE="${t}" ;;
         *)
-            t_die 1 "bad type: ${t}" ;;
+            t_die ${EC_PLUG_RC_BADPARAMS} "bad type: ${t}" ;;
     esac
 }
 
 # Set client method
 t_cli_set_method()
 {
-    [ -z $1 ] && t_die 1 "Method must be defined!"
+    [ -z $1 ] && t_die ${EC_PLUG_RC_BADPARAMS} "Method must be defined!"
 
     m=$1
 
@@ -281,7 +315,7 @@ t_cli_set_method()
         GET|POST|PUT|DELETE)
             EC_PLUG_CLI_ARG_METHOD="${m}" ;;
         *)
-            t_die 1 "bad method: ${m}" ;;
+            t_die ${EC_PLUG_RC_BADPARAMS} "bad method: ${m}" ;;
     esac
 }
 
@@ -324,7 +358,7 @@ t_cli_set_observe()
 # $3    field name
 t_field_get()
 {
-    [ "${EC_PLUG_DUMP}" = "1" ] || return 2
+    [ "${EC_PLUG_DUMP}" = "1" ] || return ${EC_PLUG_RC_NOTAPPLICABLE}
 
     id=$1
     srv=$2
@@ -333,11 +367,11 @@ t_field_get()
 
     t_dbg "retrieving field '${field}' from '${dump}'"
 
-    [ -r "${dump}" ] || return 1
+    [ -r "${dump}" ] || return ${EC_PLUG_RC_GENERR}
 
     # retrieve line
     xval=`grep "${field}:" "${dump}"`
-    [  $? -eq 0 ] || return 1
+    [  $? -eq 0 ] || return ${EC_PLUG_RC_GENERR}
 
     # retrieve value
     xval=`${ECHO} ${xval} | cut -d ':' -f 2`
@@ -354,7 +388,7 @@ t_field_get()
 # $4    field value
 t_field_check()
 {
-    [ "${EC_PLUG_DUMP}" = "1" ] || return 2
+    [ "${EC_PLUG_DUMP}" = "1" ] || return ${EC_PLUG_RC_NOTAPPLICABLE}
 
     id=$1
     srv=$2
@@ -362,11 +396,11 @@ t_field_check()
     val=$4
     dump="${id}-${srv}.dump"
 
-    [ -r "${dump}" ] || t_die 1 "missing dump: '${dump}'"
+    [ -r "${dump}" ] || t_die ${EC_PLUG_RC_GENERR} "missing dump: '${dump}'"
 
     # retrieve line
     xval=`grep "${field}:" "${dump}"`
-    [  $? -eq 0 ] || t_die 1 "field '${field}' not found!"
+    [  $? -eq 0 ] || t_die ${EC_PLUG_RC_GENERR} "field '${field}' not found!"
 
     # retrieve value
     xval=`${ECHO} ${xval} | cut -d ':' -f 2`
@@ -377,7 +411,7 @@ t_field_check()
     t_dbg "checking message ${dump} field '${field}': '${xtrim}'"
 
     # compare result with value    
-    [ "${xtrim}" = "${val}" ] || t_die 1 \
+    [ "${xtrim}" = "${val}" ] || t_die ${EC_PLUG_RC_GENERR} \
             "failed check! (found: '${xtrim}', expected: '${val}')"
 }
 
@@ -389,7 +423,7 @@ t_field_check()
 # $4    field value
 t_field_diff()
 {
-    [ "${EC_PLUG_DUMP}" = "1" ] || return 2
+    [ "${EC_PLUG_DUMP}" = "1" ] || return ${EC_PLUG_RC_NOTAPPLICABLE}
 
     id=$1
     srv=$2
@@ -397,11 +431,11 @@ t_field_diff()
     val=$4
     dump="${id}-${srv}.dump"
 
-    [ -r "${dump}" ] || t_die 1 "missing dump: '${dump}'"
+    [ -r "${dump}" ] || t_die ${EC_PLUG_RC_GENERR} "missing dump: '${dump}'"
 
     # retrieve line
     xval=`grep "${field}:" "${dump}"`
-    [  $? -eq 0 ] || return 1
+    [  $? -eq 0 ] || return ${EC_PLUG_RC_GENERR}
 
     # retrieve value
     xval=`${ECHO} ${xval} | cut -d ':' -f 2`
@@ -412,7 +446,7 @@ t_field_diff()
     t_dbg "checking message ${dump} field '${field}' != '${xtrim}'"
 
     # compare result with value    
-    [ "${xtrim}" != "${val}" ] || t_die 1 \
+    [ "${xtrim}" != "${val}" ] || t_die ${EC_PLUG_RC_GENERR} \
             "failed check! (found: '${xtrim}', expected: '${val}')"
 }
 
@@ -423,7 +457,7 @@ t_field_diff()
 # $3    max size of string
 t_check_len()
 {
-    [ "${EC_PLUG_DUMP}" = "1" ] || return 2
+    [ "${EC_PLUG_DUMP}" = "1" ] || return ${EC_PLUG_RC_NOTAPPLICABLE}
 
     s=$1
     min=$2
@@ -433,8 +467,8 @@ t_check_len()
 
     xlen=`${ECHO} -n "${s}" | wc -c | sed -e 's/\ //g'`
 
-    [ ${xlen} -ge ${min} ] || t_die 1 "bad length!"
-    [ ${xlen} -le ${max} ] || t_die 1 "bad length!"
+    [ ${xlen} -ge ${min} ] || t_die ${EC_PLUG_RC_GENERR} "bad length!"
+    [ ${xlen} -le ${max} ] || t_die ${EC_PLUG_RC_GENERR} "bad length!"
 }
 
 # Convert input string to hex representation.
@@ -475,9 +509,9 @@ __t_timer()
 # $@    string of commands
 t_timer()
 {
-    [ -z $1 ] && t_die 1 "seconds undefined!"
+    [ -z $1 ] && t_die ${EC_PLUG_RC_BADPARAMS} "seconds undefined!"
     s=$1
-    [ -z "$2" ] && t_die 1 "commands undefined!"
+    [ -z "$2" ] && t_die ${EC_PLUG_RC_BADPARAMS} "commands undefined!"
 
     t_dbg "timer secs: $1"
 
@@ -494,4 +528,4 @@ t_pid_add()
     EC_PLUG_PIDS="${EC_PLUG_PIDS} $@"
 }
 
-trap t_term 2 9 15
+trap "t_term ${EC_PLUG_RC_INTERRUPTED}" 2 9 15

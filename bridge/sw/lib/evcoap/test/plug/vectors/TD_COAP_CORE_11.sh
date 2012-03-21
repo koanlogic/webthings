@@ -34,7 +34,7 @@ t_field_check 1 srv Code GET
 
 # make sure token is undefined
 t_field_get 1 srv Token 1>/dev/null
-[ $? -eq 0 ] && t_die 1 "field must be undefined!"
+[ $? -eq 0 ] && t_die ${EC_PLUG_RC_GENERR} "field must be undefined!"
 
 #
 # Step 3
@@ -47,13 +47,13 @@ t_field_check 1 cli Code "2.05 (Content)"
 
 # make sure token is undefined
 t_field_get 1 cli Token 1>/dev/null
-[ $? -ne 0 ] || t_die 1 "field must be undefined!"
+[ $? -ne 0 ] || t_die ${EC_PLUG_RC_GENERR} "field must be undefined!"
 
 # compare hex representations
 t_field_check 1 cli Payload `t_str2hex "Hello world!"`
 
 t_field_get 1 cli Content-Type 1>/dev/null
-[ $? -ne 1 ] || t_die 1 "field must be defined!"
+[ $? -ne 1 ] || t_die ${EC_PLUG_RC_GENERR} "field must be defined!"
 
 #
 # Step 4

@@ -59,7 +59,7 @@ t_dbg "[Step 4] Server indicates presence of the complete updated resource"\
 t_cli_set_method GET
 t_cli_run > .fout
 diff .fout ${pf}
-[ $? -ne 0 ] && t_die 1 "GET doesn't match PUT"
+[ $? -ne 0 ] && t_die ${EC_PLUG_RC_GENERR} "GET doesn't match PUT"
 
 #
 # Cleanup

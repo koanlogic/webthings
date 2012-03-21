@@ -37,7 +37,7 @@ t_field_check 1 srv T NON
 t_field_check 1 srv Code GET
 
 cmid=`t_field_get 1 srv MID`
-[ $? -eq 1 ] && t_die 1 "field must be defined!"
+[ $? -eq 1 ] && t_die ${EC_PLUG_RC_GENERR} "field must be defined!"
 
 #
 # Step 3
@@ -48,7 +48,7 @@ t_dbg "[Step 3] Server does *not* send response containing: Type = 2 (ACK);"\
 t_field_diff 1 cli T ACK
 t_field_diff 1 cli MID "${cmid}"
 t_field_get 1 cli Payload >/dev/null
-[ $? -eq 1 ] && t_die 1 "field must be defined!"
+[ $? -eq 1 ] && t_die ${EC_PLUG_RC_GENERR} "field must be defined!"
 
 #
 # Step 4
@@ -61,7 +61,7 @@ t_field_check 1 cli T NON
 t_field_check 1 cli Code "2.05 (Content)"
 t_field_check 1 cli Payload `t_str2hex "${c}"`
 t_field_get 1 cli Content-Type >/dev/null
-[ $? -eq 1 ] && t_die 1 "field must be defined!"
+[ $? -eq 1 ] && t_die ${EC_PLUG_RC_GENERR} "field must be defined!"
 
 # Step 5
 #
