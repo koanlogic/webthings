@@ -205,6 +205,8 @@ t_srv_run_bg()
 
     # add pid to list of processes to be killed
     t_pid_add $!
+
+    sleep 1
 }
 
 
@@ -275,6 +277,8 @@ t_cli_run_bg()
 
     # add pid to list of processes to be killed
     t_pid_add $!
+
+    sleep 1
 }
 
 # Set client uri
