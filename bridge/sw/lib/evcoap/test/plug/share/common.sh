@@ -118,8 +118,6 @@ t_wrap()
             $@ 2>/dev/null
         fi
     fi
-
-    t_dbg "pid: $!"
 }
 
 # Compare two strings and fail if they are different.
@@ -170,6 +168,24 @@ t_term()
     kill `jobs -p` 2>/dev/null
 
     exit ${rc}
+}
+
+__t_applicable()
+{
+    mode=$1
+
+    [ "${EC_PLUG_DUMP}" = "1" ] || return 1
+
+    case ${mode} in
+        cli|srv)
+           [ -z ${EC_PLUG_MODE} ] && return 0
+           [ "${EC_PLUG_MODE}" == "${mode}" ] || return 1
+           ;;
+        *)
+            t_die 1 "invalid mode: ${mode}"
+    esac
+
+    return 0
 }
 
 __t_srv_run()
@@ -364,12 +380,12 @@ t_cli_set_observe()
 # $3    field name
 t_field_get()
 {
-    [ "${EC_PLUG_DUMP}" = "1" ] || return ${EC_PLUG_RC_NOTAPPLICABLE}
-
     id=$1
     srv=$2
     field=$3
     dump="${id}-${srv}.dump"
+
+    __t_applicable ${srv} || return ${EC_PLUG_RC_NOTAPPLICABLE}
 
     t_dbg "retrieving field '${field}' from '${dump}'"
 
@@ -394,13 +410,14 @@ t_field_get()
 # $4    field value
 t_field_check()
 {
-    [ "${EC_PLUG_DUMP}" = "1" ] || return ${EC_PLUG_RC_NOTAPPLICABLE}
 
     id=$1
     srv=$2
     field=$3
     val=$4
     dump="${id}-${srv}.dump"
+
+    __t_applicable ${srv} || return ${EC_PLUG_RC_NOTAPPLICABLE}
 
     [ -r "${dump}" ] || t_die ${EC_PLUG_RC_GENERR} "missing dump: '${dump}'"
 
@@ -429,13 +446,13 @@ t_field_check()
 # $4    field value
 t_field_diff()
 {
-    [ "${EC_PLUG_DUMP}" = "1" ] || return ${EC_PLUG_RC_NOTAPPLICABLE}
-
     id=$1
     srv=$2
     field=$3
     val=$4
     dump="${id}-${srv}.dump"
+
+    __t_applicable ${srv} || return ${EC_PLUG_RC_NOTAPPLICABLE}
 
     [ -r "${dump}" ] || t_die ${EC_PLUG_RC_GENERR} "missing dump: '${dump}'"
 

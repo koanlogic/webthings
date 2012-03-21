@@ -60,9 +60,12 @@ t_field_check 1 srv Code GET
 mid2=`t_field_get 1 srv MID` 
 
 if [ "${EC_PLUG_DUMP}" = "1" ]; then
-    # after rebooting the server, id is reset back to 1 so make sure message is
-    # different
-    [ "${mid1}" = "${mid2}" ] && t_die ${EC_PLUG_RC_GENERR} "message ID must be different!"
+    if [ "${EC_PLUG_MODE}" != "cli" ]; then 
+        # after rebooting the server, id is reset back to 1 so make sure
+        # message is different
+        [ "${mid1}" = "${mid2}" ] && t_die ${EC_PLUG_RC_GENERR} \
+                "message ID must be different!"
+    fi
 fi
 
 #

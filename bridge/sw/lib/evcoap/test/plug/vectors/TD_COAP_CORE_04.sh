@@ -38,8 +38,11 @@ t_dbg "[Step 3] Server sends response containing: Code = 66(2.02 Deleted);"\
       "The same Message ID as that of the previous request."
 
 t_field_check 1 cli Code "2.02 (Deleted)"
-v=`t_field_get 1 srv MID`
-t_field_check 1 cli MID "${v}"
+
+if [ "${EC_PLUG_MODE}" != "cli" ]; then 
+    v=`t_field_get 1 srv MID`
+    t_field_check 1 cli MID "${v}"
+fi
 
 #
 # Step 4

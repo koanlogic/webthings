@@ -34,13 +34,15 @@ t_field_check 1 srv Code GET
 
 # check that we have all 3 URI-Path Options
 if [ "${EC_PLUG_DUMP}" = "1" ]; then
-    f="1-srv.dump"
-    grep "URI-Path: seg1" "${f}" >/dev/null
-    [ $? -eq 0 ] || t_die ${EC_PLUG_RC_GENERR} "seg1 not found!"
-    grep "URI-Path: seg2" "${f}" >/dev/null
-    [ $? -eq 0 ] || t_die ${EC_PLUG_RC_GENERR} "seg2 not found!"
-    grep "URI-Path: seg3" "${f}" >/dev/null
-    [ $? -eq 0 ] || t_die ${EC_PLUG_RC_GENERR} "seg3 not found!"
+    if [ "${EC_PLUG_MODE}" != "cli" ]; then
+        f="1-srv.dump"
+        grep "URI-Path: seg1" "${f}" >/dev/null
+        [ $? -eq 0 ] || t_die ${EC_PLUG_RC_GENERR} "seg1 not found!"
+        grep "URI-Path: seg2" "${f}" >/dev/null
+        [ $? -eq 0 ] || t_die ${EC_PLUG_RC_GENERR} "seg2 not found!"
+        grep "URI-Path: seg3" "${f}" >/dev/null
+        [ $? -eq 0 ] || t_die ${EC_PLUG_RC_GENERR} "seg3 not found!"
+    fi
 fi
 
 #

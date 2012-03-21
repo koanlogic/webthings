@@ -33,12 +33,16 @@ t_dbg "[Step 2] Sent request must contain: Type = 0 (CON); Code = 1 (GET);"\
 t_field_check 1 srv T CON
 t_field_check 1 srv Code GET
 
-# retrieve token received by server
-token1=`t_field_get 1 srv Token`
+if [ "${EC_PLUG_MODE}" != "cli" ]; then 
 
-# check that size of Token is between 1B and 8B
-# (4 and 18 chars include 0x)
-t_check_len "${token1}" 4 18
+    # retrieve token received by server
+    token1=`t_field_get 1 srv Token`
+
+    # check that size of Token is between 1B and 8B
+    # (4 and 18 chars include 0x)
+    t_check_len "${token1}" 4 18
+
+fi
 
 #
 # Step 3
@@ -50,15 +54,23 @@ t_dbg "[Step 3] Server sends response containing: Code = 69 (2.05 content);"\
 
 t_field_check 1 cli Code "2.05 (Content)"
 
-# retrieve token received by server
-token2=`t_field_get 1 cli Token`
+if [ "${EC_PLUG_MODE}" != "srv" ]; then 
 
-# check that size of Token is between 1B and 8B
-# (4 and 18 chars include 0x)
-t_check_len "${token2}" 4 18
+    # retrieve token received by server
+    token2=`t_field_get 1 cli Token`
 
-# compare returned token with sent token
-t_cmp "${token1}" "${token2}"
+    # check that size of Token is between 1B and 8B
+    # (4 and 18 chars include 0x)
+    t_check_len "${token2}" 4 18
+
+fi
+
+if [ "${EC_PLUG_MODE}" == "" ]; then 
+
+    # compare returned token with sent token
+    t_cmp "${token1}" "${token2}"
+
+fi
 
 # compare hex representations
 t_field_check 1 cli Payload `t_str2hex "Hello world!"`

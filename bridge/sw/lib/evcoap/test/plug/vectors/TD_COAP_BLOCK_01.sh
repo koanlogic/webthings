@@ -40,9 +40,12 @@ t_dbg "[Step 3] Server sends response containing Block2 option indicating"\
       "block number and size."
 
 t_field_check 1 cli Code "2.05 (Content)"
-v=`t_field_get 1 srv MID`
-t_field_check 1 cli MID "${v}"
 t_field_check 1 cli Block2 12  # num=0,m=1,szx=4
+
+if [ "${EC_PLUG_MODE}" != "cli" ]; then 
+    v=`t_field_get 1 srv MID`
+    t_field_check 1 cli MID "${v}"
+fi
 
 #
 # Step 4

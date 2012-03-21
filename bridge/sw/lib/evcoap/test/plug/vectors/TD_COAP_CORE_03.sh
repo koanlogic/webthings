@@ -56,8 +56,11 @@ t_dbg "[Step 4] Server sends response containing: Code = 68(2.04 Changed);"\
       "The Message ID as that of the previous request."
 
 t_field_check 1 cli Code "2.04 (Changed)"
-v=`t_field_get 1 srv MID`
-t_field_check 1 cli MID "${v}"
+
+if [ "${EC_PLUG_MODE}" != "cli" ]; then 
+    v=`t_field_get 1 srv MID`
+    t_field_check 1 cli MID "${v}"
+fi
 
 #
 # Step 5

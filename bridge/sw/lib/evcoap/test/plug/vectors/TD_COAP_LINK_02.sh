@@ -44,9 +44,12 @@ t_dbg "[Step 3] Server sends response containing: Content-Type option"\
       "the links of type Type1 available on Server."
 
 t_field_check 1 cli Code "2.05 (Content)"
-v=`t_field_get 1 srv MID`
-t_field_check 1 cli MID "${v}"
 t_field_check 1 cli Content-Type "40"   # application/link-format
+
+if [ "${EC_PLUG_MODE}" != "cli" ]; then 
+    v=`t_field_get 1 srv MID`
+    t_field_check 1 cli MID "${v}"
+fi
 
 # check in Payload that we only have resources of type rt
 p=`t_field_get 1 cli Payload`

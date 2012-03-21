@@ -39,8 +39,11 @@ t_dbg "[Step 3] Server sends response containing: Code = 69(2.05 Content);"\
       "option."
 
 t_field_check 1 cli Code "2.05 (Content)"
-v=`t_field_get 1 srv MID`
-t_field_check 1 cli MID "${v}"
+
+if [ "${EC_PLUG_MODE}" != "cli" ]; then 
+    v=`t_field_get 1 srv MID`
+    t_field_check 1 cli MID "${v}"
+fi
 
 t_field_get 1 cli Content-Type 1>/dev/null
 [ $? -ne 1 ] || t_die ${EC_PLUG_RC_GENERR} "field must be defined!"
