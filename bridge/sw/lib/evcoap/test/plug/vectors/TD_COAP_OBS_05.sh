@@ -62,7 +62,7 @@ t_field_check 2 srv T RST
 #
 t_dbg "[Step 5] Server does not send further response."
 
-t_field_get 4 cli Observe >/dev/null
+t_field_get 5 cli Observe >/dev/null
 [ $? -eq 0 ] && t_die ${EC_PLUG_RC_GENERR} "field must be undefined!"
 
 #
