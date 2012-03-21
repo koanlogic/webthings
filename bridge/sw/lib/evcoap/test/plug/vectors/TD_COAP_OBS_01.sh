@@ -37,7 +37,7 @@ t_field_check 1 srv Observe 0
 #
 t_dbg "[Step 3] Server sends response containing Observe option."
 
-obs1=`t_field_get 1 cli Observe`
+obs1=`t_field_get 2 cli Observe`
 [ $? -ne 1 ] || t_die ${EC_PLUG_RC_GENERR} "field must be defined!"
 
 #
@@ -51,7 +51,7 @@ t_dbg "[Step 4] Client displays the received information."
 t_dbg "[Step 5] Server sends response containing Observe option indicating"\
       "increasing values, as resource changes."
 
-obs2=`t_field_get 2 cli Observe`
+obs2=`t_field_get 3 cli Observe`
 [ $? -ne 1 ] || t_die ${EC_PLUG_RC_GENERR} "field must be defined!"
 
 [ ${obs2} -gt ${obs1} ] || t_die ${EC_PLUG_RC_GENERR} "Observe must have increasing values!"
