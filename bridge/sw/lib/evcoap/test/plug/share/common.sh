@@ -210,8 +210,16 @@ t_srv_run()
 {
     __t_srv_run 0
 
-    # might have been killed intentionally, so don't die!
-    [ $? -eq 0 ] || t_dbg 1 "server failed! (rc=$?)"
+    # upon failure, don't die if killed intentionally (signal) or return code
+    # is not applicable
+    case $? in ${EC_PLUG_RC_SUCCESS}|\
+        ${EC_PLUG_RC_INTERRUPTED}|\
+        ${EC_PLUG_RC_NOTAPPLICABLE})
+            return 0
+            ;;
+        *)
+            t_dbg 1 "server failed! (rc=$?)"
+    esac
 }
 
 # Run a CoAP server in background.
@@ -288,8 +296,16 @@ t_cli_run()
 {
     __t_cli_run 0
 
-    # might have been killed intentionally, so don't die!
-    [ $? -eq 0 ] || t_dbg 1 "client failed! (rc=$?)"
+    # upon failure, don't die if killed intentionally (signal) or return code
+    # is not applicable
+    case $? in ${EC_PLUG_RC_SUCCESS}|\
+        ${EC_PLUG_RC_INTERRUPTED}|\
+        ${EC_PLUG_RC_NOTAPPLICABLE})
+            return 0
+            ;;
+        *)
+            t_dbg 1 "client failed! (rc=$?)"
+    esac
 }
 
 # Run a CoAP client in background.
