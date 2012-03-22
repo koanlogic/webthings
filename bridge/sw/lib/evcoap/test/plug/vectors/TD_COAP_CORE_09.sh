@@ -73,7 +73,9 @@ t_dbg "[Step 5] Client sends response containing: Type = 2 (ACK); message ID"\
       "same as the response; empty Payload."
 
 t_field_check 2 srv T ACK
-t_field_check 2 srv MID "${mid}"
+if [ "${EC_PLUG_MODE}" != "srv" ]; then 
+    t_field_check 2 srv MID "${mid}"
+fi
 t_field_get 2 srv Payload >/dev/null
 [ $? -eq 0 ] && t_die ${EC_PLUG_RC_GENERR} "field must be undefined!"
 

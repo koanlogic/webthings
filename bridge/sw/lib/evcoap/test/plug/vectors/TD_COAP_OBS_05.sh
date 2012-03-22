@@ -2,6 +2,8 @@
 ##
 ## description: Server detection of deregistration (explicit RST)
 ## status: complete,tested
+##
+## note: needs to be run manually when testing external client/server
 
 . ../share/common.sh
 
@@ -24,14 +26,17 @@ t_cli_set_path /obs
 t_cli_set_observe 9999
 
 t_cli_run_bg 1>&2
-cpid=$!
-t_dbg "client pid: $cpid"
 
-sleep 1
+if [ "${EC_PLUG_MODE}" != "srv" ]; then
+    cpid=$!
+    t_dbg "client pid: $cpid"
 
-# reboot client by sending it a SIGHUP
-t_dbg "rebooting"
-kill -HUP ${cpid} 
+    sleep 1
+
+    # reboot client by sending it a SIGHUP
+    t_dbg "rebooting"
+    kill -HUP ${cpid} 
+fi
 
 sleep 2
 

@@ -2,6 +2,8 @@
 ##
 ## description: Client detection of deregistration (Max-Age)
 ## status: incomplete,tested
+##
+## note: needs to be run manually when testing external client/server
 
 . ../share/common.sh
 
@@ -25,8 +27,10 @@ t_cli_set_path /obs
 # long-running observation
 t_cli_set_observe 9999
 
-# reboot the server after a few seconds
-t_timer 1 "t_dbg rebooting server" "kill ${spid}" "t_srv_run_bg"
+# reboot the server after a little while
+if [ "${EC_PLUG_MODE}" != "cli" ]; then
+    t_timer 2 "t_dbg rebooting server" "kill ${spid}" "t_srv_run_bg"
+fi
 
 t_cli_run_bg 1>&2 2>/dev/null
 
@@ -60,7 +64,10 @@ t_field_check 1 srv Code GET
 mid2=`t_field_get 1 srv MID` 
 
 if [ "${EC_PLUG_DUMP}" = "1" ]; then
-    if [ "${EC_PLUG_MODE}" != "cli" ]; then 
+    
+    # don't do this check unless we are testing our own implementation locally
+    # otherwise test should be run manually to get timing right
+    if [ "${EC_PLUG_MODE}" = "" ]; then 
         # after rebooting the server, id is reset back to 1 so make sure
         # message is different
         [ "${mid1}" = "${mid2}" ] && t_die ${EC_PLUG_RC_GENERR} \

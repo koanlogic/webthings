@@ -55,13 +55,15 @@ t_field_check 6 srv Block1 86   # num=5,m=0,szx=6
 t_dbg "[Step 4] Server indicates presence of the complete updated resource"\
       "/large-update."
 
-t_cli_set_method GET
-t_cli_run > .fout
-diff .fout ${pf}
-[ $? -ne 0 ] && t_die ${EC_PLUG_RC_GENERR} "GET doesn't match PUT"
+if [ "${EC_PLUG_MODE}" != "srv" ]; then
+    t_cli_set_method GET
+    t_cli_run > .fout
+    diff .fout ${pf}
+    [ $? -ne 0 ] && t_die ${EC_PLUG_RC_GENERR} "GET doesn't match PUT"
+    rm -f .fout
+fi
 
 #
 # Cleanup
 #
-rm -f .fout
 t_term
