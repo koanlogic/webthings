@@ -68,9 +68,6 @@ fi
 t_dbg "[Step 5] Client displays the received response."
 
 t_dbg "${out}"
-if [ "${EC_PLUG_MODE}" != "srv" ]; then
-    t_cmp "${out}" "Hello world!"
-fi
 
 #
 # Cleanup

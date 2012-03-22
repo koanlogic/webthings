@@ -48,9 +48,6 @@ t_field_diff 1 cli MID "${v}"
 t_dbg "[Step 4] Client displays the received information."
 
 t_dbg "${out}"
-if [ "${EC_PLUG_MODE}" != "srv" ]; then
-    t_cmp "${out}" "Hello world!"
-fi
 
 #
 # Cleanup
