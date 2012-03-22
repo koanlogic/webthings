@@ -223,6 +223,12 @@ t_srv_run_bg()
     t_pid_add $!
 
     sleep 1
+
+    # if we are in server-only mode, user determines end of test
+    if [ "${EC_PLUG_MODE}" = "srv" ]; then
+        echo "# [EC_PLUG_MODE=srv] run client then press ENTER to terminate test"
+        read key
+    fi
 }
 
 
