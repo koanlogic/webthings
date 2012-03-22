@@ -33,7 +33,6 @@ t_dbg "[Step 2] Client sends a GET request to Server for /.well-known/core"\
 
 t_field_check 1 srv T CON
 t_field_check 1 srv Code GET
-#t_field_check 1 srv URI-Path .well-known/core      # FIXME
 t_field_check 1 srv URI-Query "rt=${rt}"
 
 #

@@ -2,6 +2,9 @@
 ##
 ## description: Handle GET blockwise transfer for large resource (late negotiation)
 ## status: complete,tested
+##
+## notes: assumes that the large resource has exactly 2 1024B blocks!
+##        otherwise disable checks by unsetting EC_PLUG_DUMP
 
 . ../share/common.sh
 

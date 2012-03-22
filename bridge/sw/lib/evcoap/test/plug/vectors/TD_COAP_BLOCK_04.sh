@@ -46,7 +46,7 @@ t_field_check 2 srv Block1 30   # num=1,m=1,szx=6
 t_field_check 3 srv Block1 46   # num=2,m=1,szx=6
 t_field_check 4 srv Block1 62   # num=3,m=1,szx=6
 t_field_check 5 srv Block1 78   # num=4,m=1,szx=6
-#...
+t_field_check 6 srv Block1 86   # num=5,m=0,szx=6
 
 #
 # Step 4
