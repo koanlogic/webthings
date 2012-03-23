@@ -13,7 +13,10 @@
 t_init
 t_srv_run_bg
 spid=$!
-t_dbg "server pid: $spid"
+
+if [ "${EC_PLUG_MODE}" != "cli" ]; then
+    t_dbg "server pid: $spid"
+fi
 
 #
 # Step 1
@@ -27,9 +30,22 @@ t_cli_set_path /obs
 # long-running observation
 t_cli_set_observe 9999
 
-# reboot the server after a little while
+# reboot the server
 if [ "${EC_PLUG_MODE}" != "cli" ]; then
-    t_timer 2 "t_dbg rebooting server" "kill ${spid}" "t_srv_run_bg"
+
+    # if the test is local (cli+srv), wait 2 seconds
+    if [ "${EC_PLUG_MODE}" = "" ]; then
+        t_timer 2 "t_dbg rebooting server" "kill ${spid}" "t_srv_run_bg"
+
+    # otherwise, kill after user input
+    else
+        t_dbg "rebooting server"
+        kill ${spid}
+        t_srv_run_bg
+        t_prompt "Run Steps 3..* on Client, then press ENTER to continue."
+    fi
+else
+    t_prompt "Run Step 1 on Server, then press enter to continue."
 fi
 
 t_cli_run_bg 1>&2 2>/dev/null

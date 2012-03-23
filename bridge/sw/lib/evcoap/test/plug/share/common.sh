@@ -46,6 +46,9 @@ EC_PLUG_RC_NOTAPPLICABLE=3      # test not applicable given settings
 EC_PLUG_RC_UNIMPLEMENTED=4      # feature not implemented
 EC_PLUG_RC_INTERRUPTED=5        # interrupted by signal
 
+# other internals
+ec_plug_first=1
+
 # startup warnings
 [ "${EC_PLUG_DUMP}" = "1" ] || \
         ${ECHO} "# [warn] EC_PLUG_DUMP not set,"\
@@ -66,7 +69,7 @@ t_die()
     rc=$1
     shift
 
-    echo "$@"
+    ${ECHO} "$@"
 
     t_term ${rc}
 }
@@ -78,17 +81,17 @@ t_rc2str()
 
     case ${rc} in
         ${EC_PLUG_RC_SUCCESS})
-            echo "success" ;;
+            ${ECHO} "success" ;;
         ${EC_PLUG_RC_GENERR})
-            echo "test failed" ;;
+            ${ECHO} "test failed" ;;
         ${EC_PLUG_RC_BADPARAMS})
-            echo "bad parameters" ;;
+            ${ECHO} "bad parameters" ;;
         ${EC_PLUG_RC_NOTAPPLICABLE})
-            echo "test not applicable" ;;
+            ${ECHO} "test not applicable" ;;
         ${EC_PLUG_RC_UNIMPLEMENTED})
-            echo "not implemented" ;;
+            ${ECHO} "not implemented" ;;
         ${EC_PLUG_RC_INTERRUPTED})
-            echo "interrupted by signal" ;;
+            ${ECHO} "interrupted by signal" ;;
         *)
             t_die ${EC_PLUG_RC_GENERR} "Bad return code: ${rc}!"
     esac
@@ -137,6 +140,13 @@ t_init()
 {
     # remove any pre-existing dump or cache files
     rm -f *.dump "${EC_PLUG_PIDS_FILE}"
+
+    # print out environment variables (debug mode only)
+    t_dbg "Env:"
+    t_dbg "  EC_PLUG_DUMP=${EC_PLUG_DUMP}"
+    t_dbg "  EC_PLUG_MODE=${EC_PLUG_MODE}"
+    t_dbg "  EC_PLUG_VERBOSE=${EC_PLUG_VERBOSE}"
+    t_dbg
 }
 
 # Cleanup test - kills all processes.
@@ -151,7 +161,7 @@ t_term()
     if [ ${rc} -eq 0 ]; then
         t_dbg "success"
     else 
-        echo "failure (rc=${rc}: '${rcs}')"
+        ${ECHO} "failure (rc=${rc}: '${rcs}')"
     fi
 
     #t_dbg "jobs left: `jobs -p`"
@@ -232,13 +242,14 @@ t_srv_run_bg()
 
     sleep 1
 
-    # if we are in server-only mode, user determines end of test
+    # if we are in server-only mode, user determines start of test
     if [ "${EC_PLUG_MODE}" = "srv" ]; then
-        echo "# [EC_PLUG_MODE=srv] run client then press ENTER to terminate test"
-        read key
+        if [ ${ec_plug_first} -eq 1 ]; then
+            ec_plug_first=0
+            t_prompt
+        fi
     fi
 }
-
 
 # Set server uri
 t_srv_set_uri()
@@ -565,6 +576,21 @@ t_timer()
     t_dbg "timer cmds: $@"
 
     __t_timer ${s} "$@" &
+}
+
+# Print a message and prompt the user for a keypress to continue test
+#
+# $@    Message to print before prompt
+t_prompt()
+{
+    if [ "$1" = "" ]; then
+        msg="Execute next steps, then press ENTER to continue."
+    else
+        msg="$@"
+    fi
+
+    ${ECHO} "# ${msg}"
+    read line
 }
 
 # Append to list of PIDS to be killed upon termination
