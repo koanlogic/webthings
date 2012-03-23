@@ -545,7 +545,7 @@ static ec_cbrc_t resource_cb_dft(ec_server_t *srv, void *u0,
 
     u_unused_args(u0, u1, u2);
 
-    CHAT("[%s]", __FUNCTION__);
+    CHAT("[%s]", __func__);
 
     url = ec_server_get_url(srv);
     method = ec_server_get_method(srv);
@@ -588,7 +588,7 @@ static ec_cbrc_t resource_cb_separate(ec_server_t *srv, void *u0,
     bool resched = u2;
     struct timeval *tv = u1;
 
-    CHAT("[%s]", __FUNCTION__);
+    CHAT("[%s]", __func__);
 
     if (resched)
         return resource_cb_dft(srv, u0, u1, u2);
@@ -614,7 +614,7 @@ static ec_cbrc_t resource_cb_large_update(ec_server_t *srv, void *u0,
 
     u_unused_args(u0, u1, u2);
 
-    CHAT("[%s]", __FUNCTION__);
+    CHAT("[%s]", __func__);
 
     url = ec_server_get_url(srv);
     method = ec_server_get_method(srv);
@@ -653,7 +653,7 @@ static ec_cbrc_t resource_cb_large_create(ec_server_t *srv, void *u0,
 
     u_unused_args(u0, u1, u2);
 
-    CHAT("[%s]", __FUNCTION__);
+    CHAT("[%s]", __func__);
 
     url = ec_server_get_url(srv);
     method = ec_server_get_method(srv);
@@ -689,7 +689,7 @@ static ec_cbrc_t resource_cb_wkc(ec_server_t *srv, void *u0,
 
     u_unused_args(srv, u0, u1, u2);
 
-    CHAT("[%s]", __FUNCTION__);
+    CHAT("[%s]", __func__);
 
     method = ec_server_get_method(srv);
 
