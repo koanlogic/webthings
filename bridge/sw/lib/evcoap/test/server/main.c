@@ -57,7 +57,7 @@ ec_cbrc_t create(ec_server_t *srv, void *u0, struct timeval *u1, bool u2);
 
 int serve_wkc(ec_server_t *srv, ec_method_t method);
 int serve_get(ec_server_t *srv, ec_rep_t *rep);
-int serve_delete(ec_server_t *srv);
+int serve_delete(ec_server_t *srv, const char *uri);
 int serve_put(ec_server_t *srv, ec_rep_t *rep);
 int serve_post(ec_server_t *srv);
 
@@ -537,14 +537,23 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
     size_t mta_sz = sizeof mta / sizeof(ec_mt_t);
     ec_rep_t *rep;
     ec_res_t *res;
+    char uri[U_URI_STRMAX];
+    bool is_proxy;
 
     u_unused_args(u0);
 
     /* Get the requested URI and method. */
-    const char *uri = ec_server_get_url(srv);
+    dbg_if (ec_request_get_uri(srv, uri, &is_proxy) == NULL);
     ec_method_t method = ec_server_get_method(srv);
 
     CHAT("%s %s", ec_method_str(method), uri);
+
+    /* Tell'em to use test/proxy to support Proxy-Uri's. */
+    if (is_proxy)
+    {
+        dbg_if (ec_response_set_code(srv, EC_PROXYING_NOT_SUPPORTED));
+        return EC_CBRC_READY;
+    }
 
     /* See if configured for separate responses. */
     if (resched == false && g_ctx.sep.tv_sec)
@@ -590,7 +599,7 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
                 return EC_CBRC_READY;
 
             case EC_COAP_DELETE:
-                (void) serve_delete(srv);
+                (void) serve_delete(srv, uri);
                 return EC_CBRC_READY;
 
             case EC_COAP_PUT:
@@ -678,30 +687,11 @@ int serve_get(ec_server_t *srv, ec_rep_t *rep)
  * success or in case the resource did not exist before the request.
  * DELETE is not safe, but idempotent.
  */
-int serve_delete(ec_server_t *srv)
+int serve_delete(ec_server_t *srv, const char *uri)
 {
-    int rc;
-    char uri[U_URI_STRMAX];
-    bool is_proxy;
-    ec_method_mask_t mm;
+    /* TODO handle conditional deletion of resources. */
 
-    (void) ec_request_get_uri(srv, uri, &is_proxy);
-
-    /* Admin ops for delegated resource bypass method mask check.
-     * Here we check that in case the resource is accessed through
-     * a Proxy-Uri, the DELETE op is admin only. */
-    if (is_proxy)
-    {
-        if (ec_request_get_publish(srv, &mm)
-                || mm != EC_METHOD_MASK_UNSET)
-        {
-            u_dbg("DELETE on a Proxy-Uri is allowed only for Publish removal");
-            (void) ec_response_set_code(srv, EC_BAD_OPTION);
-            return 0;
-        }
-    }
-
-    if ((rc = ec_filesys_del_resource(g_ctx.fs, uri)) == 0)
+    if (ec_filesys_del_resource(g_ctx.fs, uri) == 0)
     {
         (void) ec_response_set_code(srv, EC_DELETED);
         dbg_if(ec_unregister_cb(g_ctx.coap, uri));
@@ -738,23 +728,8 @@ int serve_put(ec_server_t *srv, ec_rep_t *rep)
 
     ec_mt_t mta[1];
     size_t pload_sz;
-    ec_method_mask_t mm;
     uint8_t etag[EC_ETAG_SZ] = { 0 }, *pload;
     ec_res_t *res = ec_rep_get_res(rep);
-
-    /* Admin ops for delegated resource bypass method mask check.
-     * Here we check that in case the resource is accessed through
-     * a Proxy-Uri, the DELETE op is admin only. */
-    if (ec_request_via_proxy(srv))
-    {
-        if (ec_request_get_publish(srv, &mm)
-                || mm == EC_METHOD_MASK_UNSET)
-        {
-            u_dbg("no Publish Option, or bad methods' mask");
-            (void) ec_response_set_code(srv, EC_BAD_OPTION);
-            return 0;
-        }
-    }
 
     /* Check conditionals:
      * 1) If-None-Match
@@ -771,10 +746,10 @@ int serve_put(ec_server_t *srv, ec_rep_t *rep)
 
     /* Get payload and media type (if specified.) */
     pload = ec_request_get_payload(srv, &pload_sz);
-    dbg_err_if(ec_request_get_content_type(srv, &mta[1]));
+    dbg_err_if (ec_request_get_content_type(srv, &mta[1]));
 
     /* Add new representation. */
-    dbg_err_if(ec_resource_add_rep(res, pload, pload_sz, mta[1], etag));
+    dbg_err_if (ec_resource_add_rep(res, pload, pload_sz, mta[1], etag));
 
     /* Delete old in case media-type matches. */
     if (mta[1] == rep->media_type)
@@ -806,48 +781,35 @@ err:
  * being deleted, a 2.02 (Deleted) response SHOULD be returned.
  *
  * POST is neither safe nor idempotent.
- *
  */
 int serve_post(ec_server_t *srv)
 {
-    /* This routine handles the creation of a resource using the POST method.
-     */
-
+    /* This routine handles the creation of a resource using the POST method. */
+    ec_mt_t mt;
     uint8_t *pload;
-    char *first;
-    char *second;
-    char *uri_tmp;
-    char *uri_res;
-
     size_t pload_sz;
     ec_res_t *res = NULL;
-    ec_method_t method;
     bool is_proxy = false;
-    char uri[U_URI_STRMAX];
-    ec_mt_t mt;
     ec_method_mask_t mm = EC_METHOD_MASK_ALL;
-
+    char uri[U_URI_STRMAX], *first, *uri_tmp, *uri_res;
 
     /* Get payload (may be empty/NULL).
-     * If it is not empty/NULL check/parse the content*/
+     * If it is not empty/NULL check/parse the content */
     pload = ec_request_get_payload(srv, &pload_sz);
 
-
-    first = strtok(pload, ">");
+    first = strtok((char *) pload, ">");
     do
     {
-
         uri_tmp = strpbrk(first, "<");
 
-        /* Get the requested URI and method. */
         (void) ec_request_get_uri(srv, uri, &is_proxy);
 
         uri_res = strcat(uri, ++uri_tmp);
 
         CHAT("adding resource for: %s", uri_res);
 
-        /* When !publish, create resource with all methods allowed. */
-        con_err_ifm((res = ec_resource_new(uri_res, mm, 3600)) == NULL,
+        /* Create resource with all methods allowed. */
+        dbg_err_ifm ((res = ec_resource_new(uri_res, mm, 3600)) == NULL,
                 "resource creation failed");
 
         /* Get media type (if not specified default to text/plain. */
@@ -857,11 +819,11 @@ int serve_post(ec_server_t *srv)
         /* Create new resource representation with the requested media type. */
         /* Each resource only has one representation in this implementation.
          * Use automatic ETag. */
-        con_err_ifm(ec_resource_add_rep(res, " ", 1, mt, NULL),
+        dbg_err_ifm (ec_resource_add_rep(res, (const uint8_t *) " ", 1, mt, NULL),
                 "error adding representation for %s", uri_res);
 
         /* Attach resource to FS. */
-        con_err_ifm(ec_filesys_put_resource(g_ctx.fs, res),
+        dbg_err_ifm (ec_filesys_put_resource(g_ctx.fs, res),
                 "adding resource failed");
         res = NULL;
 
@@ -869,13 +831,12 @@ int serve_post(ec_server_t *srv)
          * XXX If we get an error here it's really a bad thing because
          * the resource has been already registered and we go into an
          * inconsistent state. */
-        con_err_ifm(ec_register_cb(g_ctx.coap, uri_res, serve, NULL),
+        dbg_err_ifm (ec_register_cb(g_ctx.coap, uri_res, serve, NULL),
                 "registering callback for %s failed", uri_res);
 
-        *first = NULL;
-        *uri = NULL;
+        first = NULL;
+        uri[0] = '\0';
         first = strtok(NULL, ">");
-
     }
     while (first != NULL);
 
@@ -887,7 +848,6 @@ err:
     if (res)
         ec_resource_free(res);
     return EC_CBRC_ERROR;
-
 }
 
 ec_cbrc_t create(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
@@ -906,29 +866,21 @@ ec_cbrc_t create(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
     /* Get the requested URI and method. */
     (void) ec_request_get_uri(srv, uri, &is_proxy);
 
-    /* Resource creation is done via PUT. */
-    if ((method = ec_server_get_method(srv)) == EC_COAP_POST)
+    switch ((method = ec_server_get_method(srv)))
     {
-        (void) serve_post(srv);
-        return EC_CBRC_READY;
-    }
-    else if ((method = ec_server_get_method(srv)) != EC_COAP_PUT)
-    {
-        (void) ec_response_set_code(srv, EC_NOT_FOUND);
-        return EC_CBRC_READY;
-    }
-
-    /* Experimental support for the Publish option. */
-    if (is_proxy && ec_request_get_publish(srv, &mm))
-    {
-        u_dbg("Proxy-Uri supported only for testing the Publish Option");
-        (void) ec_response_set_code(srv, EC_PROXYING_NOT_SUPPORTED);
-        return EC_CBRC_READY;
+        case EC_COAP_POST:
+            (void) serve_post(srv);
+            return EC_CBRC_READY;
+        case EC_COAP_PUT:
+            break;
+        default:
+            (void) ec_response_set_code(srv, EC_NOT_FOUND);
+            return EC_CBRC_READY;
     }
 
     CHAT("adding resource for: %s", uri);
 
-    /* When !publish, create resource with all methods allowed. */
+    /* Create resource with all methods allowed. */
     con_err_ifm((res = ec_resource_new(uri, mm, 3600)) == NULL,
             "resource creation failed");
 
@@ -942,11 +894,11 @@ ec_cbrc_t create(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
     /* Create new resource representation with the requested media type. */
     /* Each resource only has one representation in this implementation.
      * Use automatic ETag. */
-    con_err_ifm(ec_resource_add_rep(res, pload, pload_sz, mt, NULL),
+    dbg_err_ifm (ec_resource_add_rep(res, pload, pload_sz, mt, NULL),
             "error adding representation for %s", uri);
 
     /* Attach resource to FS. */
-    con_err_ifm(ec_filesys_put_resource(g_ctx.fs, res),
+    dbg_err_ifm (ec_filesys_put_resource(g_ctx.fs, res),
             "adding resource failed");
     res = NULL;
 
@@ -954,7 +906,7 @@ ec_cbrc_t create(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
      * XXX If we get an error here it's really a bad thing because
      * the resource has been already registered and we go into an
      * inconsistent state. */
-    con_err_ifm(ec_register_cb(g_ctx.coap, uri, serve, NULL),
+    dbg_err_ifm (ec_register_cb(g_ctx.coap, uri, serve, NULL),
             "registering callback for %s failed", uri);
 
     /* 2.01 Created */
