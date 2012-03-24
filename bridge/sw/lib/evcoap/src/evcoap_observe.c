@@ -31,7 +31,6 @@ static bool ec_source_match(const ec_conn_t *req_src, const ec_conn_t *obs_src);
  * TODO: The callback should produce all the requested representations in one 
  *       shot;
  *       Fix 'p' const'ness;
- *
  */
 static void ec_ob_cb(evutil_socket_t u0, short u1, void *c)
 {
