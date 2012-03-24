@@ -1,13 +1,13 @@
 resource
 {
-    path    /test
+    path    /query
     max-age 1200
 
-    allowed-methods GET PUT POST DELETE
+    allowed-methods GET
 
     representation
     {
         t: text/plain
-        v: test value
+        v: query value
     }
 }

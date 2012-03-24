@@ -1,13 +1,12 @@
 resource
 {
-    path    /separate
-    max-age 1200
+    path    /seq1/seq2/seq3
 
     allowed-methods GET
 
     representation
     {
         t: text/plain
-        v: separate value
+        v: seq3 value
     }
 }

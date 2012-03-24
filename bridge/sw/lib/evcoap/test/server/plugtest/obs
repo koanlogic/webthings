@@ -1,0 +1,13 @@
+resource
+{
+    path    /obs
+    max-age 5
+
+    allowed-methods GE
+
+    representation
+    {
+        t: text/plain
+        v: observable value
+    }
+}

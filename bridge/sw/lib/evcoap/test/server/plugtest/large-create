@@ -1,13 +1,13 @@
 resource
 {
-    path    /test
+    path    /large-create
     max-age 1200
 
-    allowed-methods GET PUT POST DELETE
+    allowed-methods GET POST
 
     representation
     {
         t: text/plain
-        v: test value
+        v: large create value
     }
 }
