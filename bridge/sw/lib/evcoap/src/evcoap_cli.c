@@ -157,7 +157,19 @@ int ec_client_set_uri(ec_client_t *cli, const char *uri)
 
         /* Add query, if available. */
         if ((p = u_uri_get_query(u)) && *p != '\0')
-            dbg_err_if (ec_opts_add_uri_query(opts, p));
+        {
+            char *r, *s, query[1024];    /* TODO check query len. */
+
+            dbg_err_if (u_strlcpy(query, p, sizeof query));
+
+            for (s = query; (r = strsep(&s, "&")) != NULL; )
+            {
+                if (*r == '\0')
+                    continue;
+
+                dbg_err_if (ec_opts_add_uri_query(opts, r));
+            }
+        }
     }
 
     u_uri_free(u);
