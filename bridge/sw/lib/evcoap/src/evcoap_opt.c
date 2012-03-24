@@ -910,7 +910,10 @@ int ec_opts_get_max_age(ec_opts_t *opts, uint32_t *max_age)
     dbg_return_if (max_age == NULL, -1);
 
     if (ec_opts_get_uint(opts, EC_OPT_MAX_AGE, &tmp))
-        return -1;
+    {
+        *max_age = 3600;
+        return 0;
+    }
 
     dbg_err_ifm (tmp > UINT32_MAX, "Max-age encoding overflow");
 
