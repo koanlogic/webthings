@@ -1,0 +1,19 @@
+resource
+{
+    path    /separate
+    max-age 1200
+
+    allowed-methods GET
+
+    link-attrs
+    {
+        obs 1
+        exp 1
+    }
+
+    representation
+    {
+        t: text/plain
+        v: separate value
+    }
+}
