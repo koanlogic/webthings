@@ -9,6 +9,7 @@ makl_args_init "$@"
 . build/mk_enable_debug
 . build/mk_enable_warns
 . build/mk_enable_extra
+. build/mk_enable_plug
 
 makl_pkg_name "kink"
 makl_pkg_version

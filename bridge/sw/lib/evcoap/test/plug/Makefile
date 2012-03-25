@@ -3,7 +3,7 @@ include ../../../../Makefile.conf
 
 SUBDIR = server
 
-ifndef EC_PLUG_DISABLE
+ifdef EC_PLUG_ENABLE
 SUBDIR += bin
 endif
 

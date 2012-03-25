@@ -5,6 +5,8 @@
 
 . ../share/common.sh
 
+t_die 1 "FIXME (new server)"
+
 #
 # Init
 #

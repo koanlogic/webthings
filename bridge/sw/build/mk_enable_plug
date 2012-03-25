@@ -1,0 +1,10 @@
+# --enable_plug
+
+# helper
+makl_args_def "enable_plug" "" "" "enable Etsi Interoperability Plug Tests"
+
+# hook
+function __makl_enable_plug ()
+{
+    makl_set_var "EC_PLUG_ENABLE" "1"
+}
