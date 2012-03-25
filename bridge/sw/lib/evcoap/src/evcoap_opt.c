@@ -277,7 +277,7 @@ int ec_opts_add_empty(ec_opts_t *opts, ec_opt_sym_t sym)
  * uint (i.e. # of valid bytes in 'e'.) */
 int ec_opt_encode_uint(uint64_t ui, uint8_t *e, size_t *elen)
 {
-    size_t i, j;
+    size_t i, j, e_bytes;
     
     uint64_t ui_bytes[] =
     {
@@ -293,23 +293,26 @@ int ec_opt_encode_uint(uint64_t ui, uint8_t *e, size_t *elen)
     
     /* Pick size. */
     for (i = 0; i < (sizeof ui_bytes / sizeof(uint64_t)); i++)
-        if (ui_bytes[i] > ui)
+    {
+        if (ui_bytes[i] >= ui)
+        {
+            e_bytes = i + 1;
             break;
-    
-    dbg_err_ifm (*elen < i + 1, "not enough bytes for encoding %llu", ui);
+        }
+    }
+
+    dbg_return_ifm (*elen < e_bytes, -1, "not enough bytes to encode %llu", ui);
     
 #ifdef EC_LITTLE_ENDIAN
-    for (j = 0; j <= i; ++j)
-        e[j] = (ui >> (8 * j)) & 0xff;
+    for (j = 0; j < e_bytes; ++j)
+        e[i - j] = (ui >> (8 * j)) & 0xff;
 #else
     #error "TODO big endian uint encoder"
 #endif  /* EC_LITTLE_ENDIAN */
     
-    *elen = i + 1;
+    *elen = e_bytes;
     
     return 0;
-err:
-    return -1;
 }
 
 int ec_opts_count_sym(ec_opts_t *opts, ec_opt_sym_t sym, size_t *n)
@@ -408,7 +411,7 @@ int ec_opt_decode_uint(const uint8_t *v, size_t l, uint64_t *ui)
 
 #ifdef EC_LITTLE_ENDIAN
     for (i = 0; i < l; ++i)
-        *ui |= v[i] << (i * 8);
+        *ui |= ((uint64_t) v[i]) << (8 * (l - (i + 1)));
 #else
     #error "TODO big endian uint decoder (no-op)"
 #endif  /* EC_LITTLE_ENDIAN */

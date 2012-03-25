@@ -221,6 +221,37 @@ err:
     return U_TEST_FAILURE;
 }
 
+static int test_uint_codec(u_test_case_t *tc)
+{
+    size_t i, j, buf_sz;
+    uint8_t buf[10], *up;
+    uint64_t uints[] = {
+        UINT8_MAX - 1, UINT8_MAX, 
+        5683,
+        UINT16_MAX - 1, UINT16_MAX,
+        UINT32_MAX - 1, UINT32_MAX,
+        UINT64_MAX - 1, UINT64_MAX
+    }, tmp;
+    const size_t uints_sz = sizeof uints / sizeof(uint64_t);
+
+    for (i = 0; i < uints_sz; i++)
+    {
+        buf_sz = sizeof buf;
+
+        u_test_err_ifm (ec_opt_encode_uint(uints[i], buf, &buf_sz),
+                "encoding %lld failed", uints[i]);
+
+        u_test_err_ifm (ec_opt_decode_uint(buf, buf_sz, &tmp),
+                "decoding failed");
+
+        u_test_err_ifm (tmp != uints[i], "exp %llu, got %llu", uints[i], tmp);
+    }
+
+    return U_TEST_SUCCESS;
+err:
+    return U_TEST_FAILURE;
+}
+
 int test_suite_options_register(u_test_t *t)
 {
     u_test_suite_t *ts = NULL;
@@ -232,6 +263,7 @@ int test_suite_options_register(u_test_t *t)
     con_err_if (u_test_case_register("Fencepost", test_fencepost, ts));
     con_err_if (u_test_case_register("Block1/2", test_block, ts));
     con_err_if (u_test_case_register("Publish", test_publish, ts));
+    con_err_if (u_test_case_register("Uint", test_uint_codec, ts));
 
     /* No dependencies. */
 

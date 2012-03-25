@@ -20,3 +20,14 @@ misc
 - check in evcoap/evcoap_opt whenever we downcast (e.g. from ec_mt_t to u16)
   that the result argument is initialized to a value that is compatible with 
   the target type
+
+
+==============================
+POST PLUGTESTS ideas and fixes
+==============================
+
+- make vhosting optional: if disabled dispatch by resource path
+    - related to this, take care of uri-host normalization (use binary repr cmp?)
+- check CON separate messaging in lossy context
+- do a generic options iterator (e.g. opt_iter(opts_t *opts, worker(opts_t *)))
+- default encoding of 0-valued uint's
