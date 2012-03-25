@@ -37,6 +37,7 @@ typedef struct
     uint8_t etag[4];
     const char *ofn;
     const char *pfn;
+    uint32_t retry;
     uint32_t observe;
     bool verbose;
     bool fail;
@@ -68,6 +69,7 @@ ctx_t g_ctx = {
     .etag = { 0xde, 0xad, 0xbe, 0xef },
     .ofn = DEFAULT_OFN,
     .pfn = NULL,
+    .retry = 0,
     .observe = 0,
     .verbose = false,
     .fail = false,
@@ -91,6 +93,7 @@ int client_set_model(const char *s);
 int client_set_observe(const char *s);
 int client_set_output_file(const char *s);
 int client_set_payload_file(const char *s);
+int client_set_retry(const char *s);
 int client_set_app_timeout(const char *s);
 int client_set_publish_mask(const char *s);
 int client_set_proxy(const char *s);
@@ -106,8 +109,9 @@ int parse_addr(const char *ap, char *a, size_t a_sz, uint16_t *p);
 int main(int ac, char *av[])
 {
     int c;
+    int retry_secs = 1;
 
-    while ((c = getopt(ac, av, "c:hu:m:M:O:o:p:x:vt:B:P:T")) != -1)
+    while ((c = getopt(ac, av, "c:hu:m:M:O:o:p:r:x:vt:B:P:T")) != -1)
     {
         switch (c)
         {
@@ -137,6 +141,10 @@ int main(int ac, char *av[])
                 break;
             case 'p':
                 if (client_set_payload_file(optarg))
+                    usage(av[0]);
+                break;
+            case 'r':
+                if (client_set_retry(optarg))
                     usage(av[0]);
                 break;
             case 'v':
@@ -173,15 +181,19 @@ retry:
     /* Run, and keep on doing it until all blocks are exhausted. */
     do
     {
-        con_err_if (client_run());
+        (void) client_run();
     }
     while ((g_ctx.block1.more || g_ctx.block2.more) && !g_ctx.fail);
 
     client_term();
 
-    if (g_ctx.fail)
+    if (g_ctx.fail && g_ctx.retry)
     {
-        u_dbg("client failed! retrying");
+        u_dbg("client failed! retrying in %d seconds (%d more)", 
+                retry_secs, g_ctx.retry);
+        sleep(retry_secs);
+        retry_secs <<= 1;  /* 2^n backoff */
+        g_ctx.retry--;
         goto retry;
     }
 
@@ -294,6 +306,8 @@ void usage(const char *prog)
         "       -M <CON|NON>                     (default is NON)           \n"
         "       -o <file>                        (default is "DEFAULT_OFN") \n"
         "       -p <file>                        (default is NULL)          \n"
+        "       -r <n_retries>                   (default is no retry)      \n"
+        "          how many times to retry upon failure                     \n"
         "       -u <uri>                         (default is "DEFAULT_URI") \n"
         "       -t <timeout>                     (default is %u sec)        \n"
         "       -T generate Token option         (default is no Token)      \n"
@@ -415,6 +429,7 @@ int client_run(void)
     
     return event_base_dispatch(g_ctx.base);
 err:
+    g_ctx.fail = true;
     return -1;
 }
 
@@ -597,6 +612,16 @@ int client_set_payload_file(const char *s)
     dbg_return_if (s == NULL, -1);
     
     g_ctx.pfn = s;
+
+    return 0;
+}
+
+int client_set_retry(const char *s)
+{
+    dbg_return_if (s == NULL, -1);
+    
+    con_return_ifm (u_atol(s, (long *) &g_ctx.retry),
+            -1, "bad number of retries '%s'", s);
 
     return 0;
 }
