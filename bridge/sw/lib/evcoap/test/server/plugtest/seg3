@@ -1,12 +1,12 @@
 resource
 {
-    path    /seq1/seq2/seq3
+    path    /seg1/seg2/seg3
 
     allowed-methods GET
 
     representation
     {
         t: text/plain
-        v: seq3 value
+        v: seg3 value
     }
 }

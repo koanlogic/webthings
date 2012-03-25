@@ -3,7 +3,7 @@ resource
     path    /obs
     max-age 5
 
-    allowed-methods GE
+    allowed-methods GET
 
     representation
     {
