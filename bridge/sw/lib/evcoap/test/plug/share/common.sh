@@ -5,9 +5,11 @@ fi
 
 # server settings
 if [ -z ${EC_PLUG_SRV_CMD} ]; then
-    EC_PLUG_SRV_CMD="../server/coap-server"
+    EC_PLUG_SRV_CMD="../../server/coap-server"
 fi
-EC_PLUG_SRV_ARG_URI="${EC_PLUG_ADDR}"
+if [ -z ${EC_PLUG_SRV_ARG_FILE} ]; then
+    EC_PLUG_SRV_ARG_FILE="../../server/coap-server-plug.conf"
+fi
 
 # other server settings
 #EC_PLUG_SRV_ARG_SEP=""         # default: unset
@@ -54,6 +56,8 @@ ec_plug_first=1
         ${ECHO} "# [warn] EC_PLUG_DUMP not set,"\
              "no 'check' steps will be performed"
 
+# create a local link to plugtest embfs
+ln -s ../../server/plugtest .
 
 # If EC_PLUG_VERBOSE=1, debugs all strings to standard error.
 t_dbg()
@@ -206,8 +210,8 @@ __t_srv_run()
     fg=$1
     shift
 
-    [ -z ${EC_PLUG_SRV_ARG_URI} ] || \
-        args="${args} -u ${EC_PLUG_SRV_ARG_URI}"
+    [ -z ${EC_PLUG_SRV_ARG_FILE} ] || \
+        args="${args} -f ${EC_PLUG_SRV_ARG_FILE}"
 
     [ -z ${EC_PLUG_SRV_ARG_SEP} ] || \
         args="${args} -s ${EC_PLUG_SRV_ARG_SEP}"
@@ -249,14 +253,6 @@ t_srv_run_bg()
             t_prompt
         fi
     fi
-}
-
-# Set server uri
-t_srv_set_uri()
-{
-    [ -z $1 ] && t_die ${EC_PLUG_RC_BADPARAMS} "URI must be defined!"
-
-    EC_PLUG_SRV_ARG_URI=$1
 }
 
 # Set argument for separate response (seconds)
