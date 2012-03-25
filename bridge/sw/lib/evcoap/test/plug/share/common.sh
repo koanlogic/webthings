@@ -503,7 +503,7 @@ t_field_diff()
 
     # compare result with value    
     [ "${xtrim}" != "${val}" ] || t_die ${EC_PLUG_RC_GENERR} \
-            "failed check! (found: '${xtrim}', expected: '${val}')"
+            "failed check! (found: '${xtrim}', expected !=)"
 }
 
 # Check the size of a string.
