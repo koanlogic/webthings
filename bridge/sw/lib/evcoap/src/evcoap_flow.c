@@ -5,6 +5,8 @@ int ec_flow_init(ec_flow_t *flow)
     dbg_return_if (flow == NULL, -1);
 
     memset(flow, 0, sizeof *flow);
+    flow->is_sep = false;
+        
     (void) ec_conn_init(&flow->conn);
 
     return 0;
@@ -202,4 +204,22 @@ const char *ec_flow_get_url(ec_flow_t *flow, char url[U_URI_STRMAX],
     return url;
 err:
     return NULL;
+}
+
+int ec_flow_set_separate(ec_flow_t *flow, bool is_sep)
+{
+    dbg_return_if (flow == NULL, -1);
+
+    flow->is_sep = is_sep;
+
+    return 0;
+}
+
+int ec_flow_get_separate(ec_flow_t *flow, bool *is_sep)
+{
+    dbg_return_if (flow == NULL, -1);
+
+    *is_sep = flow->is_sep;
+
+    return 0;
 }

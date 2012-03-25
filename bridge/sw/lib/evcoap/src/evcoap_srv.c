@@ -742,6 +742,7 @@ static bool ec_server_state_is_final(ec_srv_state_t state)
 
 void ec_server_set_state(ec_server_t *srv, ec_srv_state_t state)
 {
+    ec_flow_t *flow = &srv->flow;
     ec_srv_state_t cur = srv->state;
 
     u_dbg("[server=%p] transition request from '%s' to '%s'",
@@ -754,7 +755,10 @@ void ec_server_set_state(ec_server_t *srv, ec_srv_state_t state)
     if (state == EC_SRV_STATE_WAIT_ACK)
     {
         if (cur == EC_SRV_STATE_ACK_SENT)
+        {
+            dbg_if (ec_flow_set_separate(flow, true));
             dbg_if (ec_srv_start_coap_timer(srv));
+        }
         else if (cur == EC_SRV_STATE_COAP_RETRY)
             dbg_if (ec_srv_restart_coap_timer(srv));
     }
@@ -893,7 +897,7 @@ err:
 
 int ec_server_send_resp(ec_server_t *srv)
 {
-    bool is_con;
+    bool is_con, is_sep;
 
     dbg_return_if (srv == NULL, -1);
     dbg_return_if (srv->res == NULL, -1);
@@ -910,6 +914,9 @@ int ec_server_send_resp(ec_server_t *srv)
     ec_flow_t *flow = &srv->flow;   /* shortcut */
     dbg_err_if (!EC_IS_RESP_CODE(flow->resp_code));
 
+    /* Check if separate. */
+    dbg_if (ec_flow_get_separate(flow, &is_sep));
+
     /* Need a payload in case response code is 2.05 Content ? */
     ec_pdu_t *res = srv->res;       /* shortcut */
 /*  dbg_err_if (flow->resp_code == EC_CONTENT && res->payload == NULL); */
@@ -918,7 +925,7 @@ int ec_server_send_resp(ec_server_t *srv)
     dbg_err_if (ec_conn_get_confirmable(conn, &is_con));
 
     /* Encode, in case it was not already ACK'd, use piggyback. */
-    if (is_con && srv->state != EC_SRV_STATE_ACK_SENT)
+    if (is_con && !is_sep && srv->state != EC_SRV_STATE_ACK_SENT)
         dbg_err_if (ec_pdu_encode_response_piggyback(res));
     else
         dbg_err_if (ec_pdu_encode_response_separate(res));
