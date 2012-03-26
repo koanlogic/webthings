@@ -12,9 +12,10 @@
 
 int facility = LOG_LOCAL0;
 
-#define DEFAULT_URI "coap://[::1]/.well-known/core"
-#define DEFAULT_OFN "./response.payload"
-#define DEFAULT_TOUT 60
+#define DEFAULT_URI     "coap://[::1]/.well-known/core"
+#define DEFAULT_OFN     "./response.payload"
+#define DEFAULT_TOUT    60
+#define DEFAULT_BLOCK   128
 
 typedef struct
 {
@@ -663,7 +664,7 @@ int set_payload(ec_client_t *cli, const uint8_t *data, size_t data_sz)
     bool more;
     const uint8_t *p;
     size_t p_sz;
-    size_t block_sz = g_ctx.block_sz ? g_ctx.block_sz : EC_COAP_BLOCK_MAX;
+    size_t block_sz = g_ctx.block_sz ? g_ctx.block_sz : DEFAULT_BLOCK;
 
     /* Single block if data fits. */
     if (data_sz <= block_sz)
