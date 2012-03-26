@@ -174,6 +174,43 @@ err:
     return U_TEST_FAILURE;
 }
 
+static int test_content_type(u_test_case_t *tc)
+{
+    size_t i;
+    ec_opts_t in, out;
+    ec_mt_t mta[] = {
+        [0] = EC_MT_TEXT_PLAIN,
+        [1] = EC_MT_APPLICATION_LINK_FORMAT,
+        [2] = EC_MT_APPLICATION_XML,
+        [3] = EC_MT_APPLICATION_OCTET_STREAM,
+        [4] = EC_MT_APPLICATION_EXI,
+        [5] = EC_MT_APPLICATION_JSON
+        /* Add new media-types from */
+    };
+
+    (void) ec_opts_init(&in);
+    (void) ec_opts_init(&out);
+
+    for (i = 0; i < sizeof mta / sizeof(ec_mt_t); ++i)
+    {
+        uint16_t mt_out = 0;
+
+        u_test_err_if (ec_opts_add_content_type(&in, (uint16_t) mta[i]));
+        u_test_err_if (encdec(&in, &out));
+        u_test_err_if (ec_opts_get_content_type(&out, &mt_out));
+
+        u_test_err_ifm (mta[i] != mt_out,
+                "[%zu] exp(%u) != got(%u)", i, mta[i], mt_out);
+
+        ec_opts_clear(&in);
+        ec_opts_clear(&out);
+    }
+
+    return U_TEST_SUCCESS;
+err:
+    return U_TEST_FAILURE;
+}
+
 static int test_codec_bunch(u_test_case_t *tc)
 {
     ec_opts_t in, out;
@@ -226,6 +263,7 @@ static int test_uint_codec(u_test_case_t *tc)
     size_t i, j, buf_sz;
     uint8_t buf[10], *up;
     uint64_t uints[] = {
+        0,  /* Should be encoded with zero length. */
         UINT8_MAX - 1, UINT8_MAX, 
         5683,
         UINT16_MAX - 1, UINT16_MAX,
@@ -241,6 +279,10 @@ static int test_uint_codec(u_test_case_t *tc)
         u_test_err_ifm (ec_opt_encode_uint(uints[i], buf, &buf_sz),
                 "encoding %lld failed", uints[i]);
 
+        /* Test zero length encoding for 0 value. */
+        if (uints[i] == 0)
+            u_test_err_ifm (buf_sz != 0, "0 was not zero-length encoded");
+
         u_test_err_ifm (ec_opt_decode_uint(buf, buf_sz, &tmp),
                 "decoding failed");
 
@@ -252,18 +294,22 @@ err:
     return U_TEST_FAILURE;
 }
 
+
 int test_suite_options_register(u_test_t *t)
 {
     u_test_suite_t *ts = NULL;
 
     con_err_if (u_test_suite_new("CoAP options", &ts));
 
+    con_err_if (u_test_case_register("uint", test_uint_codec, ts));
+
+    /* TODO add TC dependencies of all of the following on "uint" TC. */
     con_err_if (u_test_case_register("encode/decode", test_codec_bunch, ts));
     con_err_if (u_test_case_register("Proxy-URI", test_proxy_uri, ts));
     con_err_if (u_test_case_register("Fencepost", test_fencepost, ts));
     con_err_if (u_test_case_register("Block1/2", test_block, ts));
     con_err_if (u_test_case_register("Publish", test_publish, ts));
-    con_err_if (u_test_case_register("Uint", test_uint_codec, ts));
+    con_err_if (u_test_case_register("Content-Type", test_content_type, ts));
 
     /* No dependencies. */
 

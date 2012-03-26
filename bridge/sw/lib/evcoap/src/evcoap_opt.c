@@ -51,17 +51,21 @@ ec_opt_t *ec_opt_new(ec_opt_sym_t sym, size_t l, const uint8_t *v)
     size_t vlen;
     ec_opt_t *o = NULL;
 
+    /* Create new option + set type and length. */
     dbg_err_sif ((o = u_zalloc(sizeof *o)) == NULL);
-
+    dbg_err_if ((o->l = l) > EC_COAP_OPT_LEN_MAX);
     o->sym = sym;
 
-    switch ((o->t = ec_opt_sym2type(sym)))
+    switch ((o->t = ec_opt_sym2type(o->sym)))
     {
         case EC_OPT_TYPE_INVALID:
             dbg_err("invalid option type");
         case EC_OPT_TYPE_EMPTY:
             return o;
         case EC_OPT_TYPE_UINT:
+            if (o->l == 0) /* 0-length uint has a NULL value. */
+                return o;
+            /* Fall through. */
         case EC_OPT_TYPE_STRING:
         case EC_OPT_TYPE_OPAQUE:
             break;
@@ -69,7 +73,6 @@ ec_opt_t *ec_opt_new(ec_opt_sym_t sym, size_t l, const uint8_t *v)
             dbg_err("unknown option type");
     }
 
-    dbg_err_if ((o->l = l) > EC_COAP_OPT_LEN_MAX);
 
     /* Make room for the option value. */
     vlen = (o->t != EC_OPT_TYPE_STRING) ? o->l : o->l + 1;
@@ -290,7 +293,14 @@ int ec_opt_encode_uint(uint64_t ui, uint8_t *e, size_t *elen)
         (1ULL << 56) - 1,
         UINT64_MAX
     };
-    
+
+    /* Short circuit: "Length = 0 (implies value of 0)" (and viceversa.) */
+    if (ui == 0)
+    {
+        *elen = 0;
+        return 0;
+    }
+ 
     /* Pick size. */
     for (i = 0; i < (sizeof ui_bytes / sizeof(uint64_t)); i++)
     {
@@ -303,11 +313,11 @@ int ec_opt_encode_uint(uint64_t ui, uint8_t *e, size_t *elen)
 
     dbg_return_ifm (*elen < e_bytes, -1, "not enough bytes to encode %llu", ui);
     
-#ifdef EC_LITTLE_ENDIAN
     for (j = 0; j < e_bytes; ++j)
+#ifdef EC_LITTLE_ENDIAN
         e[i - j] = (ui >> (8 * j)) & 0xff;
 #else
-    #error "TODO big endian uint encoder"
+        e[j] = (ui >> (8 * j)) & 0xff;
 #endif  /* EC_LITTLE_ENDIAN */
     
     *elen = e_bytes;
@@ -409,11 +419,17 @@ int ec_opt_decode_uint(const uint8_t *v, size_t l, uint64_t *ui)
 
     *ui = 0;
 
-#ifdef EC_LITTLE_ENDIAN
+    /* Short circuit: "Length = 0 (implies value of 0)"
+     * Assumes that *ui has been set to 0 in the preceeding line :-)
+     * */
+    if (l == 0)
+        return 0;
+
     for (i = 0; i < l; ++i)
+#ifdef EC_LITTLE_ENDIAN
         *ui |= ((uint64_t) v[i]) << (8 * (l - (i + 1)));
 #else
-    #error "TODO big endian uint decoder (no-op)"
+        *ui |= ((uint64_t) v[i]) << (8 * i);
 #endif  /* EC_LITTLE_ENDIAN */
  
     return 0;
