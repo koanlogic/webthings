@@ -383,31 +383,35 @@ int client_run(void)
     if (g_ctx.observe)
         dbg_err_if (ec_request_add_observe(g_ctx.cli));
 
-    /* First run - initiate early negotiation. */
-	if (g_ctx.block_sz && (g_ctx.iblock++ == 0))
+    if (g_ctx.method == EC_COAP_GET)
     {
-        dbg_err_if (ec_request_add_block2(g_ctx.cli, 0, 0, g_ctx.block_sz));
-    }
-    else if (g_ctx.block2.more)
-    /* More data available - get next block. */
-    {
-        g_ctx.block2.block_no++;
+        /* First run - initiate early negotiation. */
+        if (g_ctx.block_sz && (g_ctx.iblock++ == 0))
+        {
+            dbg_err_if (ec_request_add_block2(g_ctx.cli, 0, 0,
+                        g_ctx.block_sz));
+        }
+        else if (g_ctx.block2.more)
+        /* More data available - get next block. */
+        {
+            g_ctx.block2.block_no++;
 
-        g_ctx.block2.block_sz = g_ctx.block_sz
-            ? U_MIN(g_ctx.block_sz, g_ctx.block2.block_sz)
-            : g_ctx.block2.block_sz;
+            g_ctx.block2.block_sz = g_ctx.block_sz
+                ? U_MIN(g_ctx.block_sz, g_ctx.block2.block_sz)
+                : g_ctx.block2.block_sz;
 
-        CHAT("requesting block n.%u (size: %u)", g_ctx.block2.block_no,
-                g_ctx.block2.block_sz);
+            CHAT("requesting block n.%u (size: %u)", g_ctx.block2.block_no,
+                    g_ctx.block2.block_sz);
 
-        /* The client MUST set the M bit of a Block2 Option to zero. */
-        dbg_err_if (ec_request_add_block2(g_ctx.cli, g_ctx.block2.block_no,
-                    0, g_ctx.block2.block_sz));
+            /* The client MUST set the M bit of a Block2 Option to zero. */
+            dbg_err_if (ec_request_add_block2(g_ctx.cli, g_ctx.block2.block_no,
+                        0, g_ctx.block2.block_sz));
+        }
+
+        if (g_ctx.mt != EC_MT_ANY)
+            dbg_err_if (ec_request_add_accept(g_ctx.cli, g_ctx.mt));
     }
     
-    if (g_ctx.method == EC_COAP_GET && g_ctx.mt != EC_MT_ANY)
-        dbg_err_if (ec_request_add_accept(g_ctx.cli, g_ctx.mt));
-
     /* In case of POST/PUT load payload from file (if not NULL). */
     if ((g_ctx.method == EC_COAP_POST || g_ctx.method == EC_COAP_PUT) &&
             g_ctx.pfn)
