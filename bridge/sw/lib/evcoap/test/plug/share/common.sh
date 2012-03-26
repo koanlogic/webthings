@@ -25,6 +25,7 @@ EC_PLUG_CLI_ARG_METHOD="GET"
 EC_PLUG_CLI_ARG_OUTPUT="-"
 
 # client options
+#EC_PLUG_CLI_ARG_RETRY="3"      # default: unset
 #EC_PLUG_CLI_ARG_PAYLOAD=""     # default: unset
 #EC_PLUG_CLI_ARG_TOKEN=""       # default: unset
 #EC_PLUG_CLI_ARG_BLOCK=""       # default: unset
@@ -283,6 +284,9 @@ __t_cli_run()
     [ -z ${EC_PLUG_CLI_ARG_PAYLOAD} ] || \
         args="${args} -p ${EC_PLUG_CLI_ARG_PAYLOAD}"
 
+    [ -z ${EC_PLUG_CLI_ARG_RETRY} ] || \
+        args="${args} -r ${EC_PLUG_CLI_ARG_RETRY}"
+
     [ -z ${EC_PLUG_CLI_ARG_TOKEN} ] || \
         args="${args} -T"
 
@@ -376,6 +380,14 @@ t_cli_set_payload()
     [ -z $1 ] && unset EC_PLUG_CLI_ARG_PAYLOAD
 
     EC_PLUG_CLI_ARG_PAYLOAD=$1
+}
+
+# Activate retry upon failure
+t_cli_set_retry()
+{
+    [ -z $1 ] && unset EC_PLUG_CLI_ARG_RETRY
+
+    EC_PLUG_CLI_ARG_RETRY=$1
 }
 
 # Activate client Token option

@@ -30,6 +30,10 @@ t_cli_set_path /obs
 # long-running observation
 t_cli_set_observe 9999
 
+# tell client to retry 3 times upon failure
+# (required for server down detection)
+t_cli_set_retry 3
+
 # reboot the server
 if [ "${EC_PLUG_MODE}" != "cli" ]; then
 
@@ -48,7 +52,7 @@ else
     t_prompt "Run Step 1 on Server, then press enter to continue."
 fi
 
-t_cli_run_bg 1>&2 2>/dev/null
+t_cli_run_bg 1>&2
 
 #
 # Step 2
@@ -74,7 +78,7 @@ t_field_check 1 srv Code GET
 mid1=`t_field_get 1 srv MID` 
 
 # wait for kill
-sleep 2
+sleep 4
 
 t_field_check 1 srv Code GET
 mid2=`t_field_get 1 srv MID` 
