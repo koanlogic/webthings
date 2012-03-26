@@ -14,6 +14,13 @@ int facility = LOG_LOCAL0;
 
 typedef struct
 {
+    uint32_t block_no;
+    bool more;
+    size_t block_sz;
+} blockopt_t;
+
+typedef struct
+{
     ec_t *coap;
     struct event_base *base;
     struct evdns_base *dns;
@@ -23,6 +30,7 @@ typedef struct
     bool verbose;
     bool rel_refs;
     struct timeval sep;
+    blockopt_t block1;
 } ctx_t;
 
 ctx_t g_ctx =
@@ -389,6 +397,10 @@ int server_init(void)
     if (g_ctx.block_sz)
         dbg_err_if(ec_set_block_size(g_ctx.coap, g_ctx.block_sz));
 
+    g_ctx.block1.block_no = 0;
+    g_ctx.block1.more = 0;
+    g_ctx.block1.block_sz = 0;
+
     return 0;
 err:
     server_term();
@@ -506,7 +518,7 @@ void usage(const char *prog)
         "       -h  this help                                           \n"
         "       -v  be verbose                                          \n"
         "       -f <conf file>      (default is "DEFAULT_CONF")         \n"
-        "       -b <block size>     enables automatic Block handling    \n"
+        "       -b <block size>     set preferred Block size            \n"
         "       -s <num>            separate response after num seconds \n"
         "       -R                  use relative-ref instead of URI in  \n"
         "                           /.well-known/core entries           \n"
@@ -575,7 +587,8 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
     con_err_if(ec_request_get_acceptable_media_types(srv, mta, &mta_sz));
 
     /* Try to retrieve a representation that fits client request. */
-    rep = ec_filesys_get_suitable_rep(g_ctx.fs, uri, mta, mta_sz, NULL);
+    rep = ec_filesys_get_suitable_rep(g_ctx.fs, ec_server_get_url(srv), mta, 
+            mta_sz, NULL);
 
     /* If found, craft the response. */
     if (rep)
@@ -607,6 +620,9 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
                 return EC_CBRC_READY;
 
             case EC_COAP_POST:
+                (void) serve_post(srv);
+                return EC_CBRC_READY;
+
             default:
                 ec_response_set_code(srv, EC_NOT_IMPLEMENTED);
                 return EC_CBRC_READY;
@@ -618,6 +634,48 @@ ec_cbrc_t serve(ec_server_t *srv, void *u0, struct timeval *tv, bool resched)
     return EC_CBRC_READY;
 err:
     return EC_CBRC_ERROR;
+}
+
+/* Stateless Block2 handling */
+static int set_payload(ec_server_t *srv, const uint8_t *data, size_t data_sz)
+{
+    uint32_t bnum = 0;
+    bool more;
+    size_t bsz;
+    const uint8_t *p;
+    size_t p_sz;
+    size_t block_sz = g_ctx.block_sz ? g_ctx.block_sz : EC_COAP_BLOCK_MAX;
+
+    /* If Block2 option was received (early negotiation), use its info. */
+    if (ec_request_get_block2(srv, &bnum, &more, &bsz) == 0)
+        if (bsz)
+            block_sz = U_MIN(bsz, block_sz);
+
+    /* Single block if data fits. */
+    if (data_sz <= block_sz)
+    {
+        p = data;
+        p_sz = data_sz;
+    }
+    else  /* Otherwise we have > 1 blocks and add Block2 option. */
+    {
+        p = data + (bnum * block_sz);
+
+        more = (bnum < (data_sz / block_sz));
+
+        if (more)
+            p_sz = block_sz;
+        else
+            p_sz = data_sz - bnum * block_sz;
+
+        dbg_err_if (ec_response_add_block2(srv, bnum, more, block_sz));
+    }
+
+    (void) ec_response_set_payload(srv, p, p_sz);
+
+    return 0;
+err:
+    return -1;
 }
 
 int serve_wkc(ec_server_t *srv, ec_method_t method)
@@ -637,8 +695,8 @@ int serve_wkc(ec_server_t *srv, ec_method_t method)
             ec_request_get_uri_origin(srv),
             ec_request_get_uri_query(srv), wkc) == NULL);
 
+    (void) set_payload(srv, (uint8_t *) wkc, strlen(wkc));
     (void) ec_response_set_code(srv, EC_CONTENT);
-    (void) ec_response_set_payload(srv, (uint8_t *) wkc, strlen(wkc));
     (void) ec_response_add_content_type(srv, EC_MT_APPLICATION_LINK_FORMAT);
 
     return 0;
@@ -651,8 +709,8 @@ int serve_get(ec_server_t *srv, ec_rep_t *rep)
     ec_res_t *res = ec_rep_get_res(rep);
 
     /* Set response code, payload, etag and content-type. */
+    (void) set_payload(srv, rep->data, rep->data_sz);
     (void) ec_response_set_code(srv, EC_CONTENT);
-    (void) ec_response_set_payload(srv, rep->data, rep->data_sz);
     (void) ec_response_add_etag(srv, rep->etag, sizeof rep->etag);
     (void) ec_response_add_content_type(srv, rep->media_type);
 
@@ -784,6 +842,10 @@ err:
  */
 int serve_post(ec_server_t *srv)
 {
+   (void) ec_response_set_code(srv, EC_CREATED);
+    return EC_CBRC_READY;
+
+#if 0
     /* This routine handles the creation of a resource using the POST method. */
     ec_mt_t mt;
     uint8_t *pload;
@@ -848,6 +910,7 @@ err:
     if (res)
         ec_resource_free(res);
     return EC_CBRC_ERROR;
+#endif
 }
 
 ec_cbrc_t create(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
