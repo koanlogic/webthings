@@ -31,3 +31,9 @@ POST PLUGTESTS ideas and fixes
 - check CON separate messaging in lossy context
 - do a generic options iterator (e.g. opt_iter(opts_t *opts, worker(opts_t *)))
 - default encoding of 0-valued uint's
+- client: reuse context to avoid src port changes (Block, Observe)
+- server: Block1 handling and git remove plug/server; avoid sending unnecessary options
+    (e.g. Token, Etag, URI-Host if literal)
+- plug: align tests to test/server
+- check: last ACK Block1 sent without Block1 Option?
+- check: block size negotiation
