@@ -57,7 +57,7 @@ ec_plug_first=1
              "no 'check' steps will be performed"
 
 # create a local link to plugtest embfs
-ln -s ../../server/plugtest .
+ln -sf ../../server/plugtest .
 
 # If EC_PLUG_VERBOSE=1, debugs all strings to standard error.
 t_dbg()
