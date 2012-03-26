@@ -1,7 +1,7 @@
 resource
 {
     path    /obs
-    max-age 5
+    max-age 1
 
     allowed-methods GET
 
