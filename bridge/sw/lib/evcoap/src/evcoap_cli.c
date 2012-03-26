@@ -104,15 +104,17 @@ err:
     return -1;
 }
 
-int ec_client_set_uri(ec_client_t *cli, const char *uri)
+int ec_client_add_uri_opts(ec_client_t *cli, const char *uri)
 {
     ec_opts_t *opts;
+    ec_flow_t *flow;
     ec_conn_t *conn;
     const char *scheme, *host, *p;
     u_uri_t *u = NULL;
 
     opts = &cli->req.opts;
-    conn = &cli->flow.conn;
+    flow = &cli->flow;
+    conn = &flow->conn;
 
     /* Do minimal URI validation: parse it according to STD 66 + expect
      * at least non empty scheme and host. */
@@ -129,15 +131,26 @@ int ec_client_set_uri(ec_client_t *cli, const char *uri)
         if (strcasecmp(scheme, "coap"))
             dbg_err("expect URI with coap scheme on non-proxy requests");
 
-        dbg_err_if (ec_opts_add_uri_host(opts, host));
+        /* Add Uri-Host only in case it is not the IP literal representing the 
+         * destination IP address (u_uri fills flags with one of IS_IPADDRESS or
+         * IS_IPLITERAL if the parsed host is not a regname. */
+        if (u_uri_get_flags(u) == U_URI_FLAGS_NONE)
+            dbg_err_if (ec_opts_add_uri_host(opts, host));
 
+        /* Basically it seems to me that the Uri-Port is useless.  It can always be
+         * inferred by the underlying the socket, and seems to bring no further 
+         * semantics in the "virtual hosting" scenario... remove for now. */
+#if 0
         if ((p = u_uri_get_port(u)) && *p != '\0')
         {
             int port;
 
             dbg_err_if (u_atoi(p, &port));
-            dbg_err_if (ec_opts_add_uri_port(opts, (uint16_t) port));
+
+            if (port != EC_COAP_DEFAULT_PORT)
+                dbg_err_if (ec_opts_add_uri_port(opts, (uint16_t) port));
         }
+#endif
 
         /* Separate path components. */
         if ((p = u_uri_get_path(u)) && *p != '\0')
@@ -172,7 +185,8 @@ int ec_client_set_uri(ec_client_t *cli, const char *uri)
         }
     }
 
-    u_uri_free(u);
+    /* Stick parsed URI to the client context. */
+    flow->uri = u;
 
     return 0;
 err:
@@ -234,7 +248,7 @@ ec_client_t *ec_client_new(struct ec_s *coap, ec_method_t m, const char *uri,
 
     dbg_err_if (ec_pdu_init_options(&cli->req));
     dbg_err_if (ec_client_set_method(cli, m));
-    dbg_err_ifm (ec_client_set_uri(cli, uri), "bad URI: %s", uri);
+    dbg_err_ifm (ec_client_add_uri_opts(cli, uri), "bad URI: %s", uri);
     dbg_err_if (ec_client_set_msg_model(cli, mm == EC_COAP_CON ?
                 true : false));
     dbg_err_if (ec_pdu_set_flow(&cli->req, &cli->flow));
@@ -295,7 +309,7 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
     else
     {
         /* Use Uri-Host + optional Uri-Port */
-        dbg_err_if ((host = ec_opts_get_uri_host(&req->opts)) == NULL);
+        dbg_err_if ((host = u_uri_get_host(flow->uri)) == NULL);
 
         if (ec_opts_get_uri_port(&req->opts, &port))
             port = EC_COAP_DEFAULT_PORT;
