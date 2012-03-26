@@ -9,7 +9,7 @@
 # Init
 #
 t_init
-c="Hello world!"
+c="separate value"
 
 # server responds after 1 second
 t_srv_set_sep 1
