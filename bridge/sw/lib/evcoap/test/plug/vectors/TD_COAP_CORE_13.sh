@@ -34,7 +34,23 @@ t_dbg "[Step 2] Sent request must contain: Type = 0 (CON); Code = 1 (GET);"\
 
 t_field_check 1 srv T CON
 t_field_check 1 srv Code GET
-t_field_check 1 srv URI-Query "${params}"
+
+if [ "${EC_PLUG_DUMP}" = "1" ]; then
+    if [ "${EC_PLUG_MODE}" != "cli" ]; then
+
+        f="1-srv.dump"
+        one=`${ECHO} -n ${params} | cut -d "&" -f 1`
+        two=`${ECHO} -n ${params} | cut -d "&" -f 2`
+        three=`${ECHO} -n ${params} | cut -d "&" -f 3`
+
+        grep "URI-Query: ${one}" "${f}" >/dev/null
+        [ $? -eq 0 ] || t_die ${EC_PLUG_RC_GENERR} "param '${one}' not found!"
+        grep "URI-Query: ${two}" "${f}" >/dev/null
+        [ $? -eq 0 ] || t_die ${EC_PLUG_RC_GENERR} "param '${two}' not found!"
+        grep "URI-Query: ${three}" "${f}" >/dev/null
+        [ $? -eq 0 ] || t_die ${EC_PLUG_RC_GENERR} "param '${three}' not found!"
+    fi
+fi
 
 #
 # Step 3
