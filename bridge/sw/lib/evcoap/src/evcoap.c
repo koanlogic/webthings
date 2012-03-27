@@ -891,6 +891,38 @@ int ec_response_add_content_type(ec_server_t *srv, uint16_t ct)
 /**
  *  \brief  TODO
  */
+int ec_response_add_location_path(ec_server_t *srv, const char *lp)
+{
+    ec_pdu_t *res;
+
+    dbg_return_if (srv == NULL, -1);
+    dbg_return_if ((res = srv->res) == NULL, -1);
+    dbg_return_if (lp == NULL, -1);
+
+    ec_opts_t *opts = &res->opts;
+
+    return ec_opts_add_location_path(opts, lp);
+}
+
+/**
+ *  \brief  TODO
+ */
+int ec_response_add_location_query(ec_server_t *srv, const char *lq)
+{
+    ec_pdu_t *res;
+
+    dbg_return_if (srv == NULL, -1);
+    dbg_return_if ((res = srv->res) == NULL, -1);
+    dbg_return_if (lq == NULL, -1);
+
+    ec_opts_t *opts = &res->opts;
+
+    return ec_opts_add_location_query(opts, lq);
+}
+
+/**
+ *  \brief  TODO
+ */
 int ec_update_representation(const char *uri, const uint8_t *rep,
         size_t rep_len, ec_mt_t media_type)
 {

@@ -121,6 +121,8 @@ int ec_response_add_block1(ec_server_t *srv, uint32_t bnum, bool more,
         size_t bsz);
 int ec_response_add_block2(ec_server_t *srv, uint32_t bnum, bool more,
         size_t bsz);
+int ec_response_add_location_path(ec_server_t *srv, const char *lp);
+int ec_response_add_location_query(ec_server_t *srv, const char *lq);
 
 /* Observe API */
 int ec_update_representation(const char *uri, const uint8_t *rep,

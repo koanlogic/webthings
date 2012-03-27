@@ -5,8 +5,6 @@
 
 . ../share/common.sh
 
-t_die 1 "FIXME (new server)"
-
 #
 # Init
 #
@@ -57,6 +55,7 @@ t_dbg "[Step 4] Server indicates presence of the complete new resource."
 
 if [ "${EC_PLUG_MODE}" != "srv" ]; then
     t_cli_set_method GET
+    t_cli_set_path /large-create/0
     t_cli_run > .fout
     diff .fout ${pf}
     [ $? -ne 0 ] && t_die ${EC_PLUG_RC_GENERR} "GET doesn't match PUT"
