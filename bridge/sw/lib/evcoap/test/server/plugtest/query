@@ -1,0 +1,13 @@
+resource
+{
+    path    /query
+    max-age 1200
+
+    allowed-methods GET
+
+    representation
+    {
+        t: text/plain
+        v: query value
+    }
+}

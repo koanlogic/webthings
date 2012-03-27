@@ -1,0 +1,13 @@
+resource
+{
+    path    /large-create
+    max-age 1200
+
+    allowed-methods GET POST
+
+    representation
+    {
+        t: text/plain
+        v: large create value
+    }
+}
