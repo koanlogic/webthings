@@ -14,9 +14,9 @@ int facility = LOG_LOCAL0;
 
 typedef struct
 {
-    uint32_t block_no;
+    uint32_t bnum;
     bool more;
-    size_t block_sz;
+    size_t bsz;
 } blockopt_t;
 
 typedef struct
@@ -26,11 +26,12 @@ typedef struct
     struct evdns_base *dns;
     const char *conf;
     ec_filesys_t *fs;
-    size_t block_sz;
+    size_t bsz;
     bool verbose;
     bool rel_refs;
     struct timeval sep;
-    blockopt_t block1;
+    blockopt_t b1;
+    u_buf_t *resbuf;
 } ctx_t;
 
 ctx_t g_ctx =
@@ -40,10 +41,12 @@ ctx_t g_ctx =
     .dns = NULL,
     .conf = DEFAULT_CONF,
     .fs = NULL,
-    .block_sz = 0,  /* By default Block is fully under user control. */
+    .bsz = 0,  /* By default Block is fully under user control. */
     .verbose = false,
     .rel_refs = false,
-    .sep = { .tv_sec = 0, .tv_usec = 0 }
+    .sep = { .tv_sec = 0, .tv_usec = 0 },
+    .b1 = { .bnum = 0, .more = false, .bsz = 0 },
+    .resbuf = NULL
 };
 
 int server_init(void);
@@ -82,7 +85,7 @@ int main(int ac, char *av[])
         switch (c)
         {
             case 'b':
-                if (sscanf(optarg, "%zu", &g_ctx.block_sz) != 1)
+                if (sscanf(optarg, "%zu", &g_ctx.bsz) != 1)
                     usage(av[0]);
                 break;
             case 'f':
@@ -394,12 +397,8 @@ int server_init(void)
     dbg_err_if((g_ctx.coap = ec_init(g_ctx.base, g_ctx.dns)) == NULL);
     dbg_err_if((g_ctx.fs = ec_filesys_create(g_ctx.rel_refs)) == NULL);
 
-    if (g_ctx.block_sz)
-        dbg_err_if(ec_set_block_size(g_ctx.coap, g_ctx.block_sz));
-
-    g_ctx.block1.block_no = 0;
-    g_ctx.block1.more = 0;
-    g_ctx.block1.block_sz = 0;
+    if (g_ctx.bsz)
+        dbg_err_if(ec_set_block_size(g_ctx.coap, g_ctx.bsz));
 
     return 0;
 err:
@@ -639,36 +638,34 @@ err:
 /* Stateless Block2 handling */
 static int set_payload(ec_server_t *srv, const uint8_t *data, size_t data_sz)
 {
-    uint32_t bnum = 0;
-    bool more;
-    size_t bsz;
+    blockopt_t b2 = { .bnum = 0, .more = false, .bsz = 0 };
     const uint8_t *p;
     size_t p_sz;
-    size_t block_sz = g_ctx.block_sz ? g_ctx.block_sz : EC_COAP_BLOCK_MAX;
+    size_t bsz = g_ctx.bsz ? g_ctx.bsz : EC_COAP_BLOCK_MAX;
 
     /* If Block2 option was received (early negotiation), use its info. */
-    if (ec_request_get_block2(srv, &bnum, &more, &bsz) == 0)
-        if (bsz)
-            block_sz = U_MIN(bsz, block_sz);
+    if (ec_request_get_block2(srv, &b2.bnum, &b2.more, &b2.bsz) == 0)
+        if (b2.bsz)
+            bsz = U_MIN(b2.bsz, bsz);
 
     /* Single block if data fits. */
-    if (data_sz <= block_sz)
+    if (data_sz <= bsz)
     {
         p = data;
         p_sz = data_sz;
     }
     else  /* Otherwise we have > 1 blocks and add Block2 option. */
     {
-        p = data + (bnum * block_sz);
+        p = data + (b2.bnum * bsz);
 
-        more = (bnum < (data_sz / block_sz));
+        b2.more = (b2.bnum < (data_sz / bsz));
 
-        if (more)
-            p_sz = block_sz;
+        if (b2.more)
+            p_sz = bsz;
         else
-            p_sz = data_sz - bnum * block_sz;
+            p_sz = data_sz - b2.bnum * bsz;
 
-        dbg_err_if (ec_response_add_block2(srv, bnum, more, block_sz));
+        dbg_err_if (ec_response_add_block2(srv, b2.bnum, b2.more, bsz));
     }
 
     (void) ec_response_set_payload(srv, p, p_sz);
@@ -788,6 +785,7 @@ int serve_put(ec_server_t *srv, ec_rep_t *rep)
     size_t pload_sz;
     uint8_t etag[EC_ETAG_SZ] = { 0 }, *pload;
     ec_res_t *res = ec_rep_get_res(rep);
+    blockopt_t b1 = { .bnum = 0, .more = false, .bsz = 0 };
 
     /* Check conditionals:
      * 1) If-None-Match
@@ -806,15 +804,48 @@ int serve_put(ec_server_t *srv, ec_rep_t *rep)
     pload = ec_request_get_payload(srv, &pload_sz);
     dbg_err_if (ec_request_get_content_type(srv, &mta[1]));
 
-    /* Add new representation. */
-    dbg_err_if (ec_resource_add_rep(res, pload, pload_sz, mta[1], etag));
+    /* Handle Block1 Option.
+     * Implementation is stateful: we just check that bnum corresponds to
+     * expected and add the new representation atomically. */
+    if (ec_request_get_block1(srv, &b1.bnum, &b1.more, &b1.bsz) == 0)
+    {
+        dbg_err_if (b1.bnum != g_ctx.b1.bnum++);
 
-    /* Delete old in case media-type matches. */
-    if (mta[1] == rep->media_type)
-        (void) ec_rep_del(res, rep);
+        if (g_ctx.bsz)
+           b1.bsz = U_MIN(b1.bsz, g_ctx.bsz);
 
-    /* Return Etag of the new representation. */
-    (void) ec_response_add_etag(srv, etag, sizeof etag);
+        dbg_err_if (ec_response_add_block1(srv, b1.bnum, b1.more, b1.bsz));
+    }
+
+    /* First block. */
+    if (g_ctx.resbuf == NULL)
+        dbg_err_if (u_buf_create(&g_ctx.resbuf));
+
+    /* All blocks are appended to resource buffer. */
+    dbg_err_if (u_buf_append(g_ctx.resbuf, pload, pload_sz));
+
+    /* Last block - now we can process it. */
+    if ((pload_sz <= b1.bsz) && !b1.more)
+    {
+        /* Add new representation. */
+        dbg_err_if (ec_resource_add_rep(res, u_buf_ptr(g_ctx.resbuf),
+                    u_buf_len(g_ctx.resbuf), mta[1], etag));
+
+        /* Delete old in case media-type matches. */
+        if (mta[1] == rep->media_type)
+            (void) ec_rep_del(res, rep);
+
+        /* Return Etag of the new representation. */
+        (void) ec_response_add_etag(srv, etag, sizeof etag);
+
+        /* Reset state. */
+        u_buf_free(g_ctx.resbuf);
+        g_ctx.resbuf = NULL;
+        g_ctx.b1.bnum = 0;
+        g_ctx.b1.more = false;
+        g_ctx.b1.bsz = 0;
+    }
+
     (void) ec_response_set_code(srv, EC_CHANGED);
 
     return 0;
