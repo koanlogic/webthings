@@ -29,86 +29,15 @@
 \begin{frame}{Options}
 
 \begin{itemize}
- \item \textbf{Sleepy.}  Allow end to end communication between two sleepy nodes using the Proxy as a \emph{store and forward} agent;
- \vspace{.3cm}
  \item \textbf{Publish.}  Allow generic CoAP nodes to interact with a resource hosted at a sleepy node by (temporarily) delegating the resource to a Proxy;
+ \vspace{.3cm}
+ \item \textbf{Sleepy.}  Allow end to end communication between two sleepy nodes using the Proxy as a \emph{store and forward} agent;
  \vspace{.3cm}
  \item \textbf{Monitor.}  Make Observe bootstrap possible in case two sleepy nodes are involved.
 \end{itemize}
 
 \end{frame}
 
-
-%%
-%% Sleepy option 
-%%
-\begin{frame}{Sleepy  \hspace{6cm} {\tiny \texttt{draft-giacomin-core-sleepy-option-00}}}
-
-\begin{itemize}
- \item Use Proxy as \emph{store and forward} agent for Sleepy to Sleepy messaging
- \item CON/NON $+$ Request/Response agnostic
- \item Sleepy nodes inform Proxy about their behavior
- \item Sleepy Option hits only the first Proxy encountered, so it works in any topology
- \item Sleepy Option doesn't need to be understood by both ends
- \item Sleepy node needs only to know his own Proxy
-\end{itemize}
-
-\end{frame}
-
-\begin{frame}[fragile]{Information provided to Proxy}
-
-\begin{description}
- \item[LEFT] \# of msec that the sending node is left before going off-duty.  Max value allows for 71582 minutes.
- \item[SLEEP] \# of msec that the sending node is off-duty.  Max value allows for 71582 minutes (i.e. approx. 50 days).
- \item[WAKE] \# of msec that the sending node is on-duty (optional).
-\end{description}
-\end{frame}
-
-%%
-%% Sleepy (1)
-%%
-\begin{frame}{Sleepy Seq Diagram (1)}
- \begin{center}
-  \includegraphics[width=\textwidth]{../../share/images/sleepy1.pdf}
- \end{center}
-\end{frame}
-
-%%
-%% Sleepy (2)
-%%
-\begin{frame}{Sleepy Seq Diagram (2)}
- \begin{center}
-  \includegraphics[width=\textwidth]{../../share/images/sleepy2.pdf}
- \end{center}
-\end{frame}
-
-%%
-%% Sleepy (3)
-%%
-\begin{frame}{Sleepy Seq Diagram (3)}
- \begin{center}
-  \includegraphics[width=\textwidth]{../../share/images/sleepy3.pdf}
- \end{center}
-\end{frame}
-
-%%
-%% Sleepy (4)
-%%
-\begin{frame}{Sleepy Seq Diagram (4)}
- \begin{center}
-  \includegraphics[width=\textwidth]{../../share/images/sleepy4.pdf}
- \end{center}
-\end{frame}
-
-\begin{frame}{Sleepy partitioning amendment and open issues}
-
-\begin{itemize}
- \item Encode in Seconds (finer granularity is a matter of RDC)
- \item Open Issue: Reduce to LEFT, SLEEP and WAKE to 24 bits (approx 166 days) vs 32 bits (approx 136 years), keep SLEEP on 32 bits?
-\end{itemize}
-
-
-\end{frame}
 
 %%
 %% Publish option 
@@ -270,6 +199,78 @@ $ git diff
  \item Need to be coerced to one only delegation relationship to ensure consistency
  \item How key material is supposed to be exported in case the published resource is \texttt{coaps} ?
 \end{itemize}
+
+\end{frame}
+
+
+%%
+%% Sleepy option 
+%%
+\begin{frame}{Sleepy  \hspace{6cm} {\tiny \texttt{draft-giacomin-core-sleepy-option-00}}}
+
+\begin{itemize}
+ \item Use Proxy as \emph{store and forward} agent for Sleepy to Sleepy messaging
+ \item CON/NON $+$ Request/Response agnostic
+ \item Sleepy nodes inform Proxy about their behavior
+ \item Sleepy Option hits only the first Proxy encountered, so it works in any topology
+ \item Sleepy Option doesn't need to be understood by both ends
+ \item Sleepy node needs only to know his own Proxy
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Information provided to Proxy}
+
+\begin{description}
+ \item[LEFT] \# of msec that the sending node is left before going off-duty.  Max value allows for 71582 minutes.
+ \item[SLEEP] \# of msec that the sending node is off-duty.  Max value allows for 71582 minutes (i.e. approx. 50 days).
+ \item[WAKE] \# of msec that the sending node is on-duty (optional).
+\end{description}
+\end{frame}
+
+%%
+%% Sleepy (1)
+%%
+\begin{frame}{Sleepy Seq Diagram (1)}
+ \begin{center}
+  \includegraphics[width=\textwidth]{../../share/images/sleepy1.pdf}
+ \end{center}
+\end{frame}
+
+%%
+%% Sleepy (2)
+%%
+\begin{frame}{Sleepy Seq Diagram (2)}
+ \begin{center}
+  \includegraphics[width=\textwidth]{../../share/images/sleepy2.pdf}
+ \end{center}
+\end{frame}
+
+%%
+%% Sleepy (3)
+%%
+\begin{frame}{Sleepy Seq Diagram (3)}
+ \begin{center}
+  \includegraphics[width=\textwidth]{../../share/images/sleepy3.pdf}
+ \end{center}
+\end{frame}
+
+%%
+%% Sleepy (4)
+%%
+\begin{frame}{Sleepy Seq Diagram (4)}
+ \begin{center}
+  \includegraphics[width=\textwidth]{../../share/images/sleepy4.pdf}
+ \end{center}
+\end{frame}
+
+\begin{frame}{Sleepy partitioning amendment and open issues}
+
+\begin{itemize}
+ \item Encode in Seconds (finer granularity is a matter of RDC)
+ \item Open Issue: Reduce to LEFT, SLEEP and WAKE to 24 bits (approx 166 days) vs 32 bits (approx 136 years), keep SLEEP on 32 bits?
+\end{itemize}
+
 
 \end{frame}
 
