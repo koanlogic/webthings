@@ -116,7 +116,7 @@
 \begin{frame}{Publish \hspace{5cm} {\tiny \texttt{draft-fossati-core-publish-monitor-options-01}}}
 
 \begin{itemize}
- \item Sleepy node asks Proxy to serve its resource(s)
+ \item Sleepy node asks Proxy to \emph{fully} serve its resource(s)
  \item Handle the whole delegation life-time: \mbox{\small{Publish $\rightarrow$ Update $\rightarrow$ ... $\rightarrow$ Update $\rightarrow$ (implicit) Remove}}
  \item Sleepy node may specify allowed methods %%(support writable resources, default GET only)
 \end{itemize}
@@ -124,11 +124,30 @@
 \end{frame}
 
 %%
+%% Publish (pic: disco)
+%%
+\begin{frame}{(0) Discover the supporting Proxy}
+ \begin{center}
+  \includegraphics[width=\textwidth]{../../share/images/publish-1.pdf}
+ \end{center}
+\end{frame}
+
+
+%%
 %% Publish (pic: publish resource)
 %%
 \begin{frame}{(1) Publish resource}
  \begin{center}
   \includegraphics[width=\textwidth]{../../share/images/publish0.pdf}
+ \end{center}
+\end{frame}
+
+%%
+%% Publish (pic: discovery by 3rd parties)
+%%
+\begin{frame}{(1.5) Discovery by 3rd parties through Proxy}
+ \begin{center}
+  \includegraphics[width=\textwidth]{../../share/images/publish-disco.pdf}
  \end{center}
 \end{frame}
 
@@ -180,20 +199,26 @@
 %%
 %% Pro
 %%
-\begin{frame}{Pros}
+\begin{frame}{The Good}
 
 \begin{itemize}
  \item No URI proliferation %% the resource original URI is the only way to access the resource
- \item No soft state has to be maintained on sleepy client
- \item Explicit delegation lifetime
- \item Support writable resources
- \item Support Observe
+ \item No state has to be maintained on sleepy client
  \item The sleepy node may never need to listen on the radio
+ \item Explicit delegation lifetime
+\end{itemize}
+\end{frame}
+
+\begin{frame}{The Good (cont)}
+\begin{itemize}
+ \item Support writable resources through methods' mask
+ \item Support Observe
+ \item Delegation of data and meta is \emph{atomic}
  \item Trivial patch to the Proxy logics 
 \end{itemize}
 \end{frame}
 
-\begin{frame}[fragile]{Pros (cont)}
+\begin{frame}[fragile]{The Good (cont)}
 
 
 {\tiny 
@@ -229,7 +254,7 @@ $ git diff
 }
 \end{frame}
 
-\begin{frame}{Cons}
+\begin{frame}{The Bad}
 \begin{itemize}
  \item Can't go through Proxies (necessarily stops at first Proxy)
 \end{itemize}
@@ -243,6 +268,7 @@ $ git diff
 \begin{itemize}
  \item Need \emph{strong mutual authentication} to authorize the delegation (and subsequent ops -- i.e. updates and deletion) on the resource
  \item Need to be coerced to one only delegation relationship to ensure consistency
+ \item How key material is supposed to be exported in case the published resource is \texttt{coaps} ?
 \end{itemize}
 
 \end{frame}
