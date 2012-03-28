@@ -269,7 +269,7 @@ void ec_conn_term(ec_conn_t *conn)
 {
     if (conn)
     {
-        if (conn->socket == -1)
+        if (conn->socket != -1)
         {
             evutil_closesocket(conn->socket);
             conn->socket = -1;
