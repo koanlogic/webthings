@@ -43,7 +43,7 @@ fi
 
 # hard requirement on libevent and libu
 makl_require lib event
-makl_require lib u "" "-lm"    # link to math for isfinite()
+makl_require lib u "" "-lu -lm"  # link to math for isfinite()
 
 # Check endiannes of the host machine
 makl_endiannes
