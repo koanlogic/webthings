@@ -90,7 +90,7 @@ void process_http_request(struct evhttp_request *req, void *arg)
 
 	/* URI map is just a scheme substitution. */
 	(void) u_uri_set_scheme(u, "coap");
-	(void) u_uri_set_host(u, "127.0.0.1");
+	(void) u_uri_set_host(u, "mote");  /* assume it's in DNS or /etc/hosts */
 
 	con_err_if (u_uri_knead(u, g_ctx.curi));
 
