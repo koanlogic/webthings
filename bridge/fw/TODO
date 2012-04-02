@@ -1,0 +1,8 @@
+In order of priority:
+
+- get tunslip working on rspro
+- init scripts
+- get demo working, put in some basic monitoring features, gfx++
+- move klone to network/web servers (like uhttpd)
+- setup makl as a dependency instead of prerequisite
+- minimisation + no-debug stripped version

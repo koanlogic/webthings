@@ -1,1 +1,39 @@
-owrt stuff
+Building the OpenWRT-based Webthings Firmware
+=============================================
+
+* Get the Webthings' OpenWRT fork:
+    $ git clone git@github.com:koanlogic/openwrt-fork
+    $ cd openwrt-fork
+
+* Get missing required 3rd party packages:
+    $ ./scripts/feeds/update -a
+    $ ./scripts/feeds install libevent2-core
+
+* Configure it:
+    $ make defconfig
+    $ make prereq
+    $ make menuconfig
+
+* Select the desired target platform. For example:
+    - Target System: Atheros AR7xxx/AR9xxx
+    - Target Profile: Ubiquiti RouterStation Pro
+
+* Select Network/webthings as built-in [*]. This will automatically select all
+dependencies (klone, libu, libevent2-core, librt, zlib, libopenssl, tunslip6).
+
+* Other settings: enable kmod-ipv6, kmod-usb-serial, kmod-usb-serial-cp210x,
+    kmod-tun.
+
+* Build the firmware:
+    $ make          # add 'V=99' to debug problems
+
+* Copy the firmware and flash it (first install only). Boot in recovery mode by
+  holding reset for a few seconds while rebooting
+    $ tftp 192.168.1.20 -m binary -c put\
+        bin/ar71xx/openwrt-ar71xx-generic-ubnt-rspro-squashfs-factory.bin
+
+* For successive updates:
+    $ scp bin/ar71xx/openwrt-ar71xx-generic-ubnt-rspro-squashfs-sysupgrade.bin\
+        rs:/tmp
+  rs# cd /tmp
+  rs# sysypgrade -v openwrt-ar71xx-generic-ubnt-rspro-squashfs-sysupgrade.bin
