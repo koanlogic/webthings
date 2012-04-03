@@ -1,8 +1,10 @@
+include ../../../../../Makefile.conf
+
 all:
-ifdef EC_PLUG_VERBOSE
-	@./run.sh
+ifdef EC_PLUG_DUMP
+	@EC_PLUG_DUMP=1 ./run.sh
 else
-	@./run.sh 2>/dev/null
+	@./run.sh
 endif
 
 install uninstall depend cleandepend clean: ;

@@ -1,0 +1,11 @@
+# --enable_dump
+
+# helper
+makl_args_def "enable_dump" "" "" \
+              "enable packet dumping (for plugtests but not only)"
+
+# hook
+function __makl_enable_dump ()
+{
+    makl_set_var "EC_PLUG_DUMP" "1"
+}
