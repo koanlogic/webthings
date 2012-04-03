@@ -202,12 +202,13 @@ void ec_client_free(ec_client_t *cli)
         ec_t *coap = cli->base;
         ec_flow_t *flow = &cli->flow;
         ec_conn_t *conn = &flow->conn;
+        bool do_not_close_socket = false;
 
         /* Unregister me from list of clients and events. */
         ec_client_unregister(cli);
 
         /* Terminate the underlying flow. */
-        ec_flow_term(&cli->flow);
+        ec_flow_term(&cli->flow, do_not_close_socket);
 
         /* Remove response set. */
         ec_res_set_clear(&cli->res_set);

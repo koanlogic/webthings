@@ -27,7 +27,7 @@ typedef struct
 } ec_conn_t;
 
 int ec_conn_init(ec_conn_t *conn);
-void ec_conn_term(ec_conn_t *conn);
+void ec_conn_term(ec_conn_t *conn, bool do_not_close_socket);
 int ec_conn_copy(const ec_conn_t *src, ec_conn_t *dst);
 int ec_conn_save_us(ec_conn_t *conn, evutil_socket_t sd);
 int ec_conn_save_peer(ec_conn_t *conn, const struct sockaddr_storage *peer);

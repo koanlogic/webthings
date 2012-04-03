@@ -12,13 +12,13 @@ int ec_flow_init(ec_flow_t *flow)
     return 0;
 }
 
-void ec_flow_term(ec_flow_t *flow)
+void ec_flow_term(ec_flow_t *flow, bool do_not_close_socket)
 {
     if (flow)
     {
         if (flow->uri)
            u_uri_free(flow->uri); 
-        ec_conn_term(&flow->conn);
+        ec_conn_term(&flow->conn, do_not_close_socket);
     }
     return;
 }

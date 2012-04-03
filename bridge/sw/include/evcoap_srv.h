@@ -38,7 +38,7 @@ typedef struct ec_servers_s ec_servers_t;
 int ec_servers_init(ec_servers_t *srvs);
 void ec_servers_term(ec_servers_t *srvs);
 
-ec_server_t *ec_server_new(struct ec_s *coap, evutil_socket_t sd);
+ec_server_t *ec_server_new(struct ec_s *coap);
 void ec_server_free(ec_server_t *srv);
 void ec_server_input(evutil_socket_t sd, short u, void *arg);
 int ec_server_wakeup(ec_server_t *srv);

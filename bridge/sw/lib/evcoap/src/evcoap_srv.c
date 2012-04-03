@@ -121,7 +121,7 @@ static int ec_server_del(ec_server_t *srv, ec_servers_t *srvs)
     return 0;
 }
 
-ec_server_t *ec_server_new(struct ec_s *coap, evutil_socket_t sd)
+ec_server_t *ec_server_new(struct ec_s *coap)
 {
     ec_server_t *srv = NULL;
 
@@ -187,6 +187,8 @@ void ec_server_free(ec_server_t *srv)
 {
     if (srv)
     {
+        bool do_not_close_socket = true;
+
         if (srv->res)
             ec_pdu_free(srv->res);
 
@@ -196,7 +198,7 @@ void ec_server_free(ec_server_t *srv)
         if (srv->octrl)
             ec_pdu_free(srv->octrl);
 
-        ec_flow_term(&srv->flow);
+        ec_flow_term(&srv->flow, do_not_close_socket);
 
         if (srv->parent)
             ec_server_del(srv, srv->parent);
@@ -343,7 +345,7 @@ static ec_net_cbrc_t ec_server_handle_pdu(uint8_t *raw, size_t raw_sz, int sd,
     else if (EC_IS_METHOD(h->code))
     {
         /* On a brand new request, create a new server. */
-        dbg_err_if ((srv = ec_server_new(coap, sd)) == NULL);
+        dbg_err_if ((srv = ec_server_new(coap)) == NULL);
     }
     else
         RC_ERR(EC_BAD_REQUEST, "unexpected code %u", h->code);
