@@ -9,16 +9,24 @@ SRCS += kache_evcoap.c
 
 CFLAGS += -I$(SRCDIR)/src
 CFLAGS += $(LIBEVCOAP_CFLAGS)
-LDADD += ../../../lib/evcoap/src/libevcoap.a
-LDADD += ../src/libkache.a
+ifndef SHLIB
+  LDADD += ../../../lib/evcoap/src/libevcoap.a
+  LDADD += ../src/libkache.a
+endif
 
 CFLAGS += $(LIBU_CFLAGS)
-LDADD += $(LIBU_LDADD)
-LDFLAGS += $(LIBU_LDFLAGS)
+ifndef SHLIB
+  LDADD += $(LIBU_LDADD)
+else
+  LDFLAGS += $(LIBU_LDFLAGS)
+endif
 
 CFLAGS += $(LIBEVENT_CFLAGS)
-LDADD += $(LIBEVENT_LDADD)
-LDFLAGS += $(LIBEVENT_LDFLAGS)
+ifndef SHLIB
+  LDADD += $(LIBEVENT_LDADD)
+else
+  LDFLAGS += $(LIBEVENT_LDFLAGS)
+endif
 
 include prog.mk
 
