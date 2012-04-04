@@ -655,7 +655,7 @@ err:
 int set_payload(ec_client_t *cli, const uint8_t *data, size_t data_sz)
 {
     uint32_t bnum = g_ctx.b1.block_no;
-    bool more;
+    bool more = false;
     const uint8_t *p;
     size_t p_sz;
     size_t block_sz = g_ctx.block_sz ? g_ctx.block_sz : DEFAULT_BLOCK;
