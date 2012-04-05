@@ -12,6 +12,9 @@ CFLAGS += $(LIBEVCOAP_CFLAGS)
 ifndef SHLIB
   LDADD += ../../../lib/evcoap/src/libevcoap.a
   LDADD += ../src/libkache.a
+else
+  LDFLAGS += -L../../../lib/evcoap/src/ -levcoap
+  LDFLAGS += -L../src/ -lkache
 endif
 
 CFLAGS += $(LIBU_CFLAGS)
