@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<!-- vim: set ts=2 expandtab: -->
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd" [
+<!ENTITY RFC2119 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml">
+<!ENTITY RFC2629 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2629.xml">
+<!ENTITY RFC3552 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.3552.xml">
+<!ENTITY RFC3986 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.3986.xml">
+<!ENTITY I-D.narten-iana-considerations-rfc2434bis SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.narten-iana-considerations-rfc2434bis.xml">
+<!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-coap-08.xml">
+<!ENTITY I-D.ietf-core-observe SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-observe-04.xml">
+<!ENTITY I-D.ietf-core-link-format SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-link-format-11.xml">
+<!ENTITY I-D.shelby-core-coap-req SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-shelby-core-coap-req-02.xml">
+<!ENTITY I-D.shelby-core-resource-directory SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-shelby-core-resource-directory-02.xml">
+]>
+<?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
+<?rfc strict="yes" ?>
+<?rfc toc="yes"?>
+<?rfc tocdepth="4"?>
+<?rfc symrefs="yes"?>
+<?rfc sortrefs="yes" ?>
+<?rfc compact="yes" ?>
+<?rfc subcompact="no" ?>
+<?rfc comments="yes" ?>
+<?rfc inline="yes" ?>
+<rfc category="std" docName="draft-fossati-core-multipart-media-type-00" ipr="trust200902">
+  <front>
+    <title>
+      Multipart Media Type Encoding for CoAP
+    </title>
+    <author
+      fullname="Thomas Fossati"
+      initials="T.F."
+      surname="Fossati"
+    >
+      <organization>KoanLogic</organization>
+        <address>
+          <postal>
+            <street>Via di Sabbiuno, 11/5</street>
+            <city>Bologna</city>
+            <code>40100</code>
+            <country>Italy</country>
+        </postal>
+        <email>tho@koanlogic.com</email>
+      </address>
+    </author>
+
+    <date year="2012" />
+
+    <area>General</area>
+    <workgroup>Internet Engineering Task Force</workgroup>
+
+    <keyword>CoAP, Multipart Media Type</keyword>
+
+    <abstract>
+      <t>This memo defines a new media type encoding that can be used to combine several different media types into a single CoAP message-body.</t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section title="Introduction">
+      <t>This memo defines a new media type encoding that can be used to combine several different media types into a single CoAP message-body.</t>
+      
+      <section title="Requirements Language">
+        <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
+      </section>
+    </section>
+
+    <section title="Multipart Media Type Encoding">
+      <t>Multipart encoding uses multiple adjacent frames each of which represents a single media.  Every frame can further be broken in three logical pieces: the type of the framed media (T), its length in bytes (L), and the media payload itself (V) as depicted in the following figure.</t>
+
+      <figure>
+        <artwork align="center"><![CDATA[
+,------------------ multi part -----------------.
++------+------+------+     +------+------+------+
+| T[0] | L[0] | V[0] | ... | T[n] | L[n] | V[n] |
++------+------+------+     +------+------+------+
+`------ part 0 ------'     `------ part n ------'
+        ]]></artwork>
+      </figure>
+    
+      <t>
+        The semantics associated to the TLV atoms is as follows:
+        <list style="hanging">
+          <t hangText="T:"> is one of the numeric media type identifiers defined in the CoAP Media Type registry (Section 11.3 of <xref target="I-D.ietf-core-coap" />), and is encoded as a 16-bit uint (Appendix A of <xref target="I-D.ietf-core-coap" />).</t>
+          <t hangText="L:"> is the lentgh in bytes of the following V frame, and has two possible encodings: short or extended - details are provided in <xref target="length-encoding" />.  It determines the offset of the next part, or the end of the multipart representation when applied to the last frame.</t>
+          <t hangText="V:"> is the media, encoded as implied by the preceeding T field.</t>
+        </list>
+      </t>
+    </section>
+
+    <section title="Length Encoding" anchor="length-encoding" >
+      <t>Two different encodings are defined for the L value: short for parts where length(V) measured in bytes is in range [0, 32767]; extended for parts with length(V) in range (32767, 2^127+32767].</t>
+
+      <section title="Short">
+        <t>The short format uses a fixed 16-bit uint with the most significant bit set to '0'. The remaining 15 bits encode a length(V) value up to 32767 bytes.</t>
+        <figure>
+          <artwork align="center"><![CDATA[
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|0|          0-32767            |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      ]]></artwork>
+        </figure>
+      </section>
+
+      <section title="Extended">
+        <t>The extended format uses a fixed 8-bit uint with the most significant bit set to '1'. The remaining 7 bits encode the number of bytes needed to hold the length(V) bytes exceeding 32767.</t>
+        <figure>
+          <artwork align="center"><![CDATA[
+ 0 1 2 3 4 5 6 7
++-+-+-+-+-+-+-+-+-----/   /--------+
+|1|    0-127    |  0-(2^127+32767) |
++-+-+-+-+-+-+-+-+----/   /---------+
+      ]]></artwork>
+        </figure>
+      </section>
+
+      <section title="Examples">
+      <t>
+        A length of 32767 bytes would use short encoding:
+        <figure>
+          <artwork align="center"><![CDATA[
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|0|1 1 1 1 1 1 1 1 1 1 1 1 1 1 1|
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ S          len=32767
+      ]]></artwork>
+        </figure>
+      </t>
+
+      <t>
+        A length of 32768 bytes would use extended encoding with lenght of lenght 1, and length 1 (i.e. 32768-32767), like this:
+        <figure>
+          <artwork align="center"><![CDATA[
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|1|0 0 0 0 0 0 1|0 0 0 0 0 0 0 1|
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ E   lenlen=1    len=32768-32767
+      ]]></artwork>
+        </figure>
+      </t>
+
+      <t>
+        A length of 98302 bytes would be encoded as an extended length of 65535:
+        <figure>
+          <artwork align="center"><![CDATA[
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|1|0 0 0 0 0 1 0|1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1|
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ E   lenlen=2            len=98302-32767
+      ]]></artwork>
+        </figure>
+      </t>
+
+      </section>
+    </section>
+
+<!--
+    <section title="Interaction with Block Transfer">
+      <t>any?</t>
+    </section>
+-->
+
+    <!-- This PI places the pagebreak correctly (before the section title) in the text output. -->
+    <?rfc needLines="8" ?>
+
+    <section title="Acknowledgements">
+      <t>TBD</t>
+    </section>
+
+    <section anchor="IANA" title="IANA Considerations">
+      <t>The following entry is added to the CoAP Media Type registry:</t>
+      <figure align="center">
+        <artwork align="left"><![CDATA[
+.--------------------------------.
+| Number | Name      | Reference |
+:--------:-----------:-----------:
+|  n     | Multipart | RFC XXXX  |
+`--------------------------------'
+        ]]></artwork>
+      </figure>
+      <t>When used as the payload in a CoAP message, one Content-Type option MUST be present and set to n.</t>
+    </section>
+
+    <section anchor="Security" title="Security Considerations">
+      <t>TODO</t>
+    </section>
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      &RFC2119;
+      &I-D.ietf-core-coap;
+    </references>
+  </back>
+</rfc>
