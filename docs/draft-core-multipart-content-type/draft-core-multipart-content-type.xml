@@ -82,14 +82,14 @@
         The semantics associated to the TLV atoms is as follows:
         <list style="hanging">
           <t hangText="T:"> is one of the numeric media type identifiers defined in the CoAP Media Type registry (Section 11.3 of <xref target="I-D.ietf-core-coap" />), and is encoded as a 16-bit uint (Appendix A of <xref target="I-D.ietf-core-coap" />).</t>
-          <t hangText="L:"> is the lentgh in bytes of the following V frame, and has two possible encodings: short or extended - details are provided in <xref target="length-encoding" />.  It determines the offset of the next part, or the end of the multipart representation when applied to the last frame.</t>
+          <t hangText="L:"> is the lentgh in bytes of the following V frame, and has two possible encodings: short or extended (see <xref target="length-encoding" />).  It determines the offset of the next part, or the end of the multipart representation when applied to the last frame.</t>
           <t hangText="V:"> is the media, encoded as implied by the preceeding T field.</t>
         </list>
       </t>
     </section>
 
     <section title="Length Encoding" anchor="length-encoding" >
-      <t>Two different encodings are defined for the L value: short for parts where length(V) measured in bytes is in range [0, 32767]; extended for parts with length(V) in range (32767, 2^127+32767].</t>
+      <t>Two different encodings are defined for the L value: short for parts where length(V) measured in bytes is in range [0, 32767]; extended for parts with length(V) in range (32767, 2^127-1].</t>
 
       <section title="Short">
         <t>The short format uses a fixed 16-bit uint with the most significant bit set to '0'. The remaining 15 bits encode a length(V) value up to 32767 bytes.</t>
@@ -104,15 +104,24 @@
       </section>
 
       <section title="Extended">
-        <t>The extended format uses a fixed 8-bit uint with the most significant bit set to '1'. The remaining 7 bits encode the number of bytes needed to hold the length(V) bytes exceeding 32767.</t>
+        <t>The extended format uses a fixed 8-bit uint with the most significant bit set to '1'. The remaining 7 bits encode the number of bytes needed to uint-encode the length(V) bytes.</t>
         <figure>
           <artwork align="center"><![CDATA[
  0 1 2 3 4 5 6 7
-+-+-+-+-+-+-+-+-+-----/   /--------+
-|1|    0-127    |  0-(2^127+32767) |
-+-+-+-+-+-+-+-+-+----/   /---------+
++-+-+-+-+-+-+-+-+------/   /------+
+|1|    0-127    |   0-(2^127-1)   |
++-+-+-+-+-+-+-+-+------/   /------+
       ]]></artwork>
         </figure>
+      </section>
+
+      <section title="Constraints">
+        <t>The most compact encoding MUST be used, i.e.:
+          <list style="numbers">
+            <t>always use short when length(V) &lt; 32768; </t>
+            <t>never zero-pad when using extended.</t>
+          </list>
+        </t>
       </section>
 
       <section title="Examples">
@@ -130,27 +139,14 @@
       </t>
 
       <t>
-        A length of 32768 bytes would use extended encoding with lenght of lenght 1, and length 1 (i.e. 32768-32767), like this:
-        <figure>
-          <artwork align="center"><![CDATA[
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|1|0 0 0 0 0 0 1|0 0 0 0 0 0 0 1|
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- E   lenlen=1    len=32768-32767
-      ]]></artwork>
-        </figure>
-      </t>
-
-      <t>
-        A length of 98302 bytes would be encoded as an extended length of 65535:
+        A length of 32768 bytes would use extended encoding with lenght of lenght 2:
         <figure>
           <artwork align="center"><![CDATA[
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|1|0 0 0 0 0 1 0|1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1|
+|1|0 0 0 0 0 1 0|1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0|
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- E   lenlen=2            len=98302-32767
+ E   lenlen=2            len=32768
       ]]></artwork>
         </figure>
       </t>
@@ -167,10 +163,6 @@
     <!-- This PI places the pagebreak correctly (before the section title) in the text output. -->
     <?rfc needLines="8" ?>
 
-    <section title="Acknowledgements">
-      <t>TBD</t>
-    </section>
-
     <section anchor="IANA" title="IANA Considerations">
       <t>The following entry is added to the CoAP Media Type registry:</t>
       <figure align="center">
@@ -186,7 +178,8 @@
     </section>
 
     <section anchor="Security" title="Security Considerations">
-      <t>TODO</t>
+      <t>The extended encoding may trigger insanely huge buffer allocations on the receiving party.  Receivers of multipart media SHOULD put a cap on the maximum allowed size of the whole Multipart.  A CoAP server MAY respond with a 4.13 (Request Entity Too Large) status code to such requests, and refuse to proceed further (e.g. processing more blocks).</t>
+      <t>A CoAP client can't tell if a 4.15 status code applies to the whole Multipart or just to one of its parts.  An attacker may leverage on this ambiguity to craft application specific attacks (e.g. cause downgraded behavior).  Applications built on top of Multipart need to handle such eventuality in a safe way.</t>
     </section>
   </middle>
 
