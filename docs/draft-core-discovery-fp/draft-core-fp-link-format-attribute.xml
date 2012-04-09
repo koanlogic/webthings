@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<!-- vim: set ts=2 expandtab: -->
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd" [
+<!ENTITY RFC2119 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml">
+<!ENTITY RFC5988 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.5988.xml">
+<!ENTITY RFC3986 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.3986.xml">
+<!ENTITY I-D.narten-iana-considerations-rfc2434bis SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.narten-iana-considerations-rfc2434bis.xml">
+<!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-coap-09.xml">
+<!ENTITY I-D.ietf-core-link-format SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-link-format-11.xml">
+<!ENTITY I-D.ietf-6lowpan-nd SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-6lowpan-nd-18.xml">
+]>
+<?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
+<?rfc strict="yes" ?>
+<?rfc toc="yes"?>
+<?rfc tocdepth="4"?>
+<?rfc symrefs="yes"?>
+<?rfc sortrefs="yes" ?>
+<?rfc compact="yes" ?>
+<?rfc subcompact="no" ?>
+<?rfc comments="yes" ?>
+<?rfc inline="yes" ?>
+<rfc category="std" docName="draft-fossati-core-fp-link-format-attribute-00" ipr="trust200902">
+  <front>
+    <title>
+      The fp Link Format Attribute
+    </title>
+    <author
+      fullname="Thomas Fossati"
+      initials="T.F."
+      surname="Fossati"
+    >
+      <organization>KoanLogic</organization>
+        <address>
+          <postal>
+            <street>Via di Sabbiuno, 11/5</street>
+            <city>Bologna</city>
+            <code>40100</code>
+            <country>Italy</country>
+        </postal>
+        <email>tho@koanlogic.com</email>
+      </address>
+    </author>
+
+    <date year="2012" />
+
+    <area>General</area>
+    <workgroup>Internet Engineering Task Force</workgroup>
+
+    <keyword>CoAP, Link Format, resource discovery through Proxies</keyword>
+
+    <abstract>
+      <t>This memo proposes a new CoRE link format attribute, "fp", to be used by a Proxy node to inform CoAP endpoints that the associated resource can be reached through the Proxy itself.</t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section title="Introduction">
+      <t>The discovery mechanism described in <xref target="I-D.ietf-core-link-format" /> assumes cheap and pervasive multicast.  This may not be the case due either to limitations in the underlying radio link (see Section 1 of <xref target="I-D.ietf-6lowpan-nd" />), or the absence of a multicast routing protocol to bridge through different links.</t>
+
+      <t>Due to their topological role, CoAP Proxies (see Section 5.7 of <xref target="I-D.ietf-core-coap" />) can be efficiently used to make resources discoverable across different broadcast domains.  However, in order to achieve this capability, the fact that a given resource is made available through them must be made explicit to endpoints, so that they can use the Proxy-Uri Option to dereference the final target.</t>
+
+      <section title="Requirements Language">
+        <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
+      </section>
+    </section>
+
+    <section title="The fp Link Format Attribute">
+
+      <t>Consider the scenario depicted in <xref target="proxied-topology" />.  Two separate links are proxied by P.  Node A hosts resource /res of type "x", and P knows it -- either through explicit or implicit mechanism (e.g. previous discovery on the local link, RD, etc.).</t>
+     
+      <figure anchor="proxied-topology">
+        <artwork align="left"><![CDATA[
+                             |         |
+         </res>;rt="x" (A)---+         |
+                             |         |
+                             +---(P)---+
+                             |         |
+                             |         +---(B)
+                             |         |
+        ]]></artwork>
+      </figure>
+
+      <t>Now imagine that B makes a query for resources with type "x" on its link.</t>
+
+      <t>A new link format attribute, "fp", is added by the Proxy to the set of attributes of the linked resource to inform the requesting endpoint that the advertised absolute URI must be requested to the advertising Proxy using the Proxy-URI Option, as illustrated in <xref target="proxied-discovery" />.  Further the resource link is transformed by the Proxy into an absolute URI.</t>
+
+      <figure anchor="proxied-discovery">
+        <artwork align="center"><![CDATA[
+P      B
+|      |
+|<-----+ Uri-Path: .well-known
+|  GET | Uri-Path: core
+|      |
+|      |
++----->| Content-Type: link-format
+| 2.05 | payload: <coap://A/res>;rt="x";fp
+]]></artwork>
+      </figure>
+
+      <t>Note that in case the "fp" attribute is present, the URI-Reference in the link-value <xref target="RFC5988" /> MUST always be a URI and not a relative-ref <xref target="RFC3986" />.</t>
+
+      <t>The forwarding path to /res is now set up, and B can reach it through P using the Proxy-Uri Options as follows:</t>
+
+      <figure>
+        <artwork align="center"><![CDATA[
+A      P      B
+|      |      |
+|      |<-----+ Proxy-Uri: coap://A/res
+|      |  GET |
+|<-----+      | Uri-Path: res
+|  GET |      |
+|      |      |
++----->|      |
+| 2.05 |      |
+|      +----->|
+|      | 2.05 |
+]]></artwork>
+      </figure>
+    </section>
+
+    <!-- This PI places the pagebreak correctly (before the section title) in the text output. -->
+    <?rfc needLines="8" ?>
+
+    <section anchor="IANA" title="IANA Considerations">
+      <t>No IANA related requests are made by this document.</t>
+    </section>
+
+    <section anchor="Security" title="Security Considerations">
+      <t>The mechanism specified in this document shares the same security weakness of the discovery process described in <xref target="I-D.ietf-core-link-format" />.</t>
+     
+      <t>Especially critical to the CoAP network consistency, is the fact that in NoSec mode a malicious attacker could poison the response of a query to the /.well-known/core in order to re-route traffic.</t>
+    </section>
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      &RFC2119;
+      &RFC3986;
+      &RFC5988;
+      &I-D.ietf-core-coap;
+      &I-D.ietf-core-link-format;
+    </references>
+    <references title="Informative References">
+      &I-D.ietf-6lowpan-nd;
+    </references>
+  </back>
+</rfc>
