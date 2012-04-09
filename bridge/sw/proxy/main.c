@@ -54,8 +54,10 @@ int main(void)
 	evhttp_set_gencb(g_ctx.http, process_http_request, NULL);
 	event_base_dispatch(g_ctx.base);
 
+    /* TODO term() */
 	return EXIT_SUCCESS;
 	err:
+    /* TODO term() */
 	return EXIT_FAILURE;
 }
 
@@ -170,7 +172,10 @@ void process_http_request(struct evhttp_request *req, void *arg)
 	if (u)
 		u_uri_free(u);
 	if (g_ctx.cli)
+    {
 		ec_client_free(g_ctx.cli);
+        g_ctx.cli = NULL;
+    }
 	return;
 }
 

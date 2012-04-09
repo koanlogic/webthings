@@ -72,6 +72,8 @@ int ec_loopbreak(ec_t *coap)
 
 /**
  *  \brief  TODO
+ *
+ * Returned client must be deallocated by user via ec_client_free().
  */
 ec_client_t *ec_request_new(ec_t *coap, ec_method_t m, const char *uri, 
         ec_msg_model_t mm)
@@ -81,6 +83,8 @@ ec_client_t *ec_request_new(ec_t *coap, ec_method_t m, const char *uri,
 
 /**
  *  \brief  TODO
+ *
+ * Returned client must be deallocated by user via ec_client_free().
  */
 ec_client_t *ec_proxy_request_new(ec_t *coap, ec_method_t m, const char *uri,
         ec_msg_model_t mm, const char *proxy_host, uint16_t proxy_port)

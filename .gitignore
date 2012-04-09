@@ -1,8 +1,15 @@
 *.o
+*.a
 *.so
+*.dylib
 *.dSYM
 *.dump
 *.tar.gz
+*.aux
+*.log
+*.out
+*.toc
+*.DS_Store
 bridge/sw/run-conf.sh
 bridge/sw/Makefile.conf
 bridge/sw/kink_conf.h
@@ -16,6 +23,7 @@ bridge/sw/lib/evcoap/test/unit/runtest
 bridge/sw/lib/kache/test/runtest
 bridge/sw/proxy/kink
 bridge/sw/discopub/discopub
+web/demo/run-conf.sh
 web/demo/Makefile.conf
 web/demo/kloned/klapp.mk
 web/demo/kloned/klone-*
