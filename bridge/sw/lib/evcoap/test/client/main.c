@@ -199,7 +199,6 @@ retry:
     }
 
     client_term();
-
     return EXIT_SUCCESS;
 err:
     client_term();
@@ -253,8 +252,8 @@ void response_cb(ec_client_t *cli)
 
     /* If it's a reponse to fragmented request (Block1) we set g_ctx.b1. */
     if ((ec_response_get_block1(cli, &bnum, &more,
-                &g_ctx.b1.block_sz) == 0)) {
-
+                &g_ctx.b1.block_sz) == 0))
+    {
         /* Blockwise transfer - make sure requested block was returned. */
         dbg_err_if (bnum != g_ctx.b1.block_no);
 
@@ -340,6 +339,12 @@ int client_init(void)
 
     dbg_err_if (event_add(g_ctx.evsig, NULL));
 
+    g_ctx.cli = !g_ctx.use_proxy
+        ? ec_request_new(g_ctx.coap, g_ctx.method, g_ctx.uri, g_ctx.model)
+        : ec_proxy_request_new(g_ctx.coap, g_ctx.method, g_ctx.uri, g_ctx.model,
+                g_ctx.proxy_host, g_ctx.proxy_port);
+    dbg_err_if (g_ctx.cli == NULL);
+
     return 0;
 err:
     client_term();
@@ -348,11 +353,23 @@ err:
 
 void client_term(void)
 {
+    if (g_ctx.cli)
+    {
+        ec_client_free(g_ctx.cli);
+        g_ctx.cli = NULL;
+    }
+
     if (g_ctx.evsig)
+    {
         event_free(g_ctx.evsig);
+        g_ctx.evsig = NULL;
+    }
 
     if (g_ctx.coap)
+    {
         ec_term(g_ctx.coap);
+        g_ctx.coap = NULL;
+    }
 
     return;
 }
@@ -362,12 +379,10 @@ int client_run(void)
     /* Client run initialisations. */
     g_ctx.fail = false;
 
-    g_ctx.cli = !g_ctx.use_proxy
-        ? ec_request_new(g_ctx.coap, g_ctx.method, g_ctx.uri, g_ctx.model)
-        : ec_proxy_request_new(g_ctx.coap, g_ctx.method, g_ctx.uri, g_ctx.model,
-                g_ctx.proxy_host, g_ctx.proxy_port);
-
-    dbg_err_if (g_ctx.cli == NULL);
+    /* Clear and set all options at each run because request API doesn't easily
+     * support deltas (only Block2 Option values change). */
+    ec_opts_clear(&g_ctx.cli->req.opts);
+    ec_client_add_uri_opts(g_ctx.cli, g_ctx.uri);
 
     if (g_ctx.publish)
         dbg_err_if (ec_request_add_publish(g_ctx.cli, g_ctx.allowed_methods));
@@ -424,6 +439,8 @@ int client_run(void)
     }
 
     CHAT("sending request to %s", g_ctx.uri);
+    u_dbg("sending request to %s (base: %p, dns: %p, coap: %p cli: %p)",
+            g_ctx.uri, g_ctx.base, g_ctx.dns, g_ctx.coap, g_ctx.cli);
     dbg_err_if (ec_request_send(g_ctx.cli, response_cb, NULL, &g_ctx.app_tout));
     
     return event_base_dispatch(g_ctx.base);
@@ -666,7 +683,7 @@ int set_payload(ec_client_t *cli, const uint8_t *data, size_t data_sz)
         p = data;
         p_sz = data_sz;
     }
-    else  /* Otherwise we have > 1 blocks and add Block2 option. */
+    else  /* Otherwise we have > 1 blocks and add Block1 option. */
     {
         p = data + (bnum * block_sz);
 

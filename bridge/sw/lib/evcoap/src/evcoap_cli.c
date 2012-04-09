@@ -287,9 +287,10 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
 
     dbg_return_if (cli == NULL, -1);
 
-    /* Expect client with state NONE.  Otherwise we jump to err where the 
-     * state is set to INTERNAL_ERR. */
-    dbg_err_ifm (cli->state != EC_CLI_STATE_NONE,
+    /* Expect client with initial or final state. Otherwise we jump to err
+     * where the state is set to INTERNAL_ERR. */
+    dbg_err_ifm (cli->state != EC_CLI_STATE_NONE &&
+            !ec_client_state_is_final(cli->state),
             "unexpected state %u", cli->state);
 
     req = &cli->req;
@@ -394,29 +395,39 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
     /* Encode options and header. */
     EC_CLI_ASSERT(ec_pdu_encode_request(req), EC_CLI_STATE_INTERNAL_ERR);
 
-    for (conn->socket = -1, ai = res; ai != NULL; ai = ai->ai_next)
+    if (conn->socket > 0)
     {
-        conn->socket = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
-
-        if (conn->socket == -1)
-           continue;
-
-        dbg_err_if (ec_pdu_set_peer(req,
-                    (struct sockaddr_storage *) ai->ai_addr));
-
         /* Send the request PDU. */
-        if (ec_pdu_send(req, dups))
-        {
-            /* Mark this socket as failed and try again. */
-            evutil_closesocket(conn->socket), conn->socket = -1;
-            continue;
-        }
-
-        EC_CLI_ASSERT(evutil_make_socket_nonblocking(conn->socket),
-                EC_CLI_STATE_INTERNAL_ERR);
+        EC_CLI_ASSERT(ec_pdu_send(req, dups), EC_CLI_STATE_INTERNAL_ERR);
 
         (void) ec_client_set_state(cli, EC_CLI_STATE_REQ_SENT);
-        break;
+    }
+    else
+    {
+        for (conn->socket = -1, ai = res; ai != NULL; ai = ai->ai_next)
+        {
+            conn->socket = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+
+            if (conn->socket == -1)
+               continue;
+
+            dbg_err_if (ec_pdu_set_peer(req,
+                        (struct sockaddr_storage *) ai->ai_addr));
+
+            /* Send the request PDU. */
+            if (ec_pdu_send(req, dups))
+            {
+                /* Mark this socket as failed and try again. */
+                evutil_closesocket(conn->socket), conn->socket = -1;
+                continue;
+            }
+
+            EC_CLI_ASSERT(evutil_make_socket_nonblocking(conn->socket),
+                    EC_CLI_STATE_INTERNAL_ERR);
+
+            (void) ec_client_set_state(cli, EC_CLI_STATE_REQ_SENT);
+            break;
+        }
     }
 
     /* Check whether the request PDU was actually sent out on any socket. */
@@ -449,8 +460,12 @@ static int ec_client_check_transition(ec_cli_state_t cur, ec_cli_state_t next)
             break;
 
         case EC_CLI_STATE_DNS_FAILED:
-        case EC_CLI_STATE_DNS_OK:
             dbg_err_if (cur != EC_CLI_STATE_NONE);
+            break;
+
+        case EC_CLI_STATE_DNS_OK:
+            dbg_err_if (cur != EC_CLI_STATE_NONE &&
+                    !ec_client_state_is_final(cur));
             break;
 
         case EC_CLI_STATE_SEND_FAILED:
@@ -770,8 +785,9 @@ bool ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
         dbg_if (is_con && ec_cli_stop_coap_timer(cli));
         dbg_if (ec_cli_stop_obs_timer(cli));
 
-        /* We can now finish off with this client. */
-        ec_client_free(cli);
+        /* Client can be recycled for new requests so we only clear old
+         * response data and keep all the rest. */
+        ec_res_set_clear(&cli->res_set);
     }
 
     return is_final_state;
