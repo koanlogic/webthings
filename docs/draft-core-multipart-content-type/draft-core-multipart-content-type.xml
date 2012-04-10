@@ -2,9 +2,6 @@
 <!-- vim: set ts=2 expandtab: -->
 <!DOCTYPE rfc SYSTEM "rfc2629.dtd" [
 <!ENTITY RFC2119 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml">
-<!ENTITY RFC2629 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2629.xml">
-<!ENTITY RFC3552 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.3552.xml">
-<!ENTITY RFC3986 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.3986.xml">
 <!ENTITY I-D.narten-iana-considerations-rfc2434bis SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.narten-iana-considerations-rfc2434bis.xml">
 <!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-coap-09.xml">
 <!ENTITY I-D.ietf-core-observe SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-observe-05.xml">
@@ -81,7 +78,7 @@
         <list style="hanging">
           <t hangText="T:"> is one of the numeric media type identifiers defined in the CoAP Media Type registry (Section 11.3 of <xref target="I-D.ietf-core-coap" />), and is encoded as a 16-bit uint (Appendix A of <xref target="I-D.ietf-core-coap" />).</t>
           <t hangText="L:"> is the lentgh in bytes of the following V frame, and has two possible encodings: short or extended (see <xref target="length-encoding" />).  It determines the offset of the next part, or the end of the multipart representation when applied to the last frame.</t>
-          <t hangText="V:"> is the media, encoded as implied by the preceeding T field.</t>
+          <t hangText="V:"> is the media, encoded as implied by the preceding T field.</t>
         </list>
       </t>
     </section>
@@ -137,7 +134,7 @@
       </t>
 
       <t>
-        A length of 32768 bytes would use extended encoding with lenght of lenght 2:
+        A length of 32768 bytes would use extended encoding with length of length 2:
         <figure>
           <artwork align="center"><![CDATA[
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3
@@ -164,7 +161,7 @@
     <section anchor="IANA" title="IANA Considerations">
       <t>The following entry is added to the CoAP Media Type registry:</t>
       <figure align="center">
-        <artwork align="left"><![CDATA[
+        <artwork><![CDATA[
 .--------------------------------.
 | Number | Name      | Reference |
 :--------:-----------:-----------:
