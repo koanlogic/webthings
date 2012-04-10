@@ -113,10 +113,11 @@
       <section title="Constraints">
         <t>The most compact encoding MUST be used, i.e.:
           <list style="numbers">
-            <t>always use short when length(V) &lt; 32768; </t>
-            <t>never zero-pad when using extended.</t>
+            <t>always use the short encoding when length(V) &lt; 32768; </t>
+            <t>never zero-pad the most significant byte when using the extended encoding.</t>
           </list>
         </t>
+        <t>The former implies that 0x81 would be an invalid value for the first octet, and that in case the first octet is 0x82 the length(V) value MUST be &gt; 0x7FFF.</t>
       </section>
 
       <section title="Examples">
