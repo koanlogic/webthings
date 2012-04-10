@@ -31,7 +31,8 @@ kache_evcoap_data_t *kache_init_evcoap_data()
 }
 void kache_free_evcoap_data(kache_evcoap_data_t *data)
 {
-    u_free(data);
+    if (data)
+        u_free(data);
 }
 
 
@@ -106,6 +107,7 @@ int kache_store_evcoap_response(kache_evcoap_t *ke, ec_client_t *cli)
     //max_age
     if(rep->max_age == 0)
         rep->max_age = 60;
+    max_age = rep->max_age;
 
     //Timer
     kache_timer_arg_t *arg;
@@ -146,7 +148,7 @@ void kache_evcoap_timer_cb(int i, short e,void *arg)
     rep = a->rep;
     kache_remove_rep(obj,rep);
     kache_evcoap_data_t *data;
-    kache_free_kache_rep_with_data(rep,(void*)data);
+    kache_free_kache_rep_with_data(rep,(void **) &data);
     kache_free_evcoap_data(data);
 }
 

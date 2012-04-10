@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+#include <string.h>
 #include <u/libu.h>
 #include <event2/util.h> 
 
