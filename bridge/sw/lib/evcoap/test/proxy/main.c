@@ -410,6 +410,8 @@ ec_cbrc_t cache_serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
         case EC_COAP_POST:
             ec_response_set_code(srv, EC_NOT_IMPLEMENTED);
             break;
+        default:
+            dbg_err_ifm (1, "bad method code: %d", method);
     }
 
     return EC_CBRC_READY;

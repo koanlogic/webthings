@@ -35,6 +35,9 @@ err:
 static int kache_init_test(u_test_case_t *tc)
 {
     kache_t *kache;
+
+    u_unused_args(tc);
+
     dbg_err_if((kache = kache_init()) == NULL);
     dbg_err_if( kache_init_data_structure(kache));
     kache_free(kache);
@@ -207,7 +210,7 @@ int test_suite_common_tasks_register(u_test_t *t)
     dbg_err_if (u_test_suite_new("Kache common tasks", &ts));
     dbg_err_if (u_test_case_register("kache_init_test", kache_init_test, ts));
     dbg_err_if (u_test_case_register("kache_set_unset_test", kache_set_unset_test, ts));
-    dbg_err_if (u_test_case_register("kache_get_empty_test", kache_set_unset_test, ts));
+    dbg_err_if (u_test_case_register("kache_get_empty_test", kache_get_empty_test, ts));
     dbg_err_if (u_test_case_register("kache_set_get_test", kache_set_get_test, ts));
     dbg_err_if (u_test_case_register("kache_overwrite_test", kache_overwrite_test, ts));
     /*dbg_err_if (u_test_case_register("init_push_get_del", init_push_get_del, ts));

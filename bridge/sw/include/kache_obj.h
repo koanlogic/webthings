@@ -95,8 +95,8 @@ int kache_rep_foreach(kache_obj_t *obj, int (*f)(kache_rep_t *rep));
 void kache_free_kache_keyvalq(kache_rep_t *rep);
 void kache_free_kache_keyval(kache_keyval_t *keyval);
 void kache_free_kache_obj(kache_obj_t *obj);
-void kache_free_kache_rep_with_data(kache_rep_t *rep, void **data);
-void kache_free_kache_rep(kache_rep_t *rep);
+int kache_free_kache_rep_with_data(kache_rep_t *rep, void **data);
+int kache_free_kache_rep(kache_rep_t *rep);
 kache_rep_t *kache_get_rep_by_media_type(kache_obj_t *obj, kache_content_type_t *media_type);
 
 

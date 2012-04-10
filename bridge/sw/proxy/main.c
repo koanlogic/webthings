@@ -123,7 +123,7 @@ void process_http_request(struct evhttp_request *req, void *arg)
 		char *tmp = malloc(len+1);
 		memcpy(tmp, evbuffer_pullup(body, -1), len);
 		tmp[len] = '\0';
-		ec_request_set_payload(g_ctx.cli,tmp,len);
+		ec_request_set_payload(g_ctx.cli,(const uint8_t *)tmp,len);
 
 		free(tmp);
 	}
@@ -144,7 +144,7 @@ void process_http_request(struct evhttp_request *req, void *arg)
 		char *tmp = malloc(len+1);
 		memcpy(tmp, evbuffer_pullup(body, -1), len);
 		tmp[len] = '\0';
-		ec_request_set_payload(g_ctx.cli,tmp,len);
+		ec_request_set_payload(g_ctx.cli,(const uint8_t *)tmp,len);
 
 		free(tmp);
 	}
@@ -312,17 +312,13 @@ void process_set_http_headers(struct evhttp_request *req)
 {
 	ec_opts_t *opts;
 	ec_opt_t *o;
-	ec_opt_t *o_tmp;
 	ec_mt_t ct;
 
 	nop_err_if ((opts = ec_client_get_response_options(g_ctx.cli)) == NULL);
+
 	TAILQ_FOREACH(o, &opts->bundle, next)
 	{
-
-
 		uint64_t tmp;
-		char *etag;
-		int etag_size;
 
 		(void) (uint16_t) ec_opts_get_uint(opts, o->sym, &tmp);
 		if (ec_opts_get_uint(opts, o->sym, &tmp))
@@ -332,7 +328,7 @@ void process_set_http_headers(struct evhttp_request *req)
 
 		case EC_OPT_PROXY_URI:
 		case EC_OPT_CONTENT_TYPE:
-			ec_opts_get_content_type(opts, &ct);
+			ec_opts_get_content_type(opts, (uint16_t *) &ct);
 			switch ((int) tmp) {
 
 			case EC_MT_TEXT_PLAIN:
@@ -369,7 +365,6 @@ void process_set_http_headers(struct evhttp_request *req)
 	        case EC_OPT_ETAG:
 	            {
 	                uint8_t *et;
-	                ec_opt_t *o;
 	                size_t et_sz, i;
 
 	                for (i = 0;
@@ -380,8 +375,7 @@ void process_set_http_headers(struct evhttp_request *req)
 
 	                    char s[U_B64_LENGTH(et_sz) + 1];
 
-	                    //if (u_b64_encode(et, &et_sz, s, sizeof s) == 0)
-(void)u_b64_encode(et, &et_sz, s, sizeof s);
+	                    if (u_b64_encode(et, et_sz, s, sizeof s) == 0)
 	                    {
 	                        evhttp_add_header(
 	                                evhttp_request_get_output_headers(req),
