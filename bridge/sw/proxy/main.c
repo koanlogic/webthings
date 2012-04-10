@@ -104,7 +104,7 @@ void process_http_request(struct evhttp_request *req, void *arg)
 	case EVHTTP_REQ_HEAD:
 	case EVHTTP_REQ_GET:
 		con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_GET,
-				g_ctx.curi, EC_COAP_CON)) == NULL);
+				g_ctx.curi, EC_COAP_CON, false)) == NULL);
 		process_set_coap_headers(req,req->type);
 		break;
 	case EVHTTP_REQ_PUT:
@@ -115,7 +115,7 @@ void process_http_request(struct evhttp_request *req, void *arg)
 		int len = evbuffer_get_length(body);
 
 		con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_PUT,
-				g_ctx.curi, EC_COAP_CON)) == NULL);
+				g_ctx.curi, EC_COAP_CON, false)) == NULL);
 
 		process_set_coap_headers(req,req->type);
 
@@ -136,7 +136,7 @@ void process_http_request(struct evhttp_request *req, void *arg)
 		int len = evbuffer_get_length(body);
 
 		con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_POST,
-				g_ctx.curi, EC_COAP_CON)) == NULL);
+				g_ctx.curi, EC_COAP_CON, false)) == NULL);
 
 		process_set_coap_headers(req,req->type);
 
@@ -151,7 +151,7 @@ void process_http_request(struct evhttp_request *req, void *arg)
 	break;
 	case EVHTTP_REQ_DELETE:
 		con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_DELETE,
-				g_ctx.curi, EC_COAP_CON)) == NULL);
+				g_ctx.curi, EC_COAP_CON, false)) == NULL);
 		break;
 	default:
 		break;
@@ -164,18 +164,12 @@ void process_http_request(struct evhttp_request *req, void *arg)
 	con_err_if (ec_request_send(g_ctx.cli, process_coap_response, req,
 			&g_ctx.tout));
 
-
 	u_uri_free(u);
 
 	return;
 	err:
 	if (u)
 		u_uri_free(u);
-	if (g_ctx.cli)
-    {
-		ec_client_free(g_ctx.cli);
-        g_ctx.cli = NULL;
-    }
 	return;
 }
 
@@ -281,7 +275,7 @@ void process_coap_response(ec_client_t *cli)
 
 	/* If there is more, send a new request with Block2 Option. */
 	con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_GET,
-			g_ctx.curi, EC_COAP_CON)) == NULL);
+			g_ctx.curi, EC_COAP_CON, false)) == NULL);
 	con_err_if (ec_request_add_block2(g_ctx.cli, ++g_ctx.bopt.block_no, 0,
 			g_ctx.bopt.block_sz) == -1);
 	con_err_if (ec_request_send(g_ctx.cli, process_coap_response, req,

@@ -94,7 +94,7 @@ void process_http_request(struct evhttp_request *req, void *arg)
     u_con("mapped URI: %s", g_ctx.curi);
 
     con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_GET,
-                    g_ctx.curi, EC_COAP_CON)) == NULL);
+                    g_ctx.curi, EC_COAP_CON, false)) == NULL);
 
 	/* Add token option to allow for concurrent requests. */
 	con_err_if (ec_request_add_token(g_ctx.cli, NULL, 0));
@@ -108,8 +108,6 @@ void process_http_request(struct evhttp_request *req, void *arg)
 err:
     if (u)
         u_uri_free(u);
-    if (g_ctx.cli)
-        ec_client_free(g_ctx.cli);
     return;
 }
 
@@ -169,7 +167,7 @@ void process_coap_response(ec_client_t *cli)
 
     /* If there is more, send a new request with Block2 Option. */
     con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_GET,
-                    g_ctx.curi, EC_COAP_CON)) == NULL);
+                    g_ctx.curi, EC_COAP_CON, false)) == NULL);
     con_err_if (ec_request_add_block2(g_ctx.cli, ++g_ctx.bopt.block_no, 0,
                 g_ctx.bopt.block_sz) == -1);
     con_err_if (ec_request_send(g_ctx.cli, process_coap_response, req,

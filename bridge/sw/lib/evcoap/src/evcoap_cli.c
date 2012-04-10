@@ -230,7 +230,8 @@ int ec_client_set_msg_model(ec_client_t *cli, bool is_con)
 }
 
 ec_client_t *ec_client_new(struct ec_s *coap, ec_method_t m, const char *uri, 
-        ec_msg_model_t mm, const char *proxy_host, uint16_t proxy_port)
+        ec_msg_model_t mm, const char *proxy_host, uint16_t proxy_port,
+        bool userown)
 {
     ec_client_t *cli = NULL;
 
@@ -257,6 +258,7 @@ ec_client_t *ec_client_new(struct ec_s *coap, ec_method_t m, const char *uri,
     /* Cache the base so that we don't need to pass it around every function
      * that manipulates the transaction. */
     cli->base = coap;
+    cli->userown = userown;
 
     /* It will be possibly set in case response confirms the observation. */
     ec_cli_obs_init(&cli->observe);
@@ -785,9 +787,13 @@ bool ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
         dbg_if (is_con && ec_cli_stop_coap_timer(cli));
         dbg_if (ec_cli_stop_obs_timer(cli));
 
-        /* Client can be recycled for new requests so we only clear old
-         * response data and keep all the rest. */
-        ec_res_set_clear(&cli->res_set);
+        if (cli->userown)
+            /* Client can be recycled for further requests so we only clear old
+             * response data and keep all the rest. */
+            ec_res_set_clear(&cli->res_set);
+        else
+            /* Engine owns client - we are done with it. */
+            ec_client_free(cli);
     }
 
     return is_final_state;

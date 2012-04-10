@@ -339,10 +339,12 @@ int client_init(void)
 
     dbg_err_if (event_add(g_ctx.evsig, NULL));
 
+    /* Client instance is possibly reused N times (e.g. Block handling), so we
+     * choose to handle deallocation manually via userown == true. */
     g_ctx.cli = !g_ctx.use_proxy
-        ? ec_request_new(g_ctx.coap, g_ctx.method, g_ctx.uri, g_ctx.model)
+        ? ec_request_new(g_ctx.coap, g_ctx.method, g_ctx.uri, g_ctx.model, true)
         : ec_proxy_request_new(g_ctx.coap, g_ctx.method, g_ctx.uri, g_ctx.model,
-                g_ctx.proxy_host, g_ctx.proxy_port);
+                g_ctx.proxy_host, g_ctx.proxy_port, true);
     dbg_err_if (g_ctx.cli == NULL);
 
     return 0;

@@ -29,16 +29,19 @@ int ec_get_block_size(ec_t *coap, size_t *val);
 /* 
  * Client API
  */
-ec_client_t *ec_request_new(ec_t *coap, ec_method_t m, const char *uri, 
-        ec_msg_model_t mm);
+ec_client_t *ec_request_new(ec_t *coap, ec_method_t m, const char *uri,
+        ec_msg_model_t mm, bool owncli);
 
 ec_client_t *ec_proxy_request_new(ec_t *coap, ec_method_t m, const char *uri,
-        ec_msg_model_t mm, const char *proxy_host, uint16_t proxy_port);
+        ec_msg_model_t mm, const char *proxy_host, uint16_t proxy_port,
+        bool owncli);
 
-ec_client_t *ec_observe_new(ec_t *coap, const char *uri, ec_msg_model_t mm);
+ec_client_t *ec_observe_new(ec_t *coap, const char *uri, ec_msg_model_t mm,
+        bool userown);
 
 ec_client_t *ec_proxy_observe_new(ec_t *coap, const char *uri, 
-        ec_msg_model_t mm, const char *proxy_host, uint16_t proxy_port);
+        ec_msg_model_t mm, const char *proxy_host, uint16_t proxy_port,
+        bool userown);
 
 int ec_request_send(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
         struct timeval *tout);

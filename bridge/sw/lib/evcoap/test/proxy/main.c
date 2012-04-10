@@ -130,12 +130,6 @@ int proxy_run(void)
 
 void proxy_term(void)
 {
-    if (g_ctx.cli)
-    {
-        ec_client_free(g_ctx.cli);
-        g_ctx.cli = NULL;
-    }
-
     if (g_ctx.coap)
     {
         ec_term(g_ctx.coap);
@@ -490,7 +484,8 @@ ec_cbrc_t proxy_req(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
     }
 
     /* Create request towards final destination (TODO extract message model.) */
-    dbg_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, m, uri, mm)) == NULL);
+    dbg_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, m, uri, mm, false)) ==
+            NULL);
 
     /* Map Options in the forward direction (request to request). */
     dbg_err_if (map_options_forward(ec_server_get_request_options(srv), 
@@ -502,11 +497,6 @@ ec_cbrc_t proxy_req(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
 
     return EC_CBRC_WAIT;
 err:
-    if (g_ctx.cli)
-    {
-        ec_client_free(g_ctx.cli);
-        g_ctx.cli = NULL;
-    }
     if (res) ec_resource_free(res);
 
     return EC_CBRC_ERROR;

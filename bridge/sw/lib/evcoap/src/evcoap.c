@@ -6,8 +6,8 @@
 #include "evcoap_net.h"
 #include "evcoap_opt.h"
 
-static ec_client_t *ec_observer_new(ec_t *coap, const char *uri, 
-        ec_msg_model_t mm, const char *p_host, uint16_t p_port);
+static ec_client_t *ec_observer_new(ec_t *coap, const char *uri,
+        ec_msg_model_t mm, const char *p_host, uint16_t p_port, bool userown);
 
 /**
  *  \brief  TODO
@@ -73,40 +73,47 @@ int ec_loopbreak(ec_t *coap)
 /**
  *  \brief  TODO
  *
- * Returned client must be deallocated by user via ec_client_free().
+ * If the user specifies userown == true, the returned client must be
+ * deallocated manually via ec_client_free(). Otherwise it is done internally
+ * at final state.
  */
 ec_client_t *ec_request_new(ec_t *coap, ec_method_t m, const char *uri, 
-        ec_msg_model_t mm)
+        ec_msg_model_t mm, bool userown)
 {
-    return ec_client_new(coap, m, uri, mm, NULL, (uint16_t) 0);
+    return ec_client_new(coap, m, uri, mm, NULL, (uint16_t) 0, userown);
 }
 
 /**
  *  \brief  TODO
  *
- * Returned client must be deallocated by user via ec_client_free().
+ * If the user specifies userown == true, the returned client must be
+ * deallocated manually via ec_client_free(). Otherwise it is done internally
+ * at final state.
  */
 ec_client_t *ec_proxy_request_new(ec_t *coap, ec_method_t m, const char *uri,
-        ec_msg_model_t mm, const char *proxy_host, uint16_t proxy_port)
+        ec_msg_model_t mm, const char *proxy_host, uint16_t proxy_port,
+        bool userown)
 {
-    return ec_client_new(coap, m, uri, mm, proxy_host, proxy_port);
+    return ec_client_new(coap, m, uri, mm, proxy_host, proxy_port, userown);
 }
 
 /**
  *  \brief  TODO
  */
 ec_client_t *ec_proxy_observe_new(ec_t *coap, const char *uri,
-        ec_msg_model_t mm, const char *proxy_host, uint16_t proxy_port)
+        ec_msg_model_t mm, const char *proxy_host, uint16_t proxy_port,
+        bool userown)
 {
-    return ec_observer_new(coap, uri, mm, proxy_host, proxy_port);
+    return ec_observer_new(coap, uri, mm, proxy_host, proxy_port, userown);
 }
 
 /**
  *  \brief  TODO
  */
-ec_client_t *ec_observe_new(ec_t *coap, const char *uri, ec_msg_model_t mm)
+ec_client_t *ec_observe_new(ec_t *coap, const char *uri, ec_msg_model_t mm,
+        bool userown)
 {
-    return ec_observer_new(coap, uri, mm, NULL, (uint16_t) 0);
+    return ec_observer_new(coap, uri, mm, NULL, (uint16_t) 0, userown);
 }
 
 /**
@@ -1033,11 +1040,11 @@ err:
 }
 
 static ec_client_t *ec_observer_new(ec_t *coap, const char *uri, 
-        ec_msg_model_t mm, const char *p_host, uint16_t p_port)
+        ec_msg_model_t mm, const char *p_host, uint16_t p_port, bool userown)
 {
     /* Create new GET-er client. */
     ec_client_t *cli = ec_client_new(coap, EC_COAP_GET, uri, mm, p_host,
-            p_port);
+            p_port, userown);
 
     dbg_return_if (cli == NULL, NULL);
 

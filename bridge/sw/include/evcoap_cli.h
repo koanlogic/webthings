@@ -46,6 +46,7 @@ struct ec_client_s
     struct evdns_getaddrinfo_request *dns_req;
     ec_client_cb_t cb;
     void *cb_args;
+    bool userown;
     ec_cli_state_t state;
     ec_cli_obs_t observe;
     ec_flow_t flow;
@@ -67,7 +68,8 @@ int ec_clients_init(ec_clients_t *clts);
 void ec_clients_term(ec_clients_t *clts);
 
 ec_client_t *ec_client_new(struct ec_s *coap, ec_method_t m, const char *uri, 
-        ec_msg_model_t mm, const char *proxy_host, uint16_t proxy_port);
+        ec_msg_model_t mm, const char *proxy_host, uint16_t proxy_port,
+        bool userown);
 void ec_client_free(ec_client_t *cli);
 
 /* Setters. */
