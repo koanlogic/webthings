@@ -81,9 +81,9 @@
         ]]></artwork>
       </figure>
 
-      <t>We would like to allow B to discover that A hosts a resource with type "x" even if A can't be directly reached by B.  P may in principle let this information filter from one link to the other, but given the way discovery via /.well-known/core is currently defined (Section 2.1 of <xref target="I-D.ietf-core-link-format" />), there is no way for a consuming node to determine that an advertised link is to be accessed through a forward Proxy.</t>
+      <t>We would like to allow B to discover that A hosts a resource with type "x" even if A can't be directly reached by B.  P may in principle let this information filter from one link to the other, but given the mechanisms currently defined for the discovery via /.well-known/core (Section 2.1 of <xref target="I-D.ietf-core-link-format" />), there is no way for a consuming node to ascertain that an advertised link is to be accessed through a given forward Proxy or by a direct route.</t>
 
-      <t>We may decide use the anchor parameter in the link and define a new relation name to express the "proxied by" relation, but this may actually have zero chance to work because of the freedom left to a consuming node to ignore anchored links (Section 2.3 of <xref target="I-D.ietf-core-link-format" />).</t>
+      <t>We may decide to use the anchor parameter in the link and define a new relation name to express the "proxied by" relation, but this may actually have zero chance to work because of the freedom left to a consuming node to ignore anchored links (Section 2.3 of <xref target="I-D.ietf-core-link-format" />).</t>
 
       <t>The proposed solution, instead, envisages a new link format attribute, "fp" that is added by the Proxy to the original set of attributes of the linked resource to inform the requesting endpoint that the advertised (absolute) URI must be requested to the advertising Proxy using the Proxy-URI Option, as illustrated in <xref target="proxied-discovery" />.   When advertised on a link different from the one on which it resides, the original resource link SHALL be transformed by the Proxy into an absolute URI that can be used as-is in a Proxy-Uri Option by the requesting node.</t>
 
