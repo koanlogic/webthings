@@ -4,7 +4,6 @@
 <!ENTITY RFC2119 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml">
 <!ENTITY RFC5988 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.5988.xml">
 <!ENTITY RFC3986 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.3986.xml">
-<!ENTITY I-D.narten-iana-considerations-rfc2434bis SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.narten-iana-considerations-rfc2434bis.xml">
 <!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-coap-09.xml">
 <!ENTITY I-D.ietf-core-link-format SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-link-format-11.xml">
 <!ENTITY I-D.ietf-6lowpan-nd SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-6lowpan-nd-18.xml">
@@ -55,9 +54,11 @@
 
   <middle>
     <section title="Introduction">
-      <t>The discovery mechanism described in <xref target="I-D.ietf-core-link-format" /> assumes cheap and pervasive multicast.  This may not be the case due either to limitations in the underlying radio link (see Section 1 of <xref target="I-D.ietf-6lowpan-nd" />), or the absence of a multicast routing protocol to bridge through different links.</t>
+      <t>The discovery mechanism described in <xref target="I-D.ietf-core-link-format" /> assumes cheap and pervasive multicast.  This may not always be the case due to either limitations in the underlying radio link (see Section 1 of <xref target="I-D.ietf-6lowpan-nd" />), or the absence of a multicast routing protocol to bridge through different links.</t>
 
-      <t>Due to their topological role, CoAP Proxies (see Section 5.7 of <xref target="I-D.ietf-core-coap" />) can be efficiently used to make resources discoverable across different broadcast domains.  However, in order to achieve this capability, the fact that a given resource is made available through them must be made explicit to endpoints, so that they can use the Proxy-Uri Option to dereference the final target.</t>
+      <t>Given their topological role, CoAP Proxies (Section 5.7 of <xref target="I-D.ietf-core-coap" />) can be used efficiently to make resources discoverable across different broadcast domains.  However, in order to achieve this capability, the fact that a given resource is made available through them must be made explicit to consuming endpoints, so that they can use the Proxy-Uri Option to dereference the final target.</t>
+
+      <t>This memo defines the "fp" CoAP link format attribute that can be used by Proxy nodes to inform CoAP endpoints that a given resource can be reached by passing through the advertising Proxy.</t>
 
       <section title="Requirements Language">
         <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
@@ -66,7 +67,7 @@
 
     <section title="The fp Link Format Attribute">
 
-      <t>Consider the scenario depicted in <xref target="proxied-topology" />.  Two separate links are proxied by P.  Node A hosts resource /res of type "x", and P knows it -- either through explicit or implicit mechanism (e.g. previous discovery on the local link, RD, etc.).</t>
+      <t>Consider the scenario depicted in <xref target="proxied-topology" />.  Two separate CoAP links are proxied by P.  Node A hosts resource /res of type "x", and P knows it -- either through explicit or implicit mechanism (e.g. previous discovery on the local link, or a co-located RD, etc.)</t>
      
       <figure anchor="proxied-topology">
         <artwork align="left"><![CDATA[
@@ -80,9 +81,11 @@
         ]]></artwork>
       </figure>
 
-      <t>Now imagine that B makes a query for resources with type "x" on its link.</t>
+      <t>We would like to allow B to discover that A hosts a resource with type "x" even if A can't be directly reached by B.  P may in principle let this information filter from one link to the other, but given the way discovery via /.well-known/core is currently defined (Section 2.1 of <xref target="I-D.ietf-core-link-format" />), there is no way for a consuming node to determine that an advertised link is to be accessed through a forward Proxy.</t>
 
-      <t>A new link format attribute, "fp", is added by the Proxy to the set of attributes of the linked resource to inform the requesting endpoint that the advertised absolute URI must be requested to the advertising Proxy using the Proxy-URI Option, as illustrated in <xref target="proxied-discovery" />.  Further the resource link is transformed by the Proxy into an absolute URI.</t>
+      <t>We may decide use the anchor parameter in the link and define a new relation name to express the "proxied by" relation, but this may actually have zero chance to work because of the freedom left to a consuming node to ignore anchored links (Section 2.3 of <xref target="I-D.ietf-core-link-format" />).</t>
+
+      <t>The proposed solution, instead, envisages a new link format attribute, "fp" that is added by the Proxy to the original set of attributes of the linked resource to inform the requesting endpoint that the advertised (absolute) URI must be requested to the advertising Proxy using the Proxy-URI Option, as illustrated in <xref target="proxied-discovery" />.   When advertised on a link different from the one on which it resides, the original resource link SHALL be transformed by the Proxy into an absolute URI that can be used as-is in a Proxy-Uri Option by the requesting node.</t>
 
       <figure anchor="proxied-discovery">
         <artwork align="center"><![CDATA[
