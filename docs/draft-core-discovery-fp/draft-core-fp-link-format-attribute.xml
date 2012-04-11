@@ -96,11 +96,11 @@
         <artwork align="center"><![CDATA[
 P      B
 |      |
-|<-----+ Uri-Path: .well-known
+|<-----' Uri-Path: .well-known
 |  GET | Uri-Path: core
 |      | Uri-Query: rt=x
 |      |
-+----->| Content-Type: link-format
+`----->| Content-Type: link-format
 | 2.05 | payload: <coap://A/res>;rt="x";fp
 ]]></artwork>
       </figure>
@@ -113,14 +113,14 @@ P      B
         <artwork align="center"><![CDATA[
 A      P      B
 |      |      |
-|      |<-----+ Proxy-Uri: coap://A/res
+|      |<-----' Proxy-Uri: coap://A/res
 |      |  GET |
-|<-----+      | Uri-Path: res
+|<-----'      | Uri-Path: res
 |  GET |      |
 |      |      |
-+----->|      |
+`----->|      |
 | 2.05 |      |
-|      +----->|
+|      `----->|
 |      | 2.05 |
 ]]></artwork>
       </figure>
