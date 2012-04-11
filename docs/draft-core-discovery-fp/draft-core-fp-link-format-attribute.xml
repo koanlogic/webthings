@@ -48,7 +48,7 @@
     <keyword>CoAP, Link Format, resource discovery through Proxies, fp link-format attribute</keyword>
 
     <abstract>
-      <t>This memo proposes a new CoRE link format attribute, "fp" (forward proxy), to be used by a Proxy node to inform CoAP endpoints that the associated resource can be reached through the Proxy itself.</t>
+      <t>This memo proposes a new CoRE link format attribute, "fp" (forward proxy), to be used by a Proxy node to inform CoAP endpoints that the advertised resource can be reached through the Proxy itself.</t>
     </abstract>
   </front>
 
@@ -58,14 +58,14 @@
 
       <t>Given their topological role, CoAP Proxies (Section 5.7 of <xref target="I-D.ietf-core-coap" />) can be used effectively to make resources discoverable across different broadcast domains.  However, in order to achieve this capability, the fact that a given resource is made available through them must be made explicit to consuming endpoints, so that they can use the Proxy-Uri Option to dereference the final target.</t>
 
-      <t>This memo defines the "fp" (forward proxy) CoAP link format attribute that can be used by Proxy nodes to inform CoAP endpoints that a given resource can be reached by passing through the advertising Proxy.</t>
+      <t>This memo defines the "fp" (forward proxy) CoAP link format attribute, that can be used by Proxy nodes to inform CoAP endpoints that a given resource can be reached by passing through the advertising Proxy.</t>
 
       <section title="Requirements Language">
         <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
       </section>
     </section>
 
-    <section title="The fp Link Format Attribute">
+    <section title="Proxied Discovery Scenario">
 
       <t>Consider the scenario depicted in <xref target="proxied-topology" />.  Two separate CoAP links are proxied by P.  Node A hosts resource /res of type "x", and P knows it -- either through explicit or implicit mechanism (e.g. previous discovery on the local link, or a co-located RD, etc.)</t>
      
@@ -85,7 +85,10 @@
 
       <t>P may in principle let this information filter from one link to the other, but given the mechanisms currently defined for the discovery via /.well-known/core (Section 2.1 of <xref target="I-D.ietf-core-link-format" />), there is no way for a consuming node to ascertain that an advertised link is to be accessed through a given forward Proxy or by a direct route.</t>
 
-      <t>We may choose to use the anchor parameter in the link and define a new relation name to express the "proxied by" relation, but this may actually have zero chance to work because of the freedom left to a consuming node to ignore anchored links (Section 2.3 of <xref target="I-D.ietf-core-link-format" />).</t>
+      <t>We may choose to use the anchor parameter in the link and define a new relation name to express the "proxied by" relation, but this may actually have zero chance to succeed because of the freedom left to a consuming node to actually ignore anchored links (Section 2.3 of <xref target="I-D.ietf-core-link-format" />).</t>
+    </section>
+
+    <section title="The fp Link Format Attribute">
 
       <t>The proposed solution, instead, envisages a new link format attribute, "fp" that is added by the Proxy to the original set of attributes of the linked resource to inform the requesting endpoint that the advertised (absolute) URI must be requested to the advertising Proxy using the Proxy-URI Option, as illustrated in <xref target="proxied-discovery" />.   When advertised on a link different from the one on which it resides, the original resource link SHALL be transformed by the Proxy into an absolute URI that can be used as-is in a Proxy-Uri Option by the requesting node.</t>
 
@@ -95,7 +98,7 @@ P      B
 |      |
 |<-----+ Uri-Path: .well-known
 |  GET | Uri-Path: core
-|      |
+|      | Uri-Query: rt=x
 |      |
 +----->| Content-Type: link-format
 | 2.05 | payload: <coap://A/res>;rt="x";fp
@@ -131,7 +134,7 @@ A      P      B
     </section>
 
     <section anchor="Security" title="Security Considerations">
-      <t>The mechanism specified in this document shares the same security weakness of the discovery process described in <xref target="I-D.ietf-core-link-format" />.</t>
+      <t>The mechanism specified in this document shares the same security concerns as the discovery process described in <xref target="I-D.ietf-core-link-format" />.</t>
      
       <t>Especially critical to the CoAP network consistency, is the fact that in NoSec mode a malicious attacker could poison the response of a query to the /.well-known/core in order to re-route traffic.</t>
     </section>
@@ -139,11 +142,11 @@ A      P      B
 
   <back>
     <references title="Normative References">
+      &I-D.ietf-core-coap;
+      &I-D.ietf-core-link-format;
       &RFC2119;
       &RFC3986;
       &RFC5988;
-      &I-D.ietf-core-coap;
-      &I-D.ietf-core-link-format;
     </references>
     <references title="Informative References">
       &I-D.ietf-6lowpan-nd;
