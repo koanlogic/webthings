@@ -90,7 +90,9 @@
 
     <section title="The fp Link Format Attribute">
 
-      <t>The proposed solution, instead, envisages a new link format attribute, "fp" that is added by the Proxy to the original set of attributes of the linked resource to inform the requesting endpoint that the advertised (absolute) URI must be requested to the advertising Proxy using the Proxy-URI Option, as illustrated in <xref target="proxied-discovery" />.   When advertised on a link different from the one on which it resides, the original resource link SHALL be transformed by the Proxy into an absolute URI that can be used as-is in a Proxy-Uri Option by the requesting node.</t>
+      <t>The proposed solution, instead, envisages a new link format attribute, "fp" that is added by the Proxy to the original set of attributes of the linked resource to inform the requesting endpoint that the advertised (absolute) URI must be requested to the advertising Proxy using the Proxy-URI Option, as illustrated in <xref target="proxied-discovery" />.</t>
+
+      <t>When advertised on a link different from the one on which it resides, the original resource link SHALL be transformed by the Proxy into an absolute URI that can be used as-is in a Proxy-Uri Option by the requesting node.</t>
 
       <figure anchor="proxied-discovery">
         <artwork align="center"><![CDATA[
