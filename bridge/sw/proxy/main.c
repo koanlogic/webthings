@@ -39,8 +39,8 @@ ctx_t g_ctx = {
 
 void process_http_request(struct evhttp_request *req, void *arg);
 void process_coap_response(ec_client_t *cli);
-void process_set_coap_headers(struct evhttp_request *req, ec_rc_t rc);
 void process_set_http_headers(struct evhttp_request *req);
+int process_set_coap_headers(struct evhttp_request *req, ec_rc_t rc);
 
 int main(void)
 {
@@ -286,7 +286,7 @@ void process_coap_response(ec_client_t *cli)
 }
 
 
-void process_set_coap_headers(struct evhttp_request *req, ec_rc_t rc){
+int process_set_coap_headers(struct evhttp_request *req, ec_rc_t rc){
 
 	struct evkeyval *header;
 	ec_mt_t pmt;
@@ -296,15 +296,20 @@ void process_set_coap_headers(struct evhttp_request *req, ec_rc_t rc){
 		{
 			//set Content-Type
 printf("content-type %s \n", header->value);
-			ec_mt_from_string(header->value,&pmt);
-			ec_request_add_content_type(g_ctx.cli, pmt);
-		} else if (strcmp(header->key,"Accept")==0 && rc!=EVHTTP_REQ_PUT && rc!=EVHTTP_REQ_POST)
+			dbg_err_if (ec_mt_from_string(header->value,&pmt));
+			dbg_err_if (ec_request_add_content_type(g_ctx.cli, pmt));
+		}
+        else if (strcmp(header->key,"Accept")==0 && rc!=EVHTTP_REQ_PUT && rc!=EVHTTP_REQ_POST)
 		{
 			//set Accept
-			ec_mt_from_string(header->value,&pmt);
-			ec_request_add_accept(g_ctx.cli, pmt);
+			dbg_err_if (ec_mt_from_string(header->value,&pmt));
+			dbg_err_if (ec_request_add_accept(g_ctx.cli, pmt));
 		}
 	}
+
+    return 0;
+err:
+    return ~0;
 }
 
 
