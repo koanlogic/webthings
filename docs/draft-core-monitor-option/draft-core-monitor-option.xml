@@ -4,13 +4,9 @@
 <!ENTITY RFC2119 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml">
 <!ENTITY RFC2629 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2629.xml">
 <!ENTITY RFC3552 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.3552.xml">
-<!ENTITY RFC3986 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.3986.xml">
 <!ENTITY I-D.narten-iana-considerations-rfc2434bis SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.narten-iana-considerations-rfc2434bis.xml">
-<!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-coap-08.xml">
+<!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-coap-09.xml">
 <!ENTITY I-D.ietf-core-observe SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-observe-04.xml">
-<!ENTITY I-D.ietf-core-link-format SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-link-format-11.xml">
-<!ENTITY I-D.shelby-core-coap-req SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-shelby-core-coap-req-02.xml">
-<!ENTITY I-D.shelby-core-resource-directory SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-shelby-core-resource-directory-02.xml">
 ]>
 <?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
 <?rfc strict="yes" ?>
@@ -22,7 +18,7 @@
 <?rfc subcompact="no" ?>
 <?rfc comments="yes" ?>
 <?rfc inline="yes" ?>
-<rfc category="std" docName="draft-fossati-core-publish-monitor-options-01" ipr="trust200902">
+<rfc category="std" docName="draft-fossati-core-monitor-options-01" ipr="trust200902">
   <front>
     <title>
       Publish and Monitor Options for CoAP
@@ -79,10 +75,8 @@
     <keyword>CoAP, Monitor option, Publish option, sleepy sensor</keyword>
 
     <abstract>
-      <t>This memo defines two additional Options for the Constrained Application Protocol (CoAP) especially targeted at sleepy sensors: Publish and Monitor.</t>
+      <t>This memo defines an additional Options for the Constrained Application Protocol (CoAP) especially targeted at sleepy sensors: Monitor.</t>
       
-      <t>The Publish Option enables opportunistic updates of a given resource state, by temporarily delegating the authority of the Publish'ed resource to a Proxy node.  The whole process is driven by the (sleepy) origin -- which may actually never need to listen.</t>
-
       <t>The Monitor Option complements the typical Observe pattern, enabling the tracking of a resource hosted by a node sleeping most of the time, by taking care of establishing and maintaining an Observe relationship with the (sleepy) origin on behalf of the (sleepy) client.</t>
 
     </abstract>
@@ -95,7 +89,7 @@
 
       <t>In this scenario, using the basic observe <xref target="I-D.ietf-core-observe" /> functionality is not enough, as it could lead to lost state updates in case N is offline while M pushes its notifications; further, the observation may never bootstrap since its initialization needs both client and origin awake at the same time.</t>
 
-      <t>This memo introduces two extensions to the Proxy caching functionality that give the Proxy an explicit mediation role in the sleepy-to-sleepy CoAP <xref target="I-D.ietf-core-coap" /> communication.</t>
+      <t>This memo introduces an extension to the Proxy caching functionality that give the Proxy an explicit mediation role in the sleepy-to-sleepy CoAP <xref target="I-D.ietf-core-coap" /> communication.</t>
       
 <!--
       <t>i.e. the ability to keep the freshest copy of a resource while its origin and clients may be offline, and conversely, clients and origins are provided the ability to respectively read and write a copy of the resource while the other party may be off-duty.</t>
@@ -110,7 +104,9 @@
             </list>
           </t>
 
-        <t>and tries to provide an in-protocol solution for the requirement REQ3 stated in  <xref target="I-D.shelby-core-coap-req" />:</t>
+        <t>and tries to provide an in-protocol solution for the following requirement: </t>
+	
+<!-- REQ3 stated in a document collecting COAP requirements which is not existing anymore, unfortunately.  <xref target="I-D.shelby-core-coap-req" />:</t> -->
 
         <figure align="center">
           <artwork align="left"><![CDATA[
@@ -128,131 +124,10 @@
 +-----+----------+---------+--------+--------+---------+
 | No. | C/E      | Name    | Format | Length | Default |
 +-----+----------+---------+--------+--------+---------+
-|  YY | Critical | Publish | uint   | 1 B    | 0x2     |
 |  XX | Critical | Monitor | (none) | 0 B    | (none)  |
 +-----+----------+---------+--------+--------+---------+
         ]]></artwork>
       </figure>
-
-      <section title="Publish Option">
-
-        <t>The Publish Option enables the sleepy origin to temporarily (i.e. for a specified "lease" time) delegate the authority of one of its hosted resources to a Proxy node that will start to behave as the origin for the Publish'ed resource.  This allows a sleepy sensor to use the Proxy as the rendezvous point for one-way sleepy to sleepy signaling.</t>
-
-      <section title="Publishing a Resource">   
-        <figure align="center" anchor="publish_creation">
-          <artwork align="left"><![CDATA[
-P         S
-|   PUT   | Proxy-URI: coap://sleepy.example.org/res
-|<--------+ Publish: 0110
-|    r    | Content-Type: text/plain
-|         | ETag: 0xabcd
-|         | Max-Age: 1200
-|         |
-|  2.01   |
-+-------->| 
-|         |
-          ]]></artwork>
-<!-- OK with draft-ietf-core-coap-08#section-5.8.3 -->
-        </figure>
-        <t>The origin server publishes one of its hosted resources, specified by the enclosed Proxy-URI, by PUT'ing it to the Proxy with a Publish Option attached.  The Publish Option value specifies the CoAP methods that clients are allowed to use on the resource (see <xref target="publish_format" />).</t>  
- 
-        <t>The example in <xref target="publish_creation" /> shows a delegation where the GET and PUT methods are allowed while POST and DELETE are explicitly prohibited, meaning that the resource can be read and updated by clients, but it can't be deleted nor created.</t>
-
-        <t>The Proxy, which is voluntarily charged by the resource owner to act as the delegated origin for the "lease" time specified by Max-Age, replies with a 2.01 if the authority transfer has succeeded.  An exact duplicate of the submitted representation is created, and from now on it can be accessed using the original URI provided that clients go through the delegated Proxy.  If the Publish operation does not succeed, the origin transfer fails, and an appropriate response code is returned.</t>
-
-        <t>An ETag MAY be supplied as a metadata to be included in responses involving the Publish'ed representation.  If no Max-Age is given, a default of 3600 seconds MUST be assumed.  The Max-Age value, either implicit or explicit, determines the lifetime of the origin delegation.  When the Max-Age value is elapsed, the Proxy MUST delete the Publish'ed resource value and fall back to its usual proxying function.</t>
-
-        <t>The Publish Option is critical and MUST be present in the request only. If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the client.  If the option value is not correctly formatted (see <xref target="publish_format" />), a 4.00 (Bad Request) MUST be returned to the client.</t>
-  
-        <t>It is sufficient for any client wishing to access the resource to do so using the Proxy node that, following the Publish operation, will start behaving a the origin, satisfying requests on behalf of the sleeping node.</t>
-
-        <t>The Proxy MUST save the identity of the resource Publish'er in order to distinguish "maintainance" operations such as update and explicit deletion, from "regular" access to the published resource by clients.</t>
-
-        <t>An interesting outcome of this communication strategy is that the sleepy origin may really never need to listen on its radio interface.</t>
-      </section>
-
-      <section title="Updating a Resource">
-        <figure align="center" anchor="publish_update">
-          <artwork align="left"><![CDATA[
-P         S
-|   PUT   | Proxy-URI: coap://sleepy.example.org/res
-|<--------+ Publish: 0110
-|    r    | Content-Type: text/plain
-|         | ETag: 0xdcba
-|         | Max-Age: 1200
-|         |
-|  2.04   |
-+-------->| 
-|         |
-          ]]></artwork>
-<!-- OK with draft-ietf-core-coap-08#section-5.8.3 -->
-        </figure>
-
-        <t>In order to update the delegated resource state, the sleepy node shall send the very same request to the Proxy, which in turn replies with a 2.04 (Changed) status code in case the update operation has succeeded, or an appropriate error code in case it fails.</t>
-
-      </section>
-
-      <section title="Unpublishing a Resource" anchor="publish_removal">
-        <figure align="center">
-          <artwork align="left"><![CDATA[
-P          S
-|  DELETE  | Proxy-URI: coap://sleepy.example.org/res
-|<---------+ Publish: 0x0
-|          |
-|          |
-|   2.02   |
-+--------->| 
-|          |
-          ]]></artwork>
-        </figure>
-
-        <t>The delegation of a given resource can be explicitly revoked by the real origin at any time before the lease time expires, by issuing a DELETE request to the Proxy hosting the resource duplicate with a Publish Option with value 0x0.</t>
-
-        <t>On successful deletion of the delegation a 2.02 (Deleted) response code is returned by the Proxy.</t>
-      </section>
-
-      <section title="Value Format" anchor="publish_format">
-
-        <figure align="center">
-          <artwork align="left"><![CDATA[
-0 1 2 3 4 5 6 7
-+-+-+-+-+-+-+-+-+
-|C R U D 0 0 0 0|
-+-+-+-+-+-+-+-+-+
-          ]]></artwork>
-        </figure>
-
-        <t>Each of the first 4 bits is a flag field indicating whether the associated CoAP method (respectively: POST, GET, PUT and DELETE) is allowed on the Publish'ed resource.  The remaining 4 bits are unused and MUST be set to 0.</t>
-
-        <t>In case the value is missing, the default is assumed to be 0x2, i.e. the resource is read-only.</t>
-
-        <t>An all-0 value is used to explicitly revoke the delegation (see <xref target="publish_removal" />.)</t>
-
-        <t>If the delegated Proxy receives a request with a method that is not compatible with the supplied mask, it MUST respond with a 4.05 (Method Not Allowed) response code.</t>
-      </section>
-
-      <section title="Discovery">
-        <section title="Publishing the /.well-known/core Resource" anchor="wkc">
-
-          <t>The <xref target="I-D.ietf-core-link-format" /> has no explicit text about "well-known" discovery of devices through a Proxy, nor about the cacheability rules for such resource.  Even if it seems reasonable to assume that the /.well-known/core URI is both query-able and cacheable through a Proxy, on the contrary the situation is not very much so.</t>  
-
-          <t>In fact, since the "well-known" interface relies on the resource origin being implicitly defined by the source address of the UDP packet carrying the response, quering the "well-known" interface (either unicast or multicast) through a Proxy-URI has little hope to be fully functional.  The (ab)use of a an implicit L3 locator as the identifier of the resource authority makes "well-known" discovery generally incompatible with Proxy mediated communication, unless each target URI in a link is given as a URI and not as a relative-ref (section 4.1 of <xref target="RFC3986" />).</t>
-
-          <t>Consequently, in this proposal we assume that the /.well-known/core of a sleepy node can be Publish'ed if and only if the target URI in the each link is not a relative-ref.</t>
- 
-          <t>Its registration is the same as in <xref target="publish_creation" />, but the Proxy MAY need to treat it in a way that is slightly different from other "normal" delegated resources.  In fact, while delegation is in place (i.e. the lease period is not elapsed, and neither explicit revocation has happened) the Proxy MAY be able to respond to filtered queries (section 4.1 of <xref target="I-D.ietf-core-link-format" />) regarding the Publish'ed /.well-known/core.</t>
-       </section>
-
-       <section title="Resource Directory">
-        <t>Given the strong requirement on the link formatting given in <xref target="wkc" />, it could be preferable (or even necessary) to use the Resource Directory <xref target="I-D.shelby-core-resource-directory" /> as a means of delegating the discovery of the resources hosted at a sleepy node.</t>
-
-        <t>This can be done either by the sleepy node, or automatically by the delegated Proxy when a Publish request is received.</t> 
-        
-        <t><cref anchor="Automatic push to RD">check it out</cref></t>
-
-       </section>
-    </section>
-    </section>
   
       <section title="Monitor Option">
 
@@ -405,8 +280,6 @@ P        C
 .------------------------------.
 | Number | Name    | Reference |
 :--------:---------:-----------:
-|  2n+1  | Publish | RFC XXXX  |
-+--------+---------+-----------+
 |  2m+1  | Monitor | RFC XXXX  |
 `------------------------------'
         ]]></artwork>
@@ -444,14 +317,12 @@ P        C
       </list>
     </t>
 
-    <!--
     <t>
       <list style="hanging" hangIndent="6">
         <t hangText="Threat:">DoS on remote constrained resource via unneeded monitoring.</t>
-        <t hangText="Countermeasure:">[TBD]</t>
+        <t hangText="Countermeasure:">access control on the constrained resource (?)</t>
       </list>
     </t>
-    -->
 
     <?rfc subcompact="no"?>
 
@@ -461,14 +332,8 @@ P        C
   <back>
     <references title="Normative References">
       &RFC2119;
-      &RFC3986;
       &I-D.ietf-core-coap;
       &I-D.ietf-core-observe;
-      &I-D.ietf-core-link-format;
-    </references>
-    <references title="Informative References">
-      &I-D.shelby-core-coap-req;
-      &I-D.shelby-core-resource-directory;
     </references>
   </back>
 </rfc>
