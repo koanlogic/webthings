@@ -346,8 +346,9 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
     dns_req = evdns_getaddrinfo(cli->base->dns, host, sport, &hints,
             ec_client_dns_cb, cli);
 
-    /* Be careful because cli could be in final state / deallocated by now. */
-    if (dns_req && cli)
+    /* Be careful from now onwards because cli could be in final state /
+     * deallocated by now! */
+    if (dns_req)
         cli->dns_req = dns_req;
 
     /* If we get here, either the client FSM has reached a final state (since
