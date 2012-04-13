@@ -2,7 +2,12 @@ include common.mk
 include ../Makefile.conf
 
 PROG = kink
-SRCS = main.c
+
+ifndef EC_DEMO_ENABLE
+  SRCS = main.c
+else
+  SRCS = demo.c
+endif
 
 CFLAGS += $(LIBEVCOAP_CFLAGS)
 LDADD += ../lib/evcoap/src/libevcoap.a
