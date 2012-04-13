@@ -286,6 +286,7 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
         .tv_sec = EC_TIMERS_APP_TOUT, 
         .tv_usec = 0
     };
+    struct evdns_getaddrinfo_request *dns_req;
 
     dbg_return_if (cli == NULL, -1);
 
@@ -342,8 +343,12 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
      * Save the evdns_getaddrinfo_request pointer (may be NULL in case
      * of immediate resolution) so that the request can be canceled 
      * in a later moment if needed. */
-    cli->dns_req = evdns_getaddrinfo(cli->base->dns, host, sport, &hints, 
+    dns_req = evdns_getaddrinfo(cli->base->dns, host, sport, &hints,
             ec_client_dns_cb, cli);
+
+    /* Be careful because cli could be in final state / deallocated by now. */
+    if (dns_req && cli)
+        cli->dns_req = dns_req;
 
     /* If we get here, either the client FSM has reached a final state (since
      * the callback has been shortcircuited), or the it's not yet started. */
@@ -373,7 +378,7 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
 {
 #define EC_CLI_ASSERT(e, state)                     \
     do {                                            \
-        if ((e))                                    \
+        dbg_ifb ((e))                               \
         {                                           \
             (void) ec_client_set_state(cli, state); \
             goto err;                               \
