@@ -446,13 +446,13 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
     /* TODO add to the duplicate machinery ? */
 
     /* Remove the heap-allocated evutil_addrinfo's linked list. */
-    if (ai)
-        evutil_freeaddrinfo(ai);
+    if (res)
+        evutil_freeaddrinfo(res);
 
     return;
 err:
-    if (ai)
-        evutil_freeaddrinfo(ai);
+    if (res)
+        evutil_freeaddrinfo(res);
     return;
     /* TODO Invoke user callback with the failure code. */
 #undef EC_CLI_ASSERT
