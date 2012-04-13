@@ -1,0 +1,10 @@
+# --enable_demo
+
+# helper
+makl_args_def "enable_demo" "" "" "enable demo instead of default kink proxy"
+
+# hook
+function __makl_enable_demo ()
+{
+    makl_set_var "EC_DEMO_ENABLE" "1"
+}

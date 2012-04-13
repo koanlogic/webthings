@@ -14,4 +14,6 @@ wtdemo
 
     addr            tcp4://*:8080
     dir_root        /www
+
+    model           fork
 }
