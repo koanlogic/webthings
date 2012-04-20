@@ -16,4 +16,7 @@ wtdemo
     dir_root        /www
 
     model           fork
+
+    # speed up development of static stuff
+    #dir_alias       /static 	/home/stewy/work/GIT/webthings/web/demo/kloned/webapp/www/static
 }
