@@ -146,9 +146,11 @@ void kache_free_kache_rep_with_data(kache_rep_t *rep, void **data)
 void kache_clear_kache_rep(kache_rep_t *rep)
 {
     if(rep)
-    { 
-        u_free(rep->payload);
-        u_free(rep->ETag);
+    {
+        if(rep->payload) 
+            u_free(rep->payload);
+        if(rep->ETag)
+            u_free(rep->ETag);
         kache_free_kache_keyvalq(rep);
         u_free(rep->ts);
     } 
@@ -212,7 +214,8 @@ int kache_set_rep_timer(struct event_base *base,
     struct timeval *tv; 
     tv = malloc(sizeof(struct timeval));
     timerclear(tv);
-    tv->tv_sec=10;
+    //TODO: bug:
+    tv->tv_sec=seconds;
     evtimer_add(ev,tv);
     return 0;
 err:

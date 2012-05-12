@@ -4,7 +4,6 @@ Contents
   2 Kache Initialization
   3 Kache API
   4 Kache Stats
-  5 Kache evcoap
 
 
 1 Requirements
@@ -70,18 +69,3 @@ Contents
 
   int kache_set_history_length(kache_t *kache, int history_length)
 
-5 Kache evcoap
-  Kache provides APIs to handle storage and retrieval of evcoap pdus
-  
-  kache_evcoap_t *kache_init_evcoap(kache_t *kache, struct event_base *base);
-  void kache_free_evcoap(kache_evcoap_t *ke);
-
-  int kache_store_evcoap_response(kache_evcoap_t *ke, ec_client_t *cli, char *uri);
-  
-  This callback will be called by default when a kache representation expires:
-  void kache_evcoap_timer_cb(int i, short e,void *arg);
-  
-  
-  ec_pdu_t *kache_get_evcoap_response(kache_evcoap_t *ke,
-                ec_client_t *cli,
-                char *uri);

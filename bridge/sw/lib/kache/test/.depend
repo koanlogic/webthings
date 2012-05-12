@@ -1,0 +1,228 @@
+# -pipe -I/home/mirko/Documenti/Tesi/newrepo/webthings/bridge/sw -I/home/mirko/Documenti/Tesi/newrepo/webthings/bridge/sw/include -DHAVE_CONF_H -D_POSIX_SOURCE -D_BSD_SOURCE -W -Wall -Wextra -pedantic -std=c99 -ggdb -DDEBUG -I/usr/local/include -I/home/mirko/Documenti/Tesi/newrepo/webthings/bridge/sw/src -I/usr/local/include -a main.c common_tasks.c kache_evcoap.c
+main.o: main.c /usr/local/include/u/libu.h \
+ /usr/local/include/u/libu_conf.h /usr/include/stdio.h \
+ /usr/include/features.h /usr/include/bits/predefs.h \
+ /usr/include/sys/cdefs.h /usr/include/bits/wordsize.h \
+ /usr/include/gnu/stubs.h /usr/include/gnu/stubs-64.h \
+ /usr/lib/x86_64-linux-gnu/gcc/x86_64-linux-gnu/4.5.2/include/stddef.h \
+ /usr/include/bits/types.h /usr/include/bits/typesizes.h \
+ /usr/include/libio.h /usr/include/_G_config.h /usr/include/wchar.h \
+ /usr/lib/x86_64-linux-gnu/gcc/x86_64-linux-gnu/4.5.2/include/stdarg.h \
+ /usr/include/bits/stdio_lim.h /usr/include/bits/sys_errlist.h \
+ /usr/include/stdlib.h /usr/include/sys/types.h /usr/include/time.h \
+ /usr/include/endian.h /usr/include/bits/endian.h \
+ /usr/include/bits/byteswap.h /usr/include/sys/select.h \
+ /usr/include/bits/select.h /usr/include/bits/sigset.h \
+ /usr/include/bits/time.h /usr/include/sys/sysmacros.h \
+ /usr/include/alloca.h /usr/local/include/u/missing.h \
+ /usr/local/include/u/missing/syslog.h /usr/include/syslog.h \
+ /usr/include/sys/syslog.h /usr/include/bits/syslog-path.h \
+ /usr/local/include/u/missing/strtok_r.h /usr/include/string.h \
+ /usr/local/include/u/missing/unlink.h /usr/include/unistd.h \
+ /usr/include/bits/posix_opt.h /usr/include/bits/confname.h \
+ /usr/local/include/u/missing/getpid.h \
+ /usr/local/include/u/missing/fnmatch.h /usr/include/fnmatch.h \
+ /usr/local/include/u/missing/timegm.h \
+ /usr/local/include/u/missing/strsep.h \
+ /usr/local/include/u/missing/strlcpy.h \
+ /usr/local/include/u/missing/strlcat.h \
+ /usr/local/include/u/missing/gettimeofday.h /usr/include/sys/time.h \
+ /usr/local/include/u/missing/daemon.h /usr/local/include/u/missing/va.h \
+ /usr/local/include/u/toolbox.h /usr/local/include/u/toolbox/carpal.h \
+ /usr/include/errno.h /usr/include/bits/errno.h \
+ /usr/include/linux/errno.h /usr/include/x86_64-linux-gnu/asm/errno.h \
+ /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
+ /usr/local/include/u/toolbox/log.h /usr/local/include/u/toolbox/logprv.h \
+ /usr/local/include/u/toolbox/memory.h \
+ /usr/local/include/u/toolbox/misc.h \
+ /usr/lib/x86_64-linux-gnu/gcc/x86_64-linux-gnu/4.5.2/include-fixed/limits.h \
+ /usr/lib/x86_64-linux-gnu/gcc/x86_64-linux-gnu/4.5.2/include-fixed/syslimits.h \
+ /usr/include/limits.h /usr/include/bits/posix1_lim.h \
+ /usr/include/bits/local_lim.h /usr/include/linux/limits.h \
+ /usr/include/inttypes.h \
+ /usr/lib/x86_64-linux-gnu/gcc/x86_64-linux-gnu/4.5.2/include/stdint.h \
+ /usr/include/stdint.h /usr/include/bits/wchar.h \
+ /usr/local/include/u/toolbox/buf.h /usr/local/include/u/toolbox/queue.h \
+ /usr/local/include/u/toolbox/str.h /usr/local/include/u/toolbox/uri.h \
+ /usr/local/include/u/toolbox/test.h /usr/local/include/u/toolbox/lexer.h \
+ /usr/local/include/u/toolbox/net.h /usr/include/sys/socket.h \
+ /usr/include/sys/uio.h /usr/include/bits/uio.h \
+ /usr/include/bits/socket.h /usr/include/bits/sockaddr.h \
+ /usr/include/x86_64-linux-gnu/asm/socket.h \
+ /usr/include/asm-generic/socket.h \
+ /usr/include/x86_64-linux-gnu/asm/sockios.h \
+ /usr/include/asm-generic/sockios.h /usr/include/netinet/in.h \
+ /usr/include/bits/in.h /usr/include/netinet/tcp.h \
+ /usr/include/arpa/inet.h /usr/include/netdb.h /usr/include/rpc/netdb.h \
+ /usr/include/bits/netdb.h /usr/include/sys/un.h /usr/include/fcntl.h \
+ /usr/include/bits/fcntl.h /usr/local/include/u/toolbox/env.h \
+ /usr/local/include/u/toolbox/hmap.h \
+ /usr/local/include/u/toolbox/config.h /usr/local/include/u/toolbox/fs.h \
+ /usr/local/include/u/toolbox/pwd.h /usr/local/include/u/toolbox/list.h \
+ /usr/local/include/u/toolbox/array.h \
+ /usr/lib/x86_64-linux-gnu/gcc/x86_64-linux-gnu/4.5.2/include/stdbool.h \
+ /usr/include/complex.h /usr/include/bits/mathdef.h \
+ /usr/include/bits/cmathcalls.h /usr/local/include/u/toolbox/rb.h \
+ /usr/local/include/u/toolbox/pqueue.h /usr/local/include/u/toolbox/bst.h \
+ /usr/local/include/u/toolbox/json.h /usr/local/include/u/toolbox/b64.h \
+ /usr/local/include/u/compat.h
+common_tasks.o: common_tasks.c /usr/local/include/u/libu.h \
+ /usr/local/include/u/libu_conf.h /usr/include/stdio.h \
+ /usr/include/features.h /usr/include/bits/predefs.h \
+ /usr/include/sys/cdefs.h /usr/include/bits/wordsize.h \
+ /usr/include/gnu/stubs.h /usr/include/gnu/stubs-64.h \
+ /usr/lib/x86_64-linux-gnu/gcc/x86_64-linux-gnu/4.5.2/include/stddef.h \
+ /usr/include/bits/types.h /usr/include/bits/typesizes.h \
+ /usr/include/libio.h /usr/include/_G_config.h /usr/include/wchar.h \
+ /usr/lib/x86_64-linux-gnu/gcc/x86_64-linux-gnu/4.5.2/include/stdarg.h \
+ /usr/include/bits/stdio_lim.h /usr/include/bits/sys_errlist.h \
+ /usr/include/stdlib.h /usr/include/sys/types.h /usr/include/time.h \
+ /usr/include/endian.h /usr/include/bits/endian.h \
+ /usr/include/bits/byteswap.h /usr/include/sys/select.h \
+ /usr/include/bits/select.h /usr/include/bits/sigset.h \
+ /usr/include/bits/time.h /usr/include/sys/sysmacros.h \
+ /usr/include/alloca.h /usr/local/include/u/missing.h \
+ /usr/local/include/u/missing/syslog.h /usr/include/syslog.h \
+ /usr/include/sys/syslog.h /usr/include/bits/syslog-path.h \
+ /usr/local/include/u/missing/strtok_r.h /usr/include/string.h \
+ /usr/local/include/u/missing/unlink.h /usr/include/unistd.h \
+ /usr/include/bits/posix_opt.h /usr/include/bits/confname.h \
+ /usr/local/include/u/missing/getpid.h \
+ /usr/local/include/u/missing/fnmatch.h /usr/include/fnmatch.h \
+ /usr/local/include/u/missing/timegm.h \
+ /usr/local/include/u/missing/strsep.h \
+ /usr/local/include/u/missing/strlcpy.h \
+ /usr/local/include/u/missing/strlcat.h \
+ /usr/local/include/u/missing/gettimeofday.h /usr/include/sys/time.h \
+ /usr/local/include/u/missing/daemon.h /usr/local/include/u/missing/va.h \
+ /usr/local/include/u/toolbox.h /usr/local/include/u/toolbox/carpal.h \
+ /usr/include/errno.h /usr/include/bits/errno.h \
+ /usr/include/linux/errno.h /usr/include/x86_64-linux-gnu/asm/errno.h \
+ /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
+ /usr/local/include/u/toolbox/log.h /usr/local/include/u/toolbox/logprv.h \
+ /usr/local/include/u/toolbox/memory.h \
+ /usr/local/include/u/toolbox/misc.h \
+ /usr/lib/x86_64-linux-gnu/gcc/x86_64-linux-gnu/4.5.2/include-fixed/limits.h \
+ /usr/lib/x86_64-linux-gnu/gcc/x86_64-linux-gnu/4.5.2/include-fixed/syslimits.h \
+ /usr/include/limits.h /usr/include/bits/posix1_lim.h \
+ /usr/include/bits/local_lim.h /usr/include/linux/limits.h \
+ /usr/include/inttypes.h \
+ /usr/lib/x86_64-linux-gnu/gcc/x86_64-linux-gnu/4.5.2/include/stdint.h \
+ /usr/include/stdint.h /usr/include/bits/wchar.h \
+ /usr/local/include/u/toolbox/buf.h /usr/local/include/u/toolbox/queue.h \
+ /usr/local/include/u/toolbox/str.h /usr/local/include/u/toolbox/uri.h \
+ /usr/local/include/u/toolbox/test.h /usr/local/include/u/toolbox/lexer.h \
+ /usr/local/include/u/toolbox/net.h /usr/include/sys/socket.h \
+ /usr/include/sys/uio.h /usr/include/bits/uio.h \
+ /usr/include/bits/socket.h /usr/include/bits/sockaddr.h \
+ /usr/include/x86_64-linux-gnu/asm/socket.h \
+ /usr/include/asm-generic/socket.h \
+ /usr/include/x86_64-linux-gnu/asm/sockios.h \
+ /usr/include/asm-generic/sockios.h /usr/include/netinet/in.h \
+ /usr/include/bits/in.h /usr/include/netinet/tcp.h \
+ /usr/include/arpa/inet.h /usr/include/netdb.h /usr/include/rpc/netdb.h \
+ /usr/include/bits/netdb.h /usr/include/sys/un.h /usr/include/fcntl.h \
+ /usr/include/bits/fcntl.h /usr/local/include/u/toolbox/env.h \
+ /usr/local/include/u/toolbox/hmap.h \
+ /usr/local/include/u/toolbox/config.h /usr/local/include/u/toolbox/fs.h \
+ /usr/local/include/u/toolbox/pwd.h /usr/local/include/u/toolbox/list.h \
+ /usr/local/include/u/toolbox/array.h \
+ /usr/lib/x86_64-linux-gnu/gcc/x86_64-linux-gnu/4.5.2/include/stdbool.h \
+ /usr/include/complex.h /usr/include/bits/mathdef.h \
+ /usr/include/bits/cmathcalls.h /usr/local/include/u/toolbox/rb.h \
+ /usr/local/include/u/toolbox/pqueue.h /usr/local/include/u/toolbox/bst.h \
+ /usr/local/include/u/toolbox/json.h /usr/local/include/u/toolbox/b64.h \
+ /usr/local/include/u/compat.h \
+ /home/mirko/Documenti/Tesi/newrepo/webthings/bridge/sw/include/kache.h \
+ /usr/include/sys/queue.h \
+ /home/mirko/Documenti/Tesi/newrepo/webthings/bridge/sw/include/kache_obj.h \
+ /usr/local/include/event2/event.h \
+ /usr/local/include/event2/event-config.h \
+ /usr/local/include/event2/util.h
+kache_evcoap.o: kache_evcoap.c /usr/local/include/u/libu.h \
+ /usr/local/include/u/libu_conf.h /usr/include/stdio.h \
+ /usr/include/features.h /usr/include/bits/predefs.h \
+ /usr/include/sys/cdefs.h /usr/include/bits/wordsize.h \
+ /usr/include/gnu/stubs.h /usr/include/gnu/stubs-64.h \
+ /usr/lib/x86_64-linux-gnu/gcc/x86_64-linux-gnu/4.5.2/include/stddef.h \
+ /usr/include/bits/types.h /usr/include/bits/typesizes.h \
+ /usr/include/libio.h /usr/include/_G_config.h /usr/include/wchar.h \
+ /usr/lib/x86_64-linux-gnu/gcc/x86_64-linux-gnu/4.5.2/include/stdarg.h \
+ /usr/include/bits/stdio_lim.h /usr/include/bits/sys_errlist.h \
+ /usr/include/stdlib.h /usr/include/sys/types.h /usr/include/time.h \
+ /usr/include/endian.h /usr/include/bits/endian.h \
+ /usr/include/bits/byteswap.h /usr/include/sys/select.h \
+ /usr/include/bits/select.h /usr/include/bits/sigset.h \
+ /usr/include/bits/time.h /usr/include/sys/sysmacros.h \
+ /usr/include/alloca.h /usr/local/include/u/missing.h \
+ /usr/local/include/u/missing/syslog.h /usr/include/syslog.h \
+ /usr/include/sys/syslog.h /usr/include/bits/syslog-path.h \
+ /usr/local/include/u/missing/strtok_r.h /usr/include/string.h \
+ /usr/local/include/u/missing/unlink.h /usr/include/unistd.h \
+ /usr/include/bits/posix_opt.h /usr/include/bits/confname.h \
+ /usr/local/include/u/missing/getpid.h \
+ /usr/local/include/u/missing/fnmatch.h /usr/include/fnmatch.h \
+ /usr/local/include/u/missing/timegm.h \
+ /usr/local/include/u/missing/strsep.h \
+ /usr/local/include/u/missing/strlcpy.h \
+ /usr/local/include/u/missing/strlcat.h \
+ /usr/local/include/u/missing/gettimeofday.h /usr/include/sys/time.h \
+ /usr/local/include/u/missing/daemon.h /usr/local/include/u/missing/va.h \
+ /usr/local/include/u/toolbox.h /usr/local/include/u/toolbox/carpal.h \
+ /usr/include/errno.h /usr/include/bits/errno.h \
+ /usr/include/linux/errno.h /usr/include/x86_64-linux-gnu/asm/errno.h \
+ /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
+ /usr/local/include/u/toolbox/log.h /usr/local/include/u/toolbox/logprv.h \
+ /usr/local/include/u/toolbox/memory.h \
+ /usr/local/include/u/toolbox/misc.h \
+ /usr/lib/x86_64-linux-gnu/gcc/x86_64-linux-gnu/4.5.2/include-fixed/limits.h \
+ /usr/lib/x86_64-linux-gnu/gcc/x86_64-linux-gnu/4.5.2/include-fixed/syslimits.h \
+ /usr/include/limits.h /usr/include/bits/posix1_lim.h \
+ /usr/include/bits/local_lim.h /usr/include/linux/limits.h \
+ /usr/include/inttypes.h \
+ /usr/lib/x86_64-linux-gnu/gcc/x86_64-linux-gnu/4.5.2/include/stdint.h \
+ /usr/include/stdint.h /usr/include/bits/wchar.h \
+ /usr/local/include/u/toolbox/buf.h /usr/local/include/u/toolbox/queue.h \
+ /usr/local/include/u/toolbox/str.h /usr/local/include/u/toolbox/uri.h \
+ /usr/local/include/u/toolbox/test.h /usr/local/include/u/toolbox/lexer.h \
+ /usr/local/include/u/toolbox/net.h /usr/include/sys/socket.h \
+ /usr/include/sys/uio.h /usr/include/bits/uio.h \
+ /usr/include/bits/socket.h /usr/include/bits/sockaddr.h \
+ /usr/include/x86_64-linux-gnu/asm/socket.h \
+ /usr/include/asm-generic/socket.h \
+ /usr/include/x86_64-linux-gnu/asm/sockios.h \
+ /usr/include/asm-generic/sockios.h /usr/include/netinet/in.h \
+ /usr/include/bits/in.h /usr/include/netinet/tcp.h \
+ /usr/include/arpa/inet.h /usr/include/netdb.h /usr/include/rpc/netdb.h \
+ /usr/include/bits/netdb.h /usr/include/sys/un.h /usr/include/fcntl.h \
+ /usr/include/bits/fcntl.h /usr/local/include/u/toolbox/env.h \
+ /usr/local/include/u/toolbox/hmap.h \
+ /usr/local/include/u/toolbox/config.h /usr/local/include/u/toolbox/fs.h \
+ /usr/local/include/u/toolbox/pwd.h /usr/local/include/u/toolbox/list.h \
+ /usr/local/include/u/toolbox/array.h \
+ /usr/lib/x86_64-linux-gnu/gcc/x86_64-linux-gnu/4.5.2/include/stdbool.h \
+ /usr/include/complex.h /usr/include/bits/mathdef.h \
+ /usr/include/bits/cmathcalls.h /usr/local/include/u/toolbox/rb.h \
+ /usr/local/include/u/toolbox/pqueue.h /usr/local/include/u/toolbox/bst.h \
+ /usr/local/include/u/toolbox/json.h /usr/local/include/u/toolbox/b64.h \
+ /usr/local/include/u/compat.h \
+ /home/mirko/Documenti/Tesi/newrepo/webthings/bridge/sw/include/kache_evcoap.h \
+ /home/mirko/Documenti/Tesi/newrepo/webthings/bridge/sw/include/kache.h \
+ /usr/include/sys/queue.h \
+ /home/mirko/Documenti/Tesi/newrepo/webthings/bridge/sw/include/kache_obj.h \
+ /usr/local/include/event2/event.h \
+ /usr/local/include/event2/event-config.h \
+ /usr/local/include/event2/util.h \
+ /home/mirko/Documenti/Tesi/newrepo/webthings/bridge/sw/include/evcoap.h \
+ /home/mirko/Documenti/Tesi/newrepo/webthings/bridge/sw/kink_conf.h \
+ /home/mirko/Documenti/Tesi/newrepo/webthings/bridge/sw/include/evcoap_enums.h \
+ /usr/local/include/event2/dns.h \
+ /home/mirko/Documenti/Tesi/newrepo/webthings/bridge/sw/include/evcoap_base.h \
+ /home/mirko/Documenti/Tesi/newrepo/webthings/bridge/sw/include/evcoap_cli.h \
+ /home/mirko/Documenti/Tesi/newrepo/webthings/bridge/sw/include/evcoap_pdu.h \
+ /home/mirko/Documenti/Tesi/newrepo/webthings/bridge/sw/include/evcoap_opt.h \
+ /home/mirko/Documenti/Tesi/newrepo/webthings/bridge/sw/include/evcoap_flow.h \
+ /home/mirko/Documenti/Tesi/newrepo/webthings/bridge/sw/include/evcoap_net.h \
+ /home/mirko/Documenti/Tesi/newrepo/webthings/bridge/sw/include/evcoap_timer.h \
+ /home/mirko/Documenti/Tesi/newrepo/webthings/bridge/sw/include/evcoap_srv.h
+runtest: -lrt -ldl ../../../lib/evcoap/src/libevcoap.a /usr/local/lib/libevent.a /usr/local/lib/libu.a ../src/libkache.a

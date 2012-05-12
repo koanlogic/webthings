@@ -1,0 +1,49 @@
+kache unit tests (mirko-Dell-System-XPS-L502X - Linux 2.6.38-8-generic x86_64)
+	* [FAIL] Kache evcoap
+		* [FAIL] kache_evcoap_pdu_get_test
+		* [PASS] kache_evcoap_multiple_reps_test
+		    sys time: 00:00.000000
+		   user time: 00:00.000000
+		* [PASS] kache_evcoap_timer_test
+		    sys time: 00:00.000000
+		   user time: 00:00.000000
+		* [PASS] kache_evcoap_store_test
+		    sys time: 00:00.000000
+		   user time: 00:00.000000
+		* [PASS] kache_evcoap_init_test
+		    sys time: 00:00.000000
+		   user time: 00:00.000000
+	Number of test cases: 5
+	              Passed: 4
+	              Failed: 1
+	             Aborted: 0
+	             Skipped: 0
+	* [PASS] Kache common tasks
+	       begin: Fri 2012-03-30 13:14:54 CEST
+	         end: Fri 2012-03-30 13:14:54 CEST
+	     elapsed: 00:00
+		* [PASS] kache_overwrite_test
+		    sys time: 00:00.000000
+		   user time: 00:00.000000
+		* [PASS] kache_set_get_test
+		    sys time: 00:00.000000
+		   user time: 00:00.000000
+		* [PASS] kache_get_empty_test
+		    sys time: 00:00.000000
+		   user time: 00:00.000000
+		* [PASS] kache_set_unset_test
+		    sys time: 00:00.000000
+		   user time: 00:00.000000
+		* [PASS] kache_init_test
+		    sys time: 00:00.000000
+		   user time: 00:00.000000
+	Number of test cases: 5
+	              Passed: 5
+	              Failed: 0
+	             Aborted: 0
+	             Skipped: 0
+Number of test suites: 2
+               Passed: 1
+               Failed: 1
+              Aborted: 0
+              Skipped: 0

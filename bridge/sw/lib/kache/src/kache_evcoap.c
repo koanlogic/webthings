@@ -1,10 +1,15 @@
 #include "kache_evcoap.h"
 
 void kache_evcoap_timer_cb(int i, short e,void *arg);
-int kache_store_ec_options_in_rep(ec_opts_t *opts, kache_rep_t *rep);
+int kache_store_ec_options_to_rep(ec_opts_t *opts, kache_rep_t *rep);
 int kache_ct_from_ecct(kache_content_type_t *mt, ev_uint16_t *ct);
+int kache_get_ecct_from_ct(kache_content_type_t *mt,ev_uint16_t *ct);
 
 //TODO Backward translation
+// Default media type mapping? TEXT_PLAIN ?
+// TODO Etag for data retrieval?
+// Where should the backward translated pdu be stored?
+
 
 kache_evcoap_t *kache_init_evcoap(kache_t *kache, struct event_base *base)
 {
@@ -35,7 +40,64 @@ void kache_free_evcoap_data(kache_evcoap_data_t *data)
 }
 
 
-int kache_store_evcoap_response(kache_evcoap_t *ke, ec_client_t *cli)
+int kache_rep_to_evcoap_pdu_(kache_rep_t *rep, ec_pdu_t *pdu)
+{
+    //Content type
+    ev_uint16_t ct;
+    kache_get_ecct_from_ct(rep->media_type,&ct);
+    dbg_err_if(ec_opts_add_content_type(&pdu->opts, ct));
+    //Payload
+    if(rep->payload)
+        dbg_err_if(ec_pdu_set_payload(pdu, (uint8_t*)rep->payload, rep->payload_size));
+    //Max age
+    dbg_err_if(ec_opts_add_max_age(&pdu->opts,rep->max_age));
+    // Other options (TBD)
+    //dbg_err_if(kache_store_rep_to_ec_options(rep,&pdu->opts));
+    // ETag
+    if(rep->ETag)
+        dbg_err_if(ec_opts_add_etag(&pdu->opts,(uint8_t*)rep->ETag,strlen(rep->ETag)));
+
+    
+    return 0;
+err:
+    return -1;
+
+}
+
+ec_pdu_t *kache_get_evcoap_response(kache_evcoap_t *ke, 
+        ec_client_t *cli, 
+        char *uri)
+{
+    kache_obj_t *obj;
+    dbg_err_if((obj = kache_get(ke->kache,uri))==NULL);
+    ec_pdu_t *pdu;
+    dbg_err_if((pdu = malloc(sizeof(ec_pdu_t))) == NULL);
+    ec_opts_init(&pdu->opts);
+    ec_pdu_t *req = &cli->req;
+
+    ev_uint16_t ct;
+
+    ec_opts_get_content_type(
+                &req->opts, 
+                &ct);
+
+    kache_content_type_t *mt;
+    dbg_err_if((mt = malloc(sizeof(kache_content_type_t)))==NULL);
+    kache_ct_from_ecct(mt,&ct);
+    kache_rep_t *rep;
+    rep = kache_get_rep_by_media_type(obj,mt);
+
+    //Translation
+    dbg_err_if(kache_rep_to_evcoap_pdu_(rep, pdu));
+    
+    return pdu;
+err:
+    return NULL;
+    
+
+}
+
+int kache_store_evcoap_response(kache_evcoap_t *ke, ec_client_t *cli, char *uri)
 {
     dbg_return_if (ke == NULL, -1);
     dbg_return_if (cli == NULL, -1);
@@ -48,15 +110,13 @@ int kache_store_evcoap_response(kache_evcoap_t *ke, ec_client_t *cli)
     ev_uint8_t *pl;
     ev_uint16_t ct;
     uint8_t *etag;
-    uint32_t max_age;
 
-    obj = kache_get(ke->kache,"uri"); //TODO uri?
+    obj = kache_get(ke->kache,uri); //TODO uri?
 
     //Content type
-    dbg_err_if(ec_opts_get_content_type(
+    ec_opts_get_content_type(
                 opts, 
-                &ct)
-            );
+                &ct);
     kache_content_type_t *mt;
     dbg_err_if((mt = malloc(sizeof(kache_content_type_t)))==NULL);
     kache_ct_from_ecct(mt,&ct);
@@ -79,21 +139,24 @@ int kache_store_evcoap_response(kache_evcoap_t *ke, ec_client_t *cli)
     {
         dbg_err_if((obj = kache_init_kache_obj()) == NULL);
 
-        //placeholder
-        obj->key = malloc(4);
-        strcpy(obj->key,"uri");
+        obj->key = malloc(strlen(uri)+1);
+        strcpy(obj->key,uri);
 
         obj->protocol_type = COAP;
         dbg_err_if( (rep = kache_init_kache_rep()) == NULL);
+        kache_set(ke->kache,"uri",obj,NULL);
     }
     rep->media_type = mt;
     // Constructing the cached resource representation
 
     // Payload
     pl = ec_response_get_payload(cli, &pl_sz);
-    dbg_err_if((rep->payload = malloc(pl_sz )) == NULL);
-    memcpy(rep->payload, pl, pl_sz);
-    rep->payload_size = pl_sz;
+    if(pl)
+    {
+        dbg_err_if((rep->payload = malloc(pl_sz )) == NULL);
+        memcpy(rep->payload, pl, pl_sz);
+        rep->payload_size = pl_sz;
+    }
 
     // ts
     dbg_err_if( (rep->ts = u_zalloc(sizeof(struct timeval))) == NULL );
@@ -101,8 +164,7 @@ int kache_store_evcoap_response(kache_evcoap_t *ke, ec_client_t *cli)
 
     // Other options
     
-    dbg_err_if(kache_store_ec_options_in_rep(opts,rep));
-
+    dbg_err_if(kache_store_ec_options_to_rep(opts,rep));
     //max_age
     if(rep->max_age == 0)
         rep->max_age = 60;
@@ -112,9 +174,10 @@ int kache_store_evcoap_response(kache_evcoap_t *ke, ec_client_t *cli)
     dbg_err_if((arg = malloc(sizeof(kache_timer_arg_t)))==NULL);
     arg->rep = rep;
     arg->obj = obj;
+    arg->kache = ke->kache;
     kache_set_rep_timer(ke->base,
             rep,
-            max_age,
+            rep->max_age,
             kache_evcoap_timer_cb,
             (void *) arg
             );
@@ -125,8 +188,6 @@ int kache_store_evcoap_response(kache_evcoap_t *ke, ec_client_t *cli)
     
     //Add representation to obj
     dbg_err_if(kache_add_rep(obj,rep));
-    kache_obj_t *overwrite;
-    kache_set(ke->kache,"uri",obj,&overwrite);
     return 0;
 err:
     if(obj)
@@ -138,19 +199,25 @@ err:
 
 void kache_evcoap_timer_cb(int i, short e,void *arg)
 {
-    //PH
+    
     kache_obj_t *obj;
     kache_timer_arg_t *a = (kache_timer_arg_t*) arg;
     obj = a->obj;
     kache_rep_t *rep;
     rep = a->rep;
     kache_remove_rep(obj,rep);
+    if(kache_peak_rep(obj) == NULL)
+    {
+        kache_unset(a->kache,a->obj->key,NULL);
+        kache_free_kache_obj(obj);
+    }
     kache_evcoap_data_t *data;
-    kache_free_kache_rep_with_data(rep,(void*)data);
+    kache_free_kache_rep_with_data(rep,(void**)&data);
     kache_free_evcoap_data(data);
+
 }
 
-int kache_store_ec_options_in_rep(ec_opts_t *opts, kache_rep_t *rep)
+int kache_store_ec_options_to_rep(ec_opts_t *opts, kache_rep_t *rep)
 {
     ec_opt_sym_t sym;
 
@@ -291,6 +358,25 @@ int kache_ct_from_ecct(kache_content_type_t *mt, ev_uint16_t *ct)
             mt->type=KACHE_APPLICATION;
             mt->subtype=KACHE_XML;
     }
+    return 0;
+
+}
+int kache_get_ecct_from_ct(kache_content_type_t *mt,ev_uint16_t *ct)
+{
+    if(mt->type==KACHE_TEXT &&  mt->subtype==KACHE_PLAIN)
+        *ct = EC_MT_TEXT_PLAIN;
+    else if( mt->type==KACHE_APPLICATION && mt->subtype==KACHE_LINK_FORMAT)
+        *ct = EC_MT_APPLICATION_LINK_FORMAT;
+    if(mt->type==KACHE_APPLICATION && mt->subtype==KACHE_XML)
+        *ct = EC_MT_APPLICATION_XML;
+    if(mt->type==KACHE_APPLICATION && mt->subtype==KACHE_OCTET_STREAM)
+        *ct = EC_MT_APPLICATION_OCTET_STREAM;
+    if(mt->type==KACHE_APPLICATION && mt->subtype==KACHE_EXI)
+        *ct = EC_MT_APPLICATION_EXI;
+    if(mt->type==KACHE_APPLICATION && mt->subtype==KACHE_JSON)
+        *ct = EC_MT_APPLICATION_JSON;
+    else
+        *ct = EC_MT_APPLICATION_XML;
     return 0;
 
 }
