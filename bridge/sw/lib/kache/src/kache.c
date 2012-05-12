@@ -57,10 +57,14 @@ void kache_set_free_obj_func(kache_t *kache,void (*free_obj)(kache_obj_t *obj))
     kache->free_obj = free_obj;
 }
 
-void kache_default_free_func(kache_obj_t *obj)
+int kache_default_free_func(const void *arg)
 {
+    kache_obj_t *obj = (kache_obj_t *) arg;
+
     kache_rep_foreach(obj,kache_free_kache_rep);
     kache_free_kache_obj(obj);
+
+    return 0;
 }
 
 /*
@@ -70,7 +74,10 @@ void kache_default_free_func(kache_obj_t *obj)
 void kache_free(kache_t *kache)
 {
     if(kache->free_obj)
+        /* FIXME
         kache->free_obj;
+        */
+        ;
     else
         u_hmap_foreach(kache->hmap,kache_default_free_func);
 

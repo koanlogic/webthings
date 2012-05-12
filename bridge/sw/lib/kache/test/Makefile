@@ -1,25 +1,35 @@
 include common.mk
 include ../../../Makefile.conf
 
-
 PROG = runtest
 
 SRCS += main.c
 SRCS += common_tasks.c 
 SRCS += kache_evcoap.c 
 
-CFLAGS += $(LIBU_CFLAGS)
 CFLAGS += -I$(SRCDIR)/src
+CFLAGS += $(LIBEVCOAP_CFLAGS)
+ifndef SHLIB
+  LDADD += ../../../lib/evcoap/src/libevcoap.a
+  LDADD += ../src/libkache.a
+else
+  LDFLAGS += -L../../../lib/evcoap/src/ -levcoap
+  LDFLAGS += -L../src/ -lkache
+endif
+
+CFLAGS += $(LIBU_CFLAGS)
+ifndef SHLIB
+  LDADD += $(LIBU_LDADD)
+else
+  LDFLAGS += $(LIBU_LDFLAGS)
+endif
 
 CFLAGS += $(LIBEVENT_CFLAGS)
-CFLAGS += $(LIBEVCOAP_CFLAGS)
-
-LDADD += ../../../lib/evcoap/src/libevcoap.a
-LDADD += $(LIBEVENT_LDADD)
-LDADD += $(LIBU_LDADD)
-LDADD += ../src/libkache.a
-
-LDFLAGS += $(LIBEVENT_LDFLAGS)
+ifndef SHLIB
+  LDADD += $(LIBEVENT_LDADD)
+else
+  LDFLAGS += $(LIBEVENT_LDFLAGS)
+endif
 
 include prog.mk
 

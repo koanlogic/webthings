@@ -9,8 +9,6 @@ SRCS += kache_evcoap.c
 CFLAGS += $(LIBU_CFLAGS)
 DPADD += $(LIBU_LDADD)
 
-LDADD += -levent
-
 CFLAGS += -Wno-unused
 
 include lib.mk

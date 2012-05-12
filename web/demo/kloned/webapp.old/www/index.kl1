@@ -45,18 +45,24 @@
     var temp="";
     var TMIN = 23;
     var TMAX = 27;
+
     // testing (randomly generated vectors)
     //var ACCEL_RESOURCE = "http://wtdemo:8080/acc.kl1";
-
-    // testing (randomly generated vectors and temperature)
-    var ACCEL_RESOURCE = "http://wtdemo:8080/acctmp.kl1";
 
     // demo (real data: KINK and motes attached)
     //var ACCEL_RESOURCE = "http://wtdemo:5683/acc";
 
-    // demo (real data: KINK and motes attached, both temp and accel)
-    //var ACCEL_RESOURCE = "http://wtdemo:5683/acctmp";
+<% if (u_env_var("WTDEMO_TEST")) { %>
 
+    // testing (randomly generated vectors and temperature)
+    var ACCEL_RESOURCE = "http://wtdemo:8080/acctmp.kl1";
+
+<% } else { %>
+
+    // demo (real data: KINK and motes attached, both temp and accel)
+    var ACCEL_RESOURCE = "http://wtdemo:5683/acctmp";
+
+<% } %>
 
     var INTERVAL = 400; //ajax call interval in milliseconds
 

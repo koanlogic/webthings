@@ -202,12 +202,13 @@ void ec_client_free(ec_client_t *cli)
         ec_t *coap = cli->base;
         ec_flow_t *flow = &cli->flow;
         ec_conn_t *conn = &flow->conn;
+        bool do_not_close_socket = false;
 
         /* Unregister me from list of clients and events. */
         ec_client_unregister(cli);
 
         /* Terminate the underlying flow. */
-        ec_flow_term(&cli->flow);
+        ec_flow_term(&cli->flow, do_not_close_socket);
 
         /* Remove response set. */
         ec_res_set_clear(&cli->res_set);
@@ -229,7 +230,8 @@ int ec_client_set_msg_model(ec_client_t *cli, bool is_con)
 }
 
 ec_client_t *ec_client_new(struct ec_s *coap, ec_method_t m, const char *uri, 
-        ec_msg_model_t mm, const char *proxy_host, uint16_t proxy_port)
+        ec_msg_model_t mm, const char *proxy_host, uint16_t proxy_port,
+        bool userown)
 {
     ec_client_t *cli = NULL;
 
@@ -256,6 +258,7 @@ ec_client_t *ec_client_new(struct ec_s *coap, ec_method_t m, const char *uri,
     /* Cache the base so that we don't need to pass it around every function
      * that manipulates the transaction. */
     cli->base = coap;
+    cli->userown = userown;
 
     /* It will be possibly set in case response confirms the observation. */
     ec_cli_obs_init(&cli->observe);
@@ -283,12 +286,14 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
         .tv_sec = EC_TIMERS_APP_TOUT, 
         .tv_usec = 0
     };
+    struct evdns_getaddrinfo_request *dns_req;
 
     dbg_return_if (cli == NULL, -1);
 
-    /* Expect client with state NONE.  Otherwise we jump to err where the 
-     * state is set to INTERNAL_ERR. */
-    dbg_err_ifm (cli->state != EC_CLI_STATE_NONE,
+    /* Expect client with initial or final state. Otherwise we jump to err
+     * where the state is set to INTERNAL_ERR. */
+    dbg_err_ifm (cli->state != EC_CLI_STATE_NONE &&
+            !ec_client_state_is_final(cli->state),
             "unexpected state %u", cli->state);
 
     req = &cli->req;
@@ -338,8 +343,13 @@ int ec_client_go(ec_client_t *cli, ec_client_cb_t cb, void *cb_args,
      * Save the evdns_getaddrinfo_request pointer (may be NULL in case
      * of immediate resolution) so that the request can be canceled 
      * in a later moment if needed. */
-    cli->dns_req = evdns_getaddrinfo(cli->base->dns, host, sport, &hints, 
+    dns_req = evdns_getaddrinfo(cli->base->dns, host, sport, &hints,
             ec_client_dns_cb, cli);
+
+    /* Be careful from now onwards because cli could be in final state /
+     * deallocated by now! */
+    if (dns_req)
+        cli->dns_req = dns_req;
 
     /* If we get here, either the client FSM has reached a final state (since
      * the callback has been shortcircuited), or the it's not yet started. */
@@ -369,7 +379,7 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
 {
 #define EC_CLI_ASSERT(e, state)                     \
     do {                                            \
-        if ((e))                                    \
+        dbg_ifb ((e))                               \
         {                                           \
             (void) ec_client_set_state(cli, state); \
             goto err;                               \
@@ -393,29 +403,39 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
     /* Encode options and header. */
     EC_CLI_ASSERT(ec_pdu_encode_request(req), EC_CLI_STATE_INTERNAL_ERR);
 
-    for (conn->socket = -1, ai = res; ai != NULL; ai = ai->ai_next)
+    if (conn->socket > 0)
     {
-        conn->socket = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
-
-        if (conn->socket == -1)
-           continue;
-
-        dbg_err_if (ec_pdu_set_peer(req,
-                    (struct sockaddr_storage *) ai->ai_addr));
-
         /* Send the request PDU. */
-        if (ec_pdu_send(req, dups))
-        {
-            /* Mark this socket as failed and try again. */
-            evutil_closesocket(conn->socket), conn->socket = -1;
-            continue;
-        }
-
-        EC_CLI_ASSERT(evutil_make_socket_nonblocking(conn->socket),
-                EC_CLI_STATE_INTERNAL_ERR);
+        EC_CLI_ASSERT(ec_pdu_send(req, dups), EC_CLI_STATE_INTERNAL_ERR);
 
         (void) ec_client_set_state(cli, EC_CLI_STATE_REQ_SENT);
-        break;
+    }
+    else
+    {
+        for (conn->socket = -1, ai = res; ai != NULL; ai = ai->ai_next)
+        {
+            conn->socket = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+
+            if (conn->socket == -1)
+               continue;
+
+            dbg_err_if (ec_pdu_set_peer(req,
+                        (struct sockaddr_storage *) ai->ai_addr));
+
+            /* Send the request PDU. */
+            if (ec_pdu_send(req, dups))
+            {
+                /* Mark this socket as failed and try again. */
+                evutil_closesocket(conn->socket), conn->socket = -1;
+                continue;
+            }
+
+            EC_CLI_ASSERT(evutil_make_socket_nonblocking(conn->socket),
+                    EC_CLI_STATE_INTERNAL_ERR);
+
+            (void) ec_client_set_state(cli, EC_CLI_STATE_REQ_SENT);
+            break;
+        }
     }
 
     /* Check whether the request PDU was actually sent out on any socket. */
@@ -427,13 +447,13 @@ static void ec_client_dns_cb(int result, struct evutil_addrinfo *res, void *a)
     /* TODO add to the duplicate machinery ? */
 
     /* Remove the heap-allocated evutil_addrinfo's linked list. */
-    if (ai)
-        evutil_freeaddrinfo(ai);
+    if (res)
+        evutil_freeaddrinfo(res);
 
     return;
 err:
-    if (ai)
-        evutil_freeaddrinfo(ai);
+    if (res)
+        evutil_freeaddrinfo(res);
     return;
     /* TODO Invoke user callback with the failure code. */
 #undef EC_CLI_ASSERT
@@ -448,8 +468,12 @@ static int ec_client_check_transition(ec_cli_state_t cur, ec_cli_state_t next)
             break;
 
         case EC_CLI_STATE_DNS_FAILED:
-        case EC_CLI_STATE_DNS_OK:
             dbg_err_if (cur != EC_CLI_STATE_NONE);
+            break;
+
+        case EC_CLI_STATE_DNS_OK:
+            dbg_err_if (cur != EC_CLI_STATE_NONE &&
+                    !ec_client_state_is_final(cur));
             break;
 
         case EC_CLI_STATE_SEND_FAILED:
@@ -769,8 +793,13 @@ bool ec_client_set_state(ec_client_t *cli, ec_cli_state_t state)
         dbg_if (is_con && ec_cli_stop_coap_timer(cli));
         dbg_if (ec_cli_stop_obs_timer(cli));
 
-        /* We can now finish off with this client. */
-        ec_client_free(cli);
+        if (cli->userown)
+            /* Client can be recycled for further requests so we only clear old
+             * response data and keep all the rest. */
+            ec_res_set_clear(&cli->res_set);
+        else
+            /* Engine owns client - we are done with it. */
+            ec_client_free(cli);
     }
 
     return is_final_state;

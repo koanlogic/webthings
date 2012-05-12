@@ -265,11 +265,11 @@ int ec_conn_init(ec_conn_t *conn)
     return 0;
 }
 
-void ec_conn_term(ec_conn_t *conn)
+void ec_conn_term(ec_conn_t *conn, bool do_not_close_socket)
 {
     if (conn)
     {
-        if (conn->socket == -1)
+        if (conn->socket != -1 && !do_not_close_socket)
         {
             evutil_closesocket(conn->socket);
             conn->socket = -1;

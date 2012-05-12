@@ -38,6 +38,9 @@ err:
 static int kache_evcoap_init_test(u_test_case_t *tc)
 {
     kache_t *kache;
+
+    u_unused_args(tc);
+
     dbg_err_if( (kache = kache_init()) == NULL);
     dbg_err_if( kache_init_data_structure(kache));
     struct event_base *base= event_base_new();

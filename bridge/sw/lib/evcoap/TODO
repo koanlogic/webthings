@@ -29,8 +29,6 @@ POST PLUGTESTS ideas and fixes
 - make vhosting optional: if disabled dispatch by resource path
     - related to this, take care of uri-host normalization (use binary repr cmp?)
 - do a generic options iterator (e.g. opt_iter(opts_t *opts, worker(opts_t *)))
-- client: reuse context to avoid src port changes (Block, Observe)
-- server: Block1 handling and git remove plug/server; 
-- plug: align tests to test/server
-- check: last ACK Block1 sent without Block1 Option?
+- server: basic FSM for non-safe operations
 - check: block size negotiation
+- check: run online validation tool

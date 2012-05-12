@@ -17,6 +17,7 @@ int facility = LOG_LOCAL0;
 typedef struct
 {
     ec_t *coap;
+    ec_client_t *cli;
     struct event_base *base;
     struct evdns_base *dns;
     ec_filesys_t *cache;
@@ -31,6 +32,7 @@ typedef struct
 ctx_t g_ctx =
 {
     .coap = NULL,
+    .cli = NULL,
     .base = NULL,
     .dns = NULL,
     .cache = NULL,
@@ -98,10 +100,10 @@ int main(int ac, char *av[])
 
     con_err_ifm (proxy_run(), "proxy failed");
 
+    proxy_term();
     return EXIT_SUCCESS;
 err:
     proxy_term();
-
     return EXIT_FAILURE;
 }
 
@@ -408,6 +410,8 @@ ec_cbrc_t cache_serve(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
         case EC_COAP_POST:
             ec_response_set_code(srv, EC_NOT_IMPLEMENTED);
             break;
+        default:
+            dbg_err_ifm (1, "bad method code: %d", method);
     }
 
     return EC_CBRC_READY;
@@ -419,7 +423,6 @@ ec_cbrc_t proxy_req(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
 {
     u_unused_args(u0, u1, u2);
 
-    ec_client_t *cli = NULL;
     char uri[U_URI_STRMAX];
     bool is_proxy;
     ec_msg_model_t mm = EC_COAP_NON;
@@ -483,19 +486,21 @@ ec_cbrc_t proxy_req(ec_server_t *srv, void *u0, struct timeval *u1, bool u2)
     }
 
     /* Create request towards final destination (TODO extract message model.) */
-    dbg_err_if ((cli = ec_request_new(g_ctx.coap, m, uri, mm)) == NULL);
+    dbg_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, m, uri, mm, false)) ==
+            NULL);
 
     /* Map Options in the forward direction (request to request). */
-    dbg_err_if (map_options_forward(ec_server_get_request_options(srv), cli));
+    dbg_err_if (map_options_forward(ec_server_get_request_options(srv), 
+                g_ctx.cli));
 
-    dbg_err_if (ec_request_send(cli, proxy_res, srv, &g_ctx.app_tout));
+    dbg_err_if (ec_request_send(g_ctx.cli, proxy_res, srv, &g_ctx.app_tout));
 
     CHAT("Forwarding request to %s", uri);
 
     return EC_CBRC_WAIT;
 err:
-    if (cli) ec_client_free(cli);
     if (res) ec_resource_free(res);
+
     return EC_CBRC_ERROR;
 }
 

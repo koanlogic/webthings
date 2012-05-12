@@ -1,5 +1,8 @@
 #include "evcoap_base.h"
 
+const char *evutil_format_sockaddr_port(const struct sockaddr *sa, char *out,
+        size_t outlen);
+
 static const char *ec_dup_key_new(uint16_t mid, 
         struct sockaddr_storage *peer, char key[EC_DUP_KEY_MAX]);
 static void ec_dup_zap(evutil_socket_t u0, short u1, void *c);

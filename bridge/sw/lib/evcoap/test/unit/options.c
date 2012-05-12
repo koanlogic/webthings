@@ -260,8 +260,8 @@ err:
 
 static int test_uint_codec(u_test_case_t *tc)
 {
-    size_t i, j, buf_sz;
-    uint8_t buf[10], *up;
+    size_t i, buf_sz;
+    uint8_t buf[10];
     uint64_t uints[] = {
         0,  /* Should be encoded with zero length. */
         UINT8_MAX - 1, UINT8_MAX, 

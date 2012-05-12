@@ -1,5 +1,5 @@
 include ../ietf-common/tools.mk
 
-XML = draft-core-async-option.xml
+XML = draft-core-publish-option.xml
 
 include ../ietf-common/rules.mk

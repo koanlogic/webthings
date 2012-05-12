@@ -23,8 +23,6 @@ CFLAGS += $(LIBEVENT_CFLAGS)
 CFLAGS += -Wno-unused
 
 ifdef SHLIB
-  LDFLAGS += $(LIBU_LDFLAGS)
-  LDFLAGS += $(LIBEVENT_LDFLAGS)
   CLEANFILES += *.so
   ifdef OS_DARWIN
     CLEANFILES += *.dylib

@@ -125,7 +125,7 @@ void kache_free_kache_keyvalq(kache_rep_t *rep)
         }
 }
 
-void kache_free_kache_rep_with_data(kache_rep_t *rep, void **data)
+int kache_free_kache_rep_with_data(kache_rep_t *rep, void **data)
 {
     if(rep)
     {
@@ -136,6 +136,8 @@ void kache_free_kache_rep_with_data(kache_rep_t *rep, void **data)
             *data = rep->per_protocol_data;
         u_free(rep);
     }
+
+    return 0;
 }
 
 
@@ -156,9 +158,9 @@ void kache_clear_kache_rep(kache_rep_t *rep)
     } 
 }
 
-void kache_free_kache_rep(kache_rep_t *rep)
+int kache_free_kache_rep(kache_rep_t *rep)
 {
-    kache_free_kache_rep_with_data(rep,NULL);
+    return kache_free_kache_rep_with_data(rep,NULL);
 }
 
 

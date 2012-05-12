@@ -1,0 +1,8 @@
+<html>
+    <head>
+        <title>Webthings Demo App</title>
+    </head>
+    <body>
+        <a href="/static/z1.html">Zolertia Z1 demo (accelerometer + thermometer)</a>
+    </body>
+</html>

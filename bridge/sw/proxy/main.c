@@ -39,8 +39,8 @@ ctx_t g_ctx = {
 
 void process_http_request(struct evhttp_request *req, void *arg);
 void process_coap_response(ec_client_t *cli);
-void process_set_coap_headers(struct evhttp_request *req, ec_rc_t rc);
 void process_set_http_headers(struct evhttp_request *req);
+int process_set_coap_headers(struct evhttp_request *req, ec_rc_t rc);
 
 int main(void)
 {
@@ -54,8 +54,10 @@ int main(void)
 	evhttp_set_gencb(g_ctx.http, process_http_request, NULL);
 	event_base_dispatch(g_ctx.base);
 
+    /* TODO term() */
 	return EXIT_SUCCESS;
 	err:
+    /* TODO term() */
 	return EXIT_FAILURE;
 }
 
@@ -90,7 +92,7 @@ void process_http_request(struct evhttp_request *req, void *arg)
 
 	/* URI map is just a scheme substitution. */
 	(void) u_uri_set_scheme(u, "coap");
-	(void) u_uri_set_host(u, "127.0.0.1");
+	(void) u_uri_set_host(u, "mote");  /* assume it's in DNS or /etc/hosts */
 
 	con_err_if (u_uri_knead(u, g_ctx.curi));
 
@@ -102,7 +104,7 @@ void process_http_request(struct evhttp_request *req, void *arg)
 	case EVHTTP_REQ_HEAD:
 	case EVHTTP_REQ_GET:
 		con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_GET,
-				g_ctx.curi, EC_COAP_CON)) == NULL);
+				g_ctx.curi, EC_COAP_CON, false)) == NULL);
 		process_set_coap_headers(req,req->type);
 		break;
 	case EVHTTP_REQ_PUT:
@@ -113,7 +115,7 @@ void process_http_request(struct evhttp_request *req, void *arg)
 		int len = evbuffer_get_length(body);
 
 		con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_PUT,
-				g_ctx.curi, EC_COAP_CON)) == NULL);
+				g_ctx.curi, EC_COAP_CON, false)) == NULL);
 
 		process_set_coap_headers(req,req->type);
 
@@ -121,7 +123,7 @@ void process_http_request(struct evhttp_request *req, void *arg)
 		char *tmp = malloc(len+1);
 		memcpy(tmp, evbuffer_pullup(body, -1), len);
 		tmp[len] = '\0';
-		ec_request_set_payload(g_ctx.cli,tmp,len);
+		ec_request_set_payload(g_ctx.cli,(const uint8_t *)tmp,len);
 
 		free(tmp);
 	}
@@ -134,7 +136,7 @@ void process_http_request(struct evhttp_request *req, void *arg)
 		int len = evbuffer_get_length(body);
 
 		con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_POST,
-				g_ctx.curi, EC_COAP_CON)) == NULL);
+				g_ctx.curi, EC_COAP_CON, false)) == NULL);
 
 		process_set_coap_headers(req,req->type);
 
@@ -142,14 +144,14 @@ void process_http_request(struct evhttp_request *req, void *arg)
 		char *tmp = malloc(len+1);
 		memcpy(tmp, evbuffer_pullup(body, -1), len);
 		tmp[len] = '\0';
-		ec_request_set_payload(g_ctx.cli,tmp,len);
+		ec_request_set_payload(g_ctx.cli,(const uint8_t *)tmp,len);
 
 		free(tmp);
 	}
 	break;
 	case EVHTTP_REQ_DELETE:
 		con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_DELETE,
-				g_ctx.curi, EC_COAP_CON)) == NULL);
+				g_ctx.curi, EC_COAP_CON, false)) == NULL);
 		break;
 	default:
 		break;
@@ -162,15 +164,12 @@ void process_http_request(struct evhttp_request *req, void *arg)
 	con_err_if (ec_request_send(g_ctx.cli, process_coap_response, req,
 			&g_ctx.tout));
 
-
 	u_uri_free(u);
 
 	return;
 	err:
 	if (u)
 		u_uri_free(u);
-	if (g_ctx.cli)
-		ec_client_free(g_ctx.cli);
 	return;
 }
 
@@ -276,7 +275,7 @@ void process_coap_response(ec_client_t *cli)
 
 	/* If there is more, send a new request with Block2 Option. */
 	con_err_if ((g_ctx.cli = ec_request_new(g_ctx.coap, EC_COAP_GET,
-			g_ctx.curi, EC_COAP_CON)) == NULL);
+			g_ctx.curi, EC_COAP_CON, false)) == NULL);
 	con_err_if (ec_request_add_block2(g_ctx.cli, ++g_ctx.bopt.block_no, 0,
 			g_ctx.bopt.block_sz) == -1);
 	con_err_if (ec_request_send(g_ctx.cli, process_coap_response, req,
@@ -287,7 +286,7 @@ void process_coap_response(ec_client_t *cli)
 }
 
 
-void process_set_coap_headers(struct evhttp_request *req, ec_rc_t rc){
+int process_set_coap_headers(struct evhttp_request *req, ec_rc_t rc){
 
 	struct evkeyval *header;
 	ec_mt_t pmt;
@@ -297,15 +296,20 @@ void process_set_coap_headers(struct evhttp_request *req, ec_rc_t rc){
 		{
 			//set Content-Type
 printf("content-type %s \n", header->value);
-			ec_mt_from_string(header->value,&pmt);
-			ec_request_add_content_type(g_ctx.cli, pmt);
-		} else if (strcmp(header->key,"Accept")==0 && rc!=EVHTTP_REQ_PUT && rc!=EVHTTP_REQ_POST)
+			dbg_err_if (ec_mt_from_string(header->value,&pmt));
+			dbg_err_if (ec_request_add_content_type(g_ctx.cli, pmt));
+		}
+        else if (strcmp(header->key,"Accept")==0 && rc!=EVHTTP_REQ_PUT && rc!=EVHTTP_REQ_POST)
 		{
 			//set Accept
-			ec_mt_from_string(header->value,&pmt);
-			ec_request_add_accept(g_ctx.cli, pmt);
+			dbg_err_if (ec_mt_from_string(header->value,&pmt));
+			dbg_err_if (ec_request_add_accept(g_ctx.cli, pmt));
 		}
 	}
+
+    return 0;
+err:
+    return ~0;
 }
 
 
@@ -313,17 +317,13 @@ void process_set_http_headers(struct evhttp_request *req)
 {
 	ec_opts_t *opts;
 	ec_opt_t *o;
-	ec_opt_t *o_tmp;
 	ec_mt_t ct;
 
 	nop_err_if ((opts = ec_client_get_response_options(g_ctx.cli)) == NULL);
+
 	TAILQ_FOREACH(o, &opts->bundle, next)
 	{
-
-
 		uint64_t tmp;
-		char *etag;
-		int etag_size;
 
 		(void) (uint16_t) ec_opts_get_uint(opts, o->sym, &tmp);
 		if (ec_opts_get_uint(opts, o->sym, &tmp))
@@ -333,7 +333,7 @@ void process_set_http_headers(struct evhttp_request *req)
 
 		case EC_OPT_PROXY_URI:
 		case EC_OPT_CONTENT_TYPE:
-			ec_opts_get_content_type(opts, &ct);
+			ec_opts_get_content_type(opts, (uint16_t *) &ct);
 			switch ((int) tmp) {
 
 			case EC_MT_TEXT_PLAIN:
@@ -370,7 +370,6 @@ void process_set_http_headers(struct evhttp_request *req)
 	        case EC_OPT_ETAG:
 	            {
 	                uint8_t *et;
-	                ec_opt_t *o;
 	                size_t et_sz, i;
 
 	                for (i = 0;
@@ -381,8 +380,7 @@ void process_set_http_headers(struct evhttp_request *req)
 
 	                    char s[U_B64_LENGTH(et_sz) + 1];
 
-	                    //if (u_b64_encode(et, &et_sz, s, sizeof s) == 0)
-(void)u_b64_encode(et, &et_sz, s, sizeof s);
+	                    if (u_b64_encode(et, et_sz, s, sizeof s) == 0)
 	                    {
 	                        evhttp_add_header(
 	                                evhttp_request_get_output_headers(req),

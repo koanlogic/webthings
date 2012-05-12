@@ -11,6 +11,9 @@ KLONE_CONF_ARGS += --install_daemon_only
 KLONE_CONF_ARGS += --daemon_name="wtdemo"
 KLONE_CONF_ARGS += --prefix=$(DESTDIR)
 
+# to speed up dev
+#KLONE_CONF_ARGS += --enable_fs
+
 WEBAPP_DIR = $(CURDIR)/webapp
 
 include klapp.mk

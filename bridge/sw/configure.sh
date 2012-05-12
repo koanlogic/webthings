@@ -10,6 +10,8 @@ makl_args_init "$@"
 . build/mk_enable_warns
 . build/mk_enable_extra
 . build/mk_enable_plug
+. build/mk_enable_dump
+. build/mk_enable_demo
 
 makl_pkg_name "kink"
 makl_pkg_version
@@ -43,7 +45,7 @@ fi
 
 # hard requirement on libevent and libu
 makl_require lib event
-makl_require lib u
+makl_require lib u "" "-lu -lm"  # link to math for isfinite()
 
 # Check endiannes of the host machine
 makl_endiannes

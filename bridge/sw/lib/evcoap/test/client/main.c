@@ -1,5 +1,7 @@
+#define _GNU_SOURCE
 #include <unistd.h>
 #include <getopt.h>
+#include <string.h>
 #include <strings.h>
 #include <signal.h>
 #include <u/libu.h>
@@ -46,8 +48,8 @@ typedef struct
     size_t block_sz;
     uint8_t *data;
     size_t data_sz;
-    blockopt_t block1;
-    blockopt_t block2;
+    blockopt_t b1;
+    blockopt_t b2;
     size_t iblock;      /* index of current block */
     ec_mt_t mt;
     bool publish;
@@ -78,6 +80,8 @@ ctx_t g_ctx = {
     .data = NULL,
     .data_sz = 0,
     .block_sz = 0,      /* block size defined by user */
+    .b1 = { .block_no = 0, .more = 0, .block_sz = 0 },
+    .b2 = { .block_no = 0, .more = 0, .block_sz = 0 },
     .iblock = 0,
     .mt = EC_MT_ANY,
     .publish = false,
@@ -175,18 +179,16 @@ int main(int ac, char *av[])
         }
     }
 
-retry:
     /* Set up the client transaction. */
     con_err_if (client_init());
 
+retry:
     /* Run, and keep on doing it until all blocks are exhausted. */
     do
     {
         (void) client_run();
     }
-    while ((g_ctx.block1.more || g_ctx.block2.more) && !g_ctx.fail);
-
-    client_term();
+    while ((g_ctx.b1.more || g_ctx.b2.more) && !g_ctx.fail);
 
     if (g_ctx.fail && g_ctx.retry)
     {
@@ -198,6 +200,7 @@ retry:
         goto retry;
     }
 
+    client_term();
     return EXIT_SUCCESS;
 err:
     client_term();
@@ -249,24 +252,24 @@ void response_cb(ec_client_t *cli)
     con_err_sifm (pl && client_save_to_file(pl, pl_sz),
             "payload could not be saved");
 
-    /* If it's a reponse to fragmented request (Block1) we set g_ctx.block1. */
+    /* If it's a reponse to fragmented request (Block1) we set g_ctx.b1. */
     if ((ec_response_get_block1(cli, &bnum, &more,
-                &g_ctx.block1.block_sz) == 0)) {
-
-        /* Blockwise transfer - make sure requested block was returned. */
-        dbg_err_if (bnum != g_ctx.block1.block_no);
-
-        g_ctx.block1.block_no++;
-    }
-
-    /* If reponse was fragmented (Block2) we set g_ctx.block2. */
-    if ((ec_response_get_block2(cli, &bnum, &g_ctx.block2.more,
-                &g_ctx.block2.block_sz) == 0) && g_ctx.block2.more)
+                &g_ctx.b1.block_sz) == 0))
     {
         /* Blockwise transfer - make sure requested block was returned. */
-        dbg_err_if (bnum != g_ctx.block2.block_no);
+        dbg_err_if (bnum != g_ctx.b1.block_no);
 
-        g_ctx.block2.block_no = bnum;
+        g_ctx.b1.block_no++;
+    }
+
+    /* If reponse was fragmented (Block2) we set g_ctx.b2. */
+    if ((ec_response_get_block2(cli, &bnum, &g_ctx.b2.more,
+                &g_ctx.b2.block_sz) == 0) && g_ctx.b2.more)
+    {
+        /* Blockwise transfer - make sure requested block was returned. */
+        dbg_err_if (bnum != g_ctx.b2.block_no);
+
+        g_ctx.b2.block_no = bnum;
     }
 
     /* In case we've requested an observation on the resource, see if we've
@@ -338,13 +341,13 @@ int client_init(void)
 
     dbg_err_if (event_add(g_ctx.evsig, NULL));
 
-    /* Other local initialisations. */
-    g_ctx.block1.block_no = 0;
-    g_ctx.block1.more = 0;
-    g_ctx.block1.block_sz = 0;
-    g_ctx.block2.block_no = 0;
-    g_ctx.block2.more = 0;
-    g_ctx.block2.block_sz = 0;
+    /* Client instance is possibly reused N times (e.g. Block handling), so we
+     * choose to handle deallocation manually via userown == true. */
+    g_ctx.cli = !g_ctx.use_proxy
+        ? ec_request_new(g_ctx.coap, g_ctx.method, g_ctx.uri, g_ctx.model, true)
+        : ec_proxy_request_new(g_ctx.coap, g_ctx.method, g_ctx.uri, g_ctx.model,
+                g_ctx.proxy_host, g_ctx.proxy_port, true);
+    dbg_err_if (g_ctx.cli == NULL);
 
     return 0;
 err:
@@ -354,26 +357,36 @@ err:
 
 void client_term(void)
 {
+    if (g_ctx.cli)
+    {
+        ec_client_free(g_ctx.cli);
+        g_ctx.cli = NULL;
+    }
+
     if (g_ctx.evsig)
+    {
         event_free(g_ctx.evsig);
+        g_ctx.evsig = NULL;
+    }
 
     if (g_ctx.coap)
+    {
         ec_term(g_ctx.coap);
+        g_ctx.coap = NULL;
+    }
 
     return;
 }
 
 int client_run(void)
 {
-    /* Initialisations */
+    /* Client run initialisations. */
     g_ctx.fail = false;
 
-    g_ctx.cli = !g_ctx.use_proxy
-        ? ec_request_new(g_ctx.coap, g_ctx.method, g_ctx.uri, g_ctx.model)
-        : ec_proxy_request_new(g_ctx.coap, g_ctx.method, g_ctx.uri, g_ctx.model,
-                g_ctx.proxy_host, g_ctx.proxy_port);
-
-    dbg_err_if (g_ctx.cli == NULL);
+    /* Clear and set all options at each run because request API doesn't easily
+     * support deltas (only Block2 Option values change). */
+    ec_opts_clear(&g_ctx.cli->req.opts);
+    ec_client_add_uri_opts(g_ctx.cli, g_ctx.uri);
 
     if (g_ctx.publish)
         dbg_err_if (ec_request_add_publish(g_ctx.cli, g_ctx.allowed_methods));
@@ -392,21 +405,21 @@ int client_run(void)
             dbg_err_if (ec_request_add_block2(g_ctx.cli, 0, 0,
                         g_ctx.block_sz));
         }
-        else if (g_ctx.block2.more)
+        else if (g_ctx.b2.more)
         /* More data available - get next block. */
         {
-            g_ctx.block2.block_no++;
+            g_ctx.b2.block_no++;
 
-            g_ctx.block2.block_sz = g_ctx.block_sz
-                ? U_MIN(g_ctx.block_sz, g_ctx.block2.block_sz)
-                : g_ctx.block2.block_sz;
+            g_ctx.b2.block_sz = g_ctx.block_sz
+                ? U_MIN(g_ctx.block_sz, g_ctx.b2.block_sz)
+                : g_ctx.b2.block_sz;
 
-            CHAT("requesting block n.%u (size: %u)", g_ctx.block2.block_no,
-                    g_ctx.block2.block_sz);
+            CHAT("requesting block n.%u (size: %u)", g_ctx.b2.block_no,
+                    g_ctx.b2.block_sz);
 
             /* The client MUST set the M bit of a Block2 Option to zero. */
-            dbg_err_if (ec_request_add_block2(g_ctx.cli, g_ctx.block2.block_no,
-                        0, g_ctx.block2.block_sz));
+            dbg_err_if (ec_request_add_block2(g_ctx.cli, g_ctx.b2.block_no,
+                        0, g_ctx.b2.block_sz));
         }
 
         if (g_ctx.mt != EC_MT_ANY)
@@ -417,7 +430,7 @@ int client_run(void)
     if ((g_ctx.method == EC_COAP_POST || g_ctx.method == EC_COAP_PUT) &&
             g_ctx.pfn)
     {
-        if (g_ctx.block1.block_no == 0)
+        if (g_ctx.b1.block_no == 0)
             dbg_err_if (u_load_file(g_ctx.pfn, 0, (char **) &g_ctx.data, 
                         &g_ctx.data_sz));
 
@@ -430,6 +443,8 @@ int client_run(void)
     }
 
     CHAT("sending request to %s", g_ctx.uri);
+    u_dbg("sending request to %s (base: %p, dns: %p, coap: %p cli: %p)",
+            g_ctx.uri, g_ctx.base, g_ctx.dns, g_ctx.coap, g_ctx.cli);
     dbg_err_if (ec_request_send(g_ctx.cli, response_cb, NULL, &g_ctx.app_tout));
     
     return event_base_dispatch(g_ctx.base);
@@ -660,8 +675,8 @@ err:
 
 int set_payload(ec_client_t *cli, const uint8_t *data, size_t data_sz)
 {
-    uint32_t bnum = g_ctx.block1.block_no;
-    bool more;
+    uint32_t bnum = g_ctx.b1.block_no;
+    bool more = false;
     const uint8_t *p;
     size_t p_sz;
     size_t block_sz = g_ctx.block_sz ? g_ctx.block_sz : DEFAULT_BLOCK;
@@ -672,7 +687,7 @@ int set_payload(ec_client_t *cli, const uint8_t *data, size_t data_sz)
         p = data;
         p_sz = data_sz;
     }
-    else  /* Otherwise we have > 1 blocks and add Block2 option. */
+    else  /* Otherwise we have > 1 blocks and add Block1 option. */
     {
         p = data + (bnum * block_sz);
 
@@ -688,7 +703,7 @@ int set_payload(ec_client_t *cli, const uint8_t *data, size_t data_sz)
 
     (void) ec_request_set_payload(cli, p, p_sz);
 
-    g_ctx.block1.more = more;
+    g_ctx.b1.more = more;
 
     return 0;
 err:
