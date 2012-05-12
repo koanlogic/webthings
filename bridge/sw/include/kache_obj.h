@@ -72,12 +72,6 @@ struct kache_obj_s
 
 typedef struct kache_rep_s kache_rep_t;
 
-struct kache_timer_arg_s
-{
-    kache_rep_t *rep;
-    kache_obj_t *obj;
-};
-typedef struct kache_timer_arg_s kache_timer_arg_t;
 kache_obj_t *kache_init_kache_obj();
 kache_rep_t *kache_init_kache_rep();
 
