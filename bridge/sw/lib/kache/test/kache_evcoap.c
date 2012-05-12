@@ -234,7 +234,6 @@ static int kache_evcoap_pdu_get_test(u_test_case_t *tc)
     dbg_err_if(ec_pdu_set_payload(pdu, (uint8_t *)"test-payload", 12));
     dbg_err_if(ec_opts_add_max_age(opts, 40));
     dbg_err_if(ec_opts_add_content_type(opts, EC_MT_APPLICATION_EXI));
-    dbg_err_if(ec_opts_add_max_age(opts, 40));
     dbg_err_if(ec_opts_add_etag(opts, (uint8_t *)"test", 4));
 
     dbg_err_if(ec_res_set_add(&cli->res_set,pdu));
@@ -246,11 +245,11 @@ static int kache_evcoap_pdu_get_test(u_test_case_t *tc)
     ev_uint8_t *pl;
     ev_uint16_t ct;
     uint8_t *etag;
-
     //Content type
     ec_opts_get_content_type(
                 opts, 
                 &ct);
+
     u_test_err_if(ct!=EC_MT_APPLICATION_EXI);
     //Payload
     u_test_err_if(strncmp("test-payload",(char*)pdu->payload,pdu->payload_sz)!=0);

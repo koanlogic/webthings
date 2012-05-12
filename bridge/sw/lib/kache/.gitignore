@@ -1,4 +1,7 @@
 *.o
 *~
+test/runtest
+runtest
 *runtest
 unitest-report.out
+bridge/sw/lib/kache/test/runtest

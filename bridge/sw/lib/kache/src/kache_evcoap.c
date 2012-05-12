@@ -367,13 +367,13 @@ int kache_get_ecct_from_ct(kache_content_type_t *mt,ev_uint16_t *ct)
         *ct = EC_MT_TEXT_PLAIN;
     else if( mt->type==KACHE_APPLICATION && mt->subtype==KACHE_LINK_FORMAT)
         *ct = EC_MT_APPLICATION_LINK_FORMAT;
-    if(mt->type==KACHE_APPLICATION && mt->subtype==KACHE_XML)
+    else if(mt->type==KACHE_APPLICATION && mt->subtype==KACHE_XML)
         *ct = EC_MT_APPLICATION_XML;
-    if(mt->type==KACHE_APPLICATION && mt->subtype==KACHE_OCTET_STREAM)
+    else if(mt->type==KACHE_APPLICATION && mt->subtype==KACHE_OCTET_STREAM)
         *ct = EC_MT_APPLICATION_OCTET_STREAM;
-    if(mt->type==KACHE_APPLICATION && mt->subtype==KACHE_EXI)
+    else if(mt->type==KACHE_APPLICATION && mt->subtype==KACHE_EXI)
         *ct = EC_MT_APPLICATION_EXI;
-    if(mt->type==KACHE_APPLICATION && mt->subtype==KACHE_JSON)
+    else if(mt->type==KACHE_APPLICATION && mt->subtype==KACHE_JSON)
         *ct = EC_MT_APPLICATION_JSON;
     else
         *ct = EC_MT_APPLICATION_XML;
