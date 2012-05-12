@@ -1,0 +1,4 @@
+*.o
+*~
+*runtest
+unitest-report.out
