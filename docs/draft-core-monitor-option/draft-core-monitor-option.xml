@@ -5,8 +5,8 @@
 <!ENTITY RFC2629 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2629.xml">
 <!ENTITY RFC3552 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.3552.xml">
 <!ENTITY I-D.narten-iana-considerations-rfc2434bis SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.narten-iana-considerations-rfc2434bis.xml">
-<!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-coap-09.xml">
-<!ENTITY I-D.ietf-core-observe SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-observe-04.xml">
+<!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-coap-10.xml">
+<!ENTITY I-D.ietf-core-observe SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-observe-05.xml">
 ]>
 <?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
 <?rfc strict="yes" ?>
@@ -85,7 +85,7 @@
   <middle>
     <section title="Introduction">
 
-      <t>The proposal described in this memo covers the following use case: <list style="empty"><t>a node N, which is sleeping most of the time, depends one or more resources hosted at another sleepy node M. In cases as such, the probability of an empty intersection between their respective wake periods is very high, making it hard for the two to synchronize.</t></list></t>
+      <t>The proposal described in this memo covers the following use case: a node N, which is sleeping most of the time, depends on one or more resources hosted at another sleepy node M. In cases as such, the probability of an empty intersection between their respective wake periods is very high, making it hard for the two to synchronize.</t>
 
       <t>In this scenario, using the basic observe <xref target="I-D.ietf-core-observe" /> functionality is not enough, as it could lead to lost state updates in case N is offline while M pushes its notifications; further, the observation may never bootstrap since its initialization needs both client and origin awake at the same time.</t>
 
@@ -104,9 +104,7 @@
             </list>
           </t>
 
-        <t>and tries to provide an in-protocol solution for the following requirement: </t>
-	
-<!-- REQ3 stated in a document collecting COAP requirements which is not existing anymore, unfortunately.  <xref target="I-D.shelby-core-coap-req" />:</t> -->
+        <t>and tries to provide an in-protocol solution for requirement REQ3 in <xref target="I-D.shelby-core-coap-req" />:</t>
 
         <figure align="center">
           <artwork align="left"><![CDATA[
@@ -133,7 +131,7 @@
 
         <t>The Monitor Option is a variant of the Observe Option that is aimed at solving some issues that may occur when sleepy sensors are involved.</t>  
 
-	<t>Suppose that the resource of interest is not in cache, and a sleepy endpoint wants to Observe it through the Proxy.  If the origin of the requested resource is sleeping at the time the observation is requested, the requesting node gets an error, and may need to stay awake and retry until the target node gets ready -- which is clearly not an option in case the sensor has a very small duty cycle.</t>
+	<t>Suppose that the resource of interest is not cached anywhere, and a sleepy endpoint wants to Observe it through a Proxy.  If the origin of the requested resource is sleeping at the time the observation is requested, the requesting node gets an error, and may need to stay awake and retry until the target node gets ready -- which is clearly not an option in case the sensor has a very small duty cycle.</t>
 
         <t>The Monitor Option is used to ask a Proxy to keep a given resource fresh by observing it, while the requesting node is sleeping. Thus the sleepy sensor can possibly get the latest representation published by the monitored resource when it wakes up, even if the origin is sleeping -- and was sleeping at the time the Monitor has been requested.</t>
 
@@ -270,7 +268,7 @@ P        C
     <?rfc needLines="8" ?>
 
     <section title="Acknowledgements">
-      <t>Bruce Nordman.</t>
+      <t>Bruce Nordman and Matthieu Vial for discussing and giving advice on some of the ideas contained in this document.</t>
     </section>
 
     <section anchor="IANA" title="IANA Considerations">
@@ -334,6 +332,20 @@ P        C
       &RFC2119;
       &I-D.ietf-core-coap;
       &I-D.ietf-core-observe;
+
+      <reference anchor="I-D.shelby-core-coap-req">
+        <front>
+          <title>CoAP Requirements and Features</title>
+          <author initials="Z" surname="Shelby" fullname="Zach Shelby"></author>
+          <author initials="M" surname="Stuber" fullname="Michael Stuber"></author>
+          <author initials="D" surname="Sturek" fullname="Don Sturek"></author>
+          <author initials="B" surname="Frank" fullname="Brian Frank"></author>
+          <author initials="R" surname="Kelsey" fullname="Richard Kelsey"></author>
+          <date month="May" day="2" year="2011"/>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-shelby-core-coap-req-04"/>
+        <format type="TXT" target="http://www.ietf.org/internet-drafts/draft-shelby-core-coap-req-04.txt"/>
+      </reference>
     </references>
   </back>
 </rfc>
