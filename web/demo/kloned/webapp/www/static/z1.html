@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+    <head>
+      <title>Zolertia Z1 demo</title>
+      <script src="scripts/mathlib.js"></script>
+      <script src="scripts/k3d_main.js"></script>
+      <script src="scripts/k3d_controller.js"></script>
+      <script src="scripts/k3d_object.js"></script>
+      <script src="scripts/k3d_light.js"></script>
+      <script src="scripts/k3d_renderer.js"></script>
+
+      <script>
+
+// bind to window onload event
+window.addEventListener('load', onloadHandler, false);
+
+//var ACCEL_RESOURCE = "http://wtdemo:8080/acctmp.kl1";
+var ACCEL_RESOURCE = "http://wtdemo:5683/acctmp";
+var TMP_MIN = 27.5;
+var TMP_MAX = 28.5;
+var ACC_MAX = 260;
+var FPS = 3;
+
+function dot_product(v1,v2)
+{
+    a = v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2];
+
+    return(a);
+}
+
+function prod_vector(v1,v2)
+{
+    x = v1[1] * v2[2] - v2[1] * v1[2];
+    y = v1[2] * v2[0] - v2[2] * v1[0];
+    z = v1[0] * v2[1] - v2[0] * v1[1];
+
+    return [x,y,z];
+}
+
+function angle(v1,v2)
+{
+    return Math.acos(dot_product(v1,v2));
+}
+
+function normalize_value(x)
+{
+    if (x>ACC_MAX) return 1;
+    if (x<-ACC_MAX) return -1;
+    else return x/ACC_MAX;
+}
+
+function normalize_vector(v)
+{
+    return [normalize_value(v[0]),
+      normalize_value(v[1]),
+      normalize_value(v[2])];
+}
+
+function load_data(obj)
+{
+    var received_value = "";
+
+    /*
+    * Ajax call to retrieve 
+    * Change the URL (ACCEL_RESOURCE) accordingly
+    */
+    var xmlhttp;
+    if (window.XMLHttpRequest){
+        xmlhttp=new XMLHttpRequest();
+        if (xmlhttp.withCredentials == undefined) 
+            alert("critical: CORS not supported!");
+    }
+    else{
+        xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+    }
+    xmlhttp.onreadystatechange=function()
+    {
+        var t;
+        var tn;
+
+        if (xmlhttp.readyState==4 && xmlhttp.status==200) 
+        {
+            received_value = xmlhttp.responseText;
+
+            if (received_value.indexOf(":") != -1)
+            {
+                temp = received_value.split(':')[1]
+                received_value = received_value.split(':')[0]
+            }
+
+            acc_vec = normalize_vector(received_value.split(','));
+            document.getElementById('acc_value').innerHTML = acc_vec;
+
+            if (temp!="") 
+            {
+                document.getElementById('temperature').innerHTML = temp;
+                t = parseFloat(temp);
+                if (t < TMP_MIN) t = TMP_MIN;
+                if (t > TMP_MAX) t = TMP_MAX;
+                tn = ((t - TMP_MIN) / (TMP_MAX - TMP_MIN));
+            }
+
+            // x - 90
+            obj.otheta = acc_vec[0] * 90 - 90;
+            // y
+            obj.ogamma = - acc_vec[1] * -90;
+
+            // handle negative z
+            if (acc_vec[2] > 0)
+                obj.ogamma = - acc_vec[1] * -90;
+            else
+                obj.ogamma = acc_vec[1] * -90 + 180;
+
+            for (var i=0; i < obj.faces.length; i++)
+            {
+                // blue when tn is close to 0
+                // red when tn is close to 1
+                obj.faces[i].color = [tn*255,0,255-tn*255];
+            }
+        }
+    }
+    xmlhttp.open("GET",ACCEL_RESOURCE,true);
+    xmlhttp.send();
+}
+
+function onloadHandler()
+{
+    // get the canvas DOM element
+    var canvas = document.getElementById('canvas');
+
+    // bind a K3D Controller object to the canvas
+    // - it is responsible for managing the K3D objects displayed within it
+    var k3d = new K3D.Controller(canvas);
+    // request 60 frames per second animation from the controller
+    k3d.fps = FPS;
+
+    // create a K3D object for rendering
+    var obj = new K3D.K3DObject();
+    with (obj)
+    {
+        color = [255,0,0];      // colour used for wireframe edges and depthcued rendering mode
+        drawmode = "solid"; // one of "point", "wireframe", "solid"
+        shademode = "lightsource";    // one of "plain", "depthcue", "lightsource" (solid drawing mode only)
+        scale = 50;
+
+        init(
+         // describe the points of a simple unit cube
+         [{x:-1,y:1,z:-0.1}, {x:1,y:1,z:-0.1}, {x:1,y:-1,z:-0.1}, {x:-1,y:-1,z:-0.1}, {x:-1,y:1,z:0.1}, {x:1,y:1,z:0.1}, {x:1,y:-1,z:0.1}, {x:-1,y:-1,z:0.1}],
+         // describe the edges of the cube
+         [{a:0,b:1}, {a:1,b:2}, {a:2,b:3}, {a:3,b:0}, {a:4,b:5}, {a:5,b:6}, {a:6,b:7}, {a:7,b:4}, {a:0,b:4}, {a:1,b:5}, {a:2,b:6}, {a:3,b:7}],
+         // describe the polygon faces of the cube
+         // testing - colourful to distinguish sides nicely
+         //[{color:[255,0,0],vertices:[0,1,2,3]},{color:[0,255,0],vertices:[0,4,5,1]},{color:[0,0,255],vertices:[1,5,6,2]},{color:[255,255,0],vertices:[2,6,7,3]},{color:[0,255,255],vertices:[3,7,4,0]},{color:[255,0,255],vertices:[7,6,5,4]}]
+         // default to red
+         [{vertices:[0,1,2,3]},{vertices:[0,4,5,1]},{vertices:[1,5,6,2]},{vertices:[2,6,7,3]},{vertices:[3,7,4,0]},{vertices:[7,6,5,4]}]
+        );
+    }
+
+    k3d.callback = function()
+    {
+        load_data(obj)
+    }
+
+    // add the object to the controller
+    k3d.addK3DObject(obj);
+
+    // initial rotation (x)
+    obj.otheta += 90;
+
+    // begin the rendering and animation immediately
+    k3d.paused = false;
+    k3d.frame();
+}
+
+        </script>
+   </head>
+   
+   <body style="background-color: #bfbfbf">
+      <canvas id="canvas" width="256" height="256" style="background-color: #ffffff"></canvas>
+    <p>X,Y,Z: <span id="acc_value" ></span></p>
+    <p>Deg &#8451: <span id="temperature" ></span></p>
+   </body>
+</html>
+

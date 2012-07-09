@@ -132,7 +132,12 @@ A      P      B
     <?rfc needLines="8" ?>
 
     <section anchor="IANA" title="IANA Considerations">
-      <t>No IANA related requests are made by this document.</t>
+    	<section anchor="IANA_fp" title="fp Attribute"> 
+           <t>This section defines a new Web Linking <xref target="RFC5988" /> attribute for use with <xref target="I-D.ietf-core-link-format"/>.
+           The "fp" (forward proxy) CoAP link format attribute, that can be used by Proxy nodes to inform CoAP endpoints
+           that a given resource can be reached by passing through the advertising Proxy.</t>
+           <t>TBD...</t>
+        </section>
     </section>
 
     <section anchor="Security" title="Security Considerations">

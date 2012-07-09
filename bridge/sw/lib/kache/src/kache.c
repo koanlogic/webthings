@@ -102,7 +102,8 @@ int kache_set(kache_t *kache,
 
     //object already in, update history
     if(u_hmap_get(kache->hmap,key,&tmp) == U_HMAP_ERR_NONE)
-        *overwrite = (kache_obj_t*) u_hmap_o_get_val(tmp);
+        if(overwrite)
+            *overwrite = (kache_obj_t*) u_hmap_o_get_val(tmp);
     u_hmap_o_t *hobj;
     dbg_err_if( (hobj = u_hmap_o_new (kache->hmap, key, obj)) == NULL);
     dbg_err_if( u_hmap_put (kache->hmap, hobj, &tmp));
@@ -123,7 +124,8 @@ int kache_unset(kache_t *kache, const char *key, kache_obj_t **deleted_obj)
 {
     u_hmap_o_t *obj;
     dbg_err_if(u_hmap_del (kache->hmap, key, &obj));
-    *deleted_obj = u_hmap_o_get_val(obj);
+    if(deleted_obj)
+        *deleted_obj = u_hmap_o_get_val(obj);
     u_hmap_o_free(obj);
     return 0;
 err:
