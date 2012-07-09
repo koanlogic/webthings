@@ -18,10 +18,10 @@
 <?rfc subcompact="no" ?>
 <?rfc comments="yes" ?>
 <?rfc inline="yes" ?>
-<rfc category="std" docName="draft-fossati-core-monitor-options-01" ipr="trust200902">
+<rfc category="std" docName="draft-fossati-core-monitor-option-00" ipr="trust200902">
   <front>
     <title>
-      Publish and Monitor Options for CoAP
+      Monitor Option for CoAP
     </title>
     <author
       fullname="Thomas Fossati"
@@ -72,10 +72,10 @@
     <area>General</area>
     <workgroup>Internet Engineering Task Force</workgroup>
 
-    <keyword>CoAP, Monitor option, Publish option, sleepy sensor</keyword>
+    <keyword>CoAP, Monitor option, sleepy sensor</keyword>
 
     <abstract>
-      <t>This memo defines an additional Options for the Constrained Application Protocol (CoAP) especially targeted at sleepy sensors: Monitor.</t>
+      <t>This memo defines an additional Option for the Constrained Application Protocol (CoAP) especially targeted at sleepy sensors: Monitor.</t>
       
       <t>The Monitor Option complements the typical Observe pattern, enabling the tracking of a resource hosted by a node sleeping most of the time, by taking care of establishing and maintaining an Observe relationship with the (sleepy) origin on behalf of the (sleepy) client.</t>
 
@@ -167,7 +167,7 @@ TODO: check the impact on cache
   fresh.
 -->
   
-          <t>The operation creates a "monitor" resource at the Proxy, that MUST maintain a fresh carbon copy of one or more representations of the requested resource depending on the supplied Content-Type's.  For convenience, multiple "monitor" resources corresponding to the same target resource, can be coalesced into the same monitor object at the Proxy -- possibly with the same URI.  In such case, a set containing one entry for each registered client is kept, which holds the client identities, their expiry and one or more preferred media types for their representation(s).  When all entries are deleted (either because clients have explicitly deregistered the monitor, or the monitor period has expired), the corresponding "monitor" object is deleted. Note that an underlying cache entry MAY still be kept in case the cached representation(s) are still fresh (i.e. the Max-Age of the "monitor" resource and Max-Age of the target resource have completely different semantics.)</t>
+          <t>The operation creates a "monitor" resource at the Proxy, that MUST maintain a fresh carbon copy of one or more representations of the requested resource depending on the supplied Content-Type.  For convenience, multiple "monitor" resources corresponding to the same target resource, can be coalesced into the same monitor object at the Proxy -- possibly with the same URI.  In such case, a set containing one entry for each registered client is kept, which holds the client identities, their expiry and one or more preferred media types for their representation(s).  When all entries are deleted (either because clients have explicitly deregistered the monitor, or the monitor period has expired), the corresponding "monitor" object is deleted. Note that an underlying cache entry MAY still be kept in case the cached representation(s) are still fresh (i.e. the Max-Age of the "monitor" resource and Max-Age of the target resource have completely different semantics.)</t>
         
         <t>If the monitor resource is successfully created, the server MUST return a 2.01 response containing one or more Location-Path and/or Location-Query Options to identify the monitored resource instance, which can be used from now on by the requester as an alias to the target resource.</t>
 
