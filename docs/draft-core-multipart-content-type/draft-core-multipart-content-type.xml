@@ -2,10 +2,7 @@
 <!-- vim: set ts=2 expandtab: -->
 <!DOCTYPE rfc SYSTEM "rfc2629.dtd" [
 <!ENTITY RFC2119 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml">
-<!ENTITY I-D.narten-iana-considerations-rfc2434bis SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.narten-iana-considerations-rfc2434bis.xml">
-<!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-coap-09.xml">
-<!ENTITY I-D.ietf-core-observe SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-observe-05.xml">
-<!ENTITY I-D.ietf-core-link-format SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-link-format-11.xml">
+<!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-coap-12.xml">
 ]>
 <?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
 <?rfc strict="yes" ?>
@@ -19,8 +16,8 @@
 <?rfc inline="yes" ?>
 <rfc category="std" docName="draft-fossati-core-multipart-ct-01" ipr="trust200902">
   <front>
-    <title>
-      Multipart Media Type Encoding for CoAP
+    <title abbrev="Multipart Content Format for CoAP">
+      Multipart Content Format Encoding for CoAP
     </title>
     <author
       fullname="Thomas Fossati"
@@ -44,10 +41,11 @@
     <area>General</area>
     <workgroup>Internet Engineering Task Force</workgroup>
 
-    <keyword>CoAP, Multipart Media Type</keyword>
+    <keyword>CoAP, Multipart Content Format</keyword>
 
     <abstract>
-      <t>This memo defines a new media type encoding that can be used to combine several different media types into a single CoAP message-body.</t>
+      <t>This memo defines a new content format encoding that can be used to combine several different media types into a single CoAP message-body.  The proposed encoding provides a cheap framing facility aimed at minimizing the overhead bits as much as possible.</t>
+      <t>Its main use case is for applications whose purpose is as simple as just pulling together a number of known content formats, with the caveat that their juxtaposition doesn't raise any semantic ambiguity on the receiving side (i.e. strictly ordered, with no optional fields).</t>
     </abstract>
   </front>
 
@@ -60,7 +58,7 @@
       </section>
     </section>
 
-    <section title="Multipart Media Type Encoding">
+    <section title="Multipart Content-Format Encoding">
       <t>Multipart encoding uses multiple adjacent frames each of which represents a single media.  Every frame can further be broken in three logical pieces: the type of the framed media (T), its length in bytes (L), and the media payload itself (V) as depicted in the following figure.</t>
 
       <figure>
@@ -76,7 +74,7 @@
       <t>
         The semantics associated to the TLV atoms is as follows:
         <list style="hanging">
-          <t hangText="T:"> is one of the numeric media type identifiers defined in the CoAP Media Type registry (Section 11.3 of <xref target="I-D.ietf-core-coap" />), and is encoded as a 16-bit uint (Appendix A of <xref target="I-D.ietf-core-coap" />).</t>
+          <t hangText="T:"> is one of the numeric content format identifiers defined in the CoAP Content-Format Registry (Section 12.3 of <xref target="I-D.ietf-core-coap" />), and is encoded as a 16-bit uint (Section 3.4.1. of <xref target="I-D.ietf-core-coap" />).</t>
           <t hangText="L:"> is the lentgh in bytes of the following V frame, and has two possible encodings: short or extended (see <xref target="length-encoding" />).  It determines the offset of the next part, or the end of the multipart representation when applied to the last frame.</t>
           <t hangText="V:"> is the media, encoded as implied by the preceding T field.</t>
         </list>
@@ -160,7 +158,7 @@
     <?rfc needLines="8" ?>
 
     <section anchor="IANA" title="IANA Considerations">
-      <t>The following entry is added to the CoAP Media Type registry:</t>
+      <t>The following entry is added to the CoAP Content Format registry:</t>
       <figure align="center">
         <artwork><![CDATA[
 .--------------------------------.
@@ -170,7 +168,7 @@
 `--------------------------------'
         ]]></artwork>
       </figure>
-      <t>When used as the payload in a CoAP message, one Content-Type option MUST be present and set to n.</t>
+      <t>When used as the payload in a CoAP message, one Content-Format option MUST be present and set to n.</t>
     </section>
 
     <section anchor="Security" title="Security Considerations">
