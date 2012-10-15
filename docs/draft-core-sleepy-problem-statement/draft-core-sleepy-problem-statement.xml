@@ -1,288 +1,469 @@
 <?xml version="1.0" encoding="US-ASCII"?>
-<!-- vim: set ts=2 expandtab: -->
+
 <!DOCTYPE rfc SYSTEM "rfc2629.dtd" [
+<!-- One method to get references from the online citation libraries.
+     There has to be one entity for each item to be referenced. 
+     An alternate method (rfc include) is described in the references. -->
+
 <!ENTITY RFC2119 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml">
-<!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-coap-12.xml">
+<!ENTITY RFC2629 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2629.xml">
+<!ENTITY RFC3552 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.3552.xml">
+
+<!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.ietf-core-coap.xml">
+<!ENTITY I-D.ietf-core-link-format SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.ietf-core-link-format.xml">
+<!ENTITY I-D.ietf-core-observe SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.ietf-core-observe.xml">
+<!ENTITY I-D.shelby-core-resource-directory SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.shelby-core-resource-directory.xml">
+
 ]>
+
+
+
 <?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
+<!-- used by XSLT processors -->
+<!-- For a complete list and description of processing instructions (PIs), 
+     please see http://xml.resource.org/authoring/README.html. -->
+<!-- Below are generally applicable Processing Instructions (PIs) that most I-Ds might want to use.
+     (Here they are set differently than their defaults in xml2rfc v1.32) -->
+     
 <?rfc strict="yes" ?>
+<!-- give errors regarding ID-nits and DTD validation -->
+<!-- control the table of contents (ToC) -->
 <?rfc toc="yes"?>
-<?rfc tocdepth="4"?>
+<!-- generate a ToC -->
+<?rfc tocdepth="3"?>
+<!-- the number of levels of subsections in ToC. default: 3 -->
+<!-- control references -->
 <?rfc symrefs="yes"?>
+<!-- use symbolic references tags, i.e, [RFC2119] instead of [1] -->
 <?rfc sortrefs="yes" ?>
+<!-- sort the reference entries alphabetically -->
+<!-- control vertical white space 
+     (using these PIs as follows is recommended by the RFC Editor) -->
 <?rfc compact="yes" ?>
-<?rfc subcompact="yes" ?>
-<?rfc comments="yes" ?>
-<?rfc inline="yes" ?>
-<rfc category="std" docName="draft-akbar-core-sleepy-problem-statement-00" ipr="trust200902">
+<!-- do not start each main section on a new page -->
+<?rfc subcompact="no" ?>
+<!-- keep one blank line between list items -->
+<!-- end of list of popular I-D processing instructions -->
+<rfc category="info" docName="draft-rahman-core-sleepy-problem-statement-00" ipr="trust200902">
+  <!-- category values: std, bcp, info, exp, and historic
+     ipr values: full3667, noModification3667, noDerivatives3667
+     you can add the attributes updates="NNNN" and obsoletes="NNNN" 
+     they will automatically be output with "(if approved)" -->
+
+
+
+    <!--  ************************* Front Matter ************************ -->
+    <!-- **************************************************************** -->
+    <!-- **************************************************************** -->
+    <!-- **************************************************************** -->
+    <!-- **************************************************************** -->
+
+
   <front>
-    <title abbrev="Sleepy Problem Statement">
-      Sleepy Sensors in CoAP, Problem Statement
-    </title>
+    <!-- The abbreviated title is used in the page header - it is only necessary if the 
+         full title is longer than 39 characters -->
 
-    <author fullname="Akbar Rahman" initials="A.R." surname="Rahman">
-      <organization>InterDigital</organization>
-        <address>
-        <email>Akbar.Rahman@InterDigital.com</email>
+    <title abbrev="Sleepy Devices - Problem Statement">Sleepy Devices in CoAP - Problem Statement</title>
+
+    <!-- add 'role="editor"' below for the editors if appropriate -->
+
+    <!-- Another author who claims to be an editor -->
+
+    <author fullname="Akbar Rahman" initials="A."
+            surname="Rahman">
+      <organization>InterDigital Communications, LLC</organization>
+
+      <address>
+        <postal>
+          <street></street>
+
+          <!-- Reorder these if your country does things differently -->
+
+          <city>Montreal</city>
+
+          <region>Quebec</region>
+
+          <code>H3A 3G4</code>
+
+          <country>Canada</country>
+        </postal>
+
+	<phone>+1-514-585-0761</phone>
+        <email>akbar.rahman@interdigital.com</email>
+
+        <!-- uri and facsimile elements may also be added -->
       </address>
     </author>
 
-    <author fullname="Thomas Fossati" initials="T.F." surname="Fossati">
+    <!-- Another author who claims to be an editor -->
+
+    <author fullname="Thomas Fossati" initials="T."
+            surname="Fossati">
       <organization>KoanLogic</organization>
-        <address>
+
+      <address>
+        <postal>
+          <street></street>
+
+          <!-- Reorder these if your country does things differently -->
+
+          <city></city>
+
+          <region></region>
+
+          <code></code>
+
+          <country></country>
+        </postal>
+
+	<phone></phone>
         <email>tho@koanlogic.com</email>
+
+        <!-- uri and facsimile elements may also be added -->
       </address>
     </author>
 
-    <author fullname="Salvatore Loreto" initials="S.L." surname="Loreto">
+        <!-- Another author who claims to be an editor -->
+
+    <author initials="S." surname="Loreto" fullname="Salvatore Loreto">
       <organization>Ericsson</organization>
-        <address>
-        <email>salvatore.loreto@ericsson.com</email>
+      <address>
+	<postal>
+          <street>Hirsalantie 11</street>
+	  <code>02420</code> 
+	  <city>Jorvas</city>
+	  <country>Finland</country>
+ 	</postal>
+	<email>Salvatore.Loreto@ericsson.com</email>
       </address>
     </author>
 
-    <author fullname="Matthieu Vial" initials="M.V." surname="Vial">
+        <!-- Another author who claims to be an editor -->
+
+    <author fullname="Matthieu Vial" initials="M."
+            surname="Vial">
       <organization>Schneider-Electric</organization>
-        <address>
-        <email>matthieu.vial@schneider-electric.com</email>
-      </address>
-    </author>
 
-    <date year="2012" />
+      <address>
+        <postal>
+          <street></street>
+
+          <!-- Reorder these if your country does things differently -->
+
+          <city></city>
+
+          <region></region>
+
+          <code></code>
+
+          <country></country>
+        </postal>
+
+	<phone></phone>
+        <email>matthieu.vial@schneider-electric.com</email>
+
+        <!-- uri and facsimile elements may also be added -->
+      </address>
+    </author>    
+
+
+
+
+    <date day="15" month="October" year="2012" />
+
+
+    <!-- Meta-data Declarations -->
 
     <area>General</area>
-    <workgroup>Internet Engineering Task Force</workgroup>
 
-    <keyword>CoAP, Sleepy Sensors</keyword>
+    <workgroup>CORE WG</workgroup>
+
+    <!-- WG name at the upperleft corner of the doc,
+         IETF is fine for individual submissions.  
+	 If this element is not present, the default is "Network Working Group",
+         which is used by the RFC Editor as a nod to the history of the IETF. -->
+
 
     <abstract>
-      <t><cref source="TF">TODO</cref></t>
+	    <t>This document analyzes the COAP protocol issues related to
+		    sleeping devices. The only goal of this document is to trigger discussions in the
+		    CORE WG so that all relevant considerations for sleeping devices
+		    are taken into account when designing CoAP.</t>
     </abstract>
   </front>
 
+    <!--  ************************** Main Body ************************** -->
+    <!-- **************************************************************** -->
+    <!-- **************************************************************** -->
+    <!-- **************************************************************** -->
+    <!-- **************************************************************** -->
+
+
   <middle>
 
-  <!-- **************************************************************** -->
+      <section title="Terminology and Conventions">
+	      
+	      <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+		      "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+		      document are to be interpreted as described in 
+		      <xref target="RFC2119">RFC 2119</xref>.</t>
 
-    <section title="Introduction">
 
-      <t><cref source="TF">TODO</cref></t>
+	      <t>This document assumes readers are familiar with the terms
+		      and concepts that are used in <xref target="I-D.ietf-core-coap"/>,
+		      <xref target="I-D.ietf-core-link-format"/>,
+		      <xref target="I-D.ietf-core-observe"/>,
+		      <xref target="I-D.shelby-core-resource-directory"/>.</t>
+		      <t>In addition, this document defines the following terminology:</t>
 
-  <!-- **************************************************************** -->
 
-      <section title="Requirements Language">
-        <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
-      </section>
-
-  <!-- **************************************************************** -->
-
-      <section title="Terminology">
-
-        <t><cref source="TF">Glossary of terms</cref></t>
+        <t><cref>Glossary of terms</cref></t>
 
         <t><list style="hanging">
-          <t hangText="SEP:">
-            TODO
-          </t>
+
+          <t hangText="Sleeping End Point (SEP):">
+		  is a special kind of CoAP enabled device that spends a large amount of its lifetime
+		  disconnected from the network, mainly to save power, or just because it is downright
+		  unable to store the energy required for its functioning.  It nonetheless owns and
+		  hosts a set of resources, and needs to make them available to the other participants
+		  in the same constrained RESTful environment.  In this respect it has to devise and
+		  implement the mechanisms that allows to work around its limitation, and let its
+		  resources be accessible as if it were an usual, always connected, CoAP server.</t>
+
           <t hangText="Resource Delegation:">
-            TODO
+		  is the transfer of control over the handling of a resource from an endpoint (the owner)
+		  to another (the deputy), without the actual ownership being relinquished. 
+		  </t><t>The retention of ownership implies two things: first, that a genuine resource delegation
+		  cannot be recursive, and second, that it must always be entirely reversible, at any
+		  time the owning endpoint deems appropriate.  
+                  </t><t> A Resource Delegation mechanism may comprise
+		  the transfer of the following information from the owner to the deputy endpoint:
+            <?rfc subcompact="yes"?>
+            <list style="format (%c)">
+              <t>complete or partial namespace,</t>
+              <t>one or more representations of the resource,</t>
+              <t>associated metadata,</t>
+              <t>allowed methods,</t>
+              <t>access control information,</t>
+              <t>temporal bounds of the delegation.</t>
+            </list>
+            <?rfc subcompact="no"?>
+            Said mechanism may also provide authentication to the parties involved in the delegation process.
           </t>
+
         </list></t>
 
       </section>
 
-  <!-- **************************************************************** -->
 
-      <section title="Motivation">
 
-        <t><cref source="TF">Provide reasons why it is good to have this I-D.</cref></t>
+    <section title="What is a Sleeping Device?">
 
-        <t>
-          <list style="symbols">
-            <t>CoRE Charter</t>
-            <t>Requirements I-D (still active?)</t>
-            <t>CoAP Specifications</t>
-          </list>
-        </t>
+    <t>A Sleeping device is a device able to cut power to unneeded subsystems and so significantly reduce battery consumption. 
+       Some Sleeping devices only cut power to the radio system while continuing to run normally the other ones. Other Sleeping
+       devices are even more energy efficient being able to save the machine state in the RAM memory, putting the RAM into a 
+       minimum power state, and cutting power to all the other subsystems. Finally other Sleeping device are able to save the
+       machine state on an hard disk and completely switching off themselves.</t>   
 
-      </section>
 
-    </section>  <!-- /Introduction -->
+       <section title="Sleeping behaviors.">	    
+	       <t>In this section we discuss different behaviors and scenarios of
+		       sleeping nodes. Such behaviors can affect the design of applications
+		       (such as CoAP) and network topologies (such as proxies and caching).</t>
+	      
+	       <t>Sleeping nodes can have various sleeping patterns. Sleep patterns can
+		       be predictable or totally unpredictable. For example, some nodes
+		       sleep at a fixed interval or upon certain triggers. Some nodes may
+		       sleep at irregular time intervals, or switch to sleep mode
+		       spontaneously. Some nodes stay in sleep mode and only wake up upon
+		       certain event triggers. A network may thus not be well aware of the
+		       sleeping state of a node at a given time.</t>
+	       
+	       <t>The duration of sleeping mode also varies largely, possibly from a
+		       few seconds to days. From the perspective of applications, it may not
+		       be affected by the sleeping period if it is very short. For example,
+		       a HTTP/TCP connection may still work (even if sub-optimally) if the
+		       sleep cycle is much shorter than the TCP retransmission timer. In
+		       contrast, if the sleeping period of a node exceeds a certain
+		       threshold it can impact an application.  This threshold however, can
+		       be difficult to predict and often can vary from device to device and
+		       network to network. For example, this threshold can be very dependent
+		       on the topology of a constrained network especially for the case
+		       where a multi-hop path consists of multiple sleeping nodes.  For this
+		       case, the cumulative effect of multiple sleeping nodes must be
+		       considered.</t>
+	      
+	       <t>The network topology also affects how to handle sleeping nodes. For
+		       example, in a star shaped network, a proxy node (assuming to be not a
+		       sleeping node) can cache for the sleeping nodes within the network in
+		       a centralized manner. However, in a P2P or mesh network, especially
+		       when multi-hops are involved, caching can be difficult and delivering
+		       of messages can be largely delayed due to nodes' sleeping cycles.  In
+		       this case distributed proxying and caching at intermediate nodes
+		       within the network (rather than just a single node such as the border
+		       node or sink) may make sense, if intermediate nodes are not sleeping
+		       nodes and have adequate resources to support caching.</t>
 
-  <!-- **************************************************************** -->
+	 </section>
 
-    <section title="What is a Sleeping Device">
 
-      <section title="Why Sleeping">
-        <t>
-          <list style="symbols">
-            <t>Reduce power consumption
-              <list>
-                <t>When battery powered: try to reduce batteries (achieve 5-10 yrs lifetime);</t>
-                <t>When harvesting from the environment (i.e. photovoltaic cells, current transformers): try to improve the energy balance;</t>
-              </list>
-            </t>
-            <t>Use power when available in case no energy storage is possible
-              <list>
-                <t>harvesting from mechanical stress or temperature difference => unpredictable availability;</t>
-              </list>
-            </t>
-          </list>
-        </t>
-      </section>
+	    
 
-  <!-- **************************************************************** -->
+	    <section title="Different Sleep Modes">
 
-      <section title="Different Sleep Modes">
-        
-  <!-- **************************************************************** -->
+	    	<section title="Always-On">
 
-        <section title="Always-On Illusion">
-          <t>
-            <list style="symbols">
-              <t>Short sleep (&lt;1sec RDC) are masked by the DLL and are therefore invisible to L3 and upper which get the illusion of the sleepy node of being always on => usual Server Model can be efficiently used</t>
-          </list>
-         </t>
-      
-        </section>  <!-- /Always-On Illusion -->
+			<t>Any sleep is so short that it is invisible to L3 and upper which gives the
+				illusion of the sleepy node of being always on => usual
+				Server Model can be efficiently used.
+			</t>
 
-  <!-- **************************************************************** -->
+ 	    
+	    	</section>	
 
-        <section title="Intermittent Presence">
-          <t>
-            <list style="symbols">
-              <t>Long and possibly non pre-determined sleep periods (&gt;1sec, but typically in the order of minutes or hours) => Server Model not working anymore: SEP state must be handled by another always-on entity</t>
-            </list>
-          </t>
-        </section>  <!-- /Intermittent Presence -->
+	    	<section title="Intermittent Presence">
 
-  <!-- **************************************************************** -->
+			<t>Long and possibly non pre-determined sleep periods (more than 
+				1 sec, but typically in the order of minutes or hours) 
+				=> Server Model not working anymore. SEP state must be 
+				handled by other mechanisms.
+			</t>
 
-      </section>  <!-- /Different Sleep Modes -->
+	    	</section>
 
-  <!-- **************************************************************** -->
+           </section>	
+   </section>
 
-    </section>    <!-- /What is a Sleeping Device -->
 
-  <!-- **************************************************************** -->
 
-    <section title="SEP Impact on Lower Layers">
-      <t>
-        <list style="symbols">
-          <t>MAC</t>
-          <t>Neighbour Discovery</t>
-          <t>Network Routing</t>
-          <t>Application Layer Protocols (CoAP)</t>
-        </list>
-      </t>
-    </section>  <!-- /SEP Impact on Lower Layers -->
-
-  <!-- **************************************************************** -->
-
-    <section title="Models">
-
-      <section title="Server Model">    
-        <t><cref source="TF">Clients pull from SEP</cref></t>
-      </section>
-
-  <!-- **************************************************************** -->
-
-      <section title="Observer Model">
-        <t><cref source="TF">SEP pushes async notifications to subscribers</cref></t>
-        <t>
-          <list style="symbols">
-            <t>Server Model to Create Observe Relationships (issue: SEP must be awake);</t>
-            <t>Maintenance of State at the SEP For Each Observer (memory usage scales linearly);</t>
-            <t>Data Flow (N messages for N listeners, not efficient unless one only subscription is maintained by a delegated caching node (Proxy);</t>
-          </list>
-        </t>
-      </section>
-
-  <!-- **************************************************************** -->
-
-      <section title="Intermediary Model">
-        <t><cref source="TF">SEP offloads resource handling to delegated intermediary</cref></t>
-        <t>
-          <list style="symbols">
-            <t>Efficient but needs further investigation, possible approaches include:
-              <list>
-                <t>Extend Proxies Capabilities;</t>
-                <t>Extend Resource Directories Capabilities;</t>
-                <t>Create New Ad Hoc Architectural Elements;</t>
-              </list>
-            </t>
-          </list>
-        </t>
-      </section>
-
-    </section>  <!-- /Models -->
-
-  <!-- **************************************************************** -->
+   
 
     <section title="Assumptions">
 
-      <t>
+	    <t>The characteristics of SEPs varies widely.  Some may be cheap, rudimentary
+		    widgets with very limited computational and storage capabilities;
+		    other can be more functional devices yet in need to save energy since 
+		    they have to be in operation for a long period while battery powered.</t>
+
+	    <t>This great variance implies that a fair number of often contradictory assumptions
+		    must be taken into consideration, and carefully weighted, when designing
+		    a comprehensive solution for the problem.  For example:
         <list style="symbols">
-          <t>SEP support (a subset of) the REST model</t>
-          <t>SEP may or may not maintain soft state</t>
-          <t>SEP may or may not have a predictable sleep/awake scheduling</t>
-          <t>SEP may have limited connectivity</t>
+          <t>Is SEP able to maintain soft state ?</t>
+          <t>Is SEP sleep/awake scheduling predictable ?</t>
+          <t>Is SEP able to handle bidirectional communication ?</t>
         </list>
       </t>
 
-    </section>  <!-- /Assumptions -->
-
-  <!-- **************************************************************** -->
-
-    <section title="Objectives">
-      <t>
+      <t>Luckily, and by definition, it can be assumed that all the SEPs participating in a
+	      CoRE domain share a (realistically limited) subset of the REST principles.
+	      At the very least we will assume a SEP understands and implements:
         <list style="symbols">
-          <t>Use Client or Observer Model for SEP</t>
-          <t>(Secure) delegation of resource handling while retaining ownership</t>
-          <t>Minimise SEP configuration needs</t>
-          <t>Maximise Integration with base CoRE Features, i.e.:
-            <list style="symbols">
-              <t>Resource Discovery</t>
-              <t>Multicast</t>
-              <t>Observe</t>
-              <t>Block</t>
-            </list>
-          </t>
-          <t>Reuse already available mechanisms as much as possible</t>
+          <t>the concept of information resource and its representational state;</t>
+          <t>the semantics and syntax of CoAP URIs;</t>
+          <t>the semantics associated with the methods PUT or POST, and DELETE;</t>
         </list>
-      </t>
-    </section>  <!-- Objectives -->
+        in a way that is conformant with the CoAP protocol.  This will provide
+        the common ground on which to build their integration into the hosting
+        CoRE domain.</t>
 
-  <!-- **************************************************************** -->
+        <t><cref source="TF">Also assume the fact that SEP sleeps more than RDC
+        can mask.</cref></t>
 
-<!--
-      <figure>
-        <artwork align="center"><![CDATA[
-    ,-----.
- ,-'       `-.
-(             )
- `-.       ,-'
-   `--'--'
-        ]]></artwork>
-      </figure>
--->
+    </section>
+  
 
-    <!-- This PI places the pagebreak correctly (before the section title) in the text output. -->
-    <?rfc needLines="8" ?>
 
-    <section anchor="IANA" title="IANA Considerations">
-      <t>TODO</t>
+
+	<section title="Objectives">
+
+            <t> The CORE WG aim is to design a solution that, leveraging on
+		    the existing CoAP features and its REST architecture, allows SEP devices 
+		    to be easily and smoothly integrated within any CoRE domain together
+		    with the all the other CoAP enabled devices.</t>
+
+
+		    <t> The ideal solution should:
+			    <list style="symbols">
+
+				    <t>Make the set of resource owned and hosted by any SEP available
+					    to all the other participants, in the same constrained RESTful
+					    environment, without making any assumption on the presence of
+					    specific or special entities neither on the network topology.</t>
+				    <t>Provide the possibility to use Client or Observer Model to access
+					    resources owned and hosted by a SEP.</t>
+				    <t>Allow the (Secure) delegation of resource handling while retaining
+					    ownership.</t>
+				    <t>Minimize the configuration needs to bootstrap a SEP within an
+					    existing CoRE domain.</t>
+				    <t>Maximize the integration with base CoRE Features 
+					    (i.e. Resource Discovery, Multicast, Observer, Block).</t>
+				    <t>Reuse already available CoAP mechanisms as much as possible.</t>
+		    </list>
+	    </t>
+
+
+ 	    
+	  </section>
+
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t>TBD.</t>
+
+
     </section>
 
+    <!-- Possibly a 'Contributors' section ... -->
+
+    <section anchor="IANA" title="IANA Considerations">
+      <t>This memo includes no request to IANA.</t>
+
+    </section>
+
+
     <section anchor="Security" title="Security Considerations">
-      <t>TODO</t>
+      <t>TBD. (All drafts are required to have a security considerations section.
+      See <xref target="RFC3552">RFC 3552</xref> for a guide.)</t>
     </section>
   </middle>
 
+    <!--  ************************** Back Matter ************************ -->
+    <!-- **************************************************************** -->
+    <!-- **************************************************************** -->
+    <!-- **************************************************************** -->
+    <!-- **************************************************************** -->
+
+
   <back>
+    <!-- References split into informative and normative -->
+
+    <!-- There are 2 ways to insert reference entries from the citation libraries:
+     1. define an ENTITY at the top, and use "ampersand character"RFC2629; here (as shown)
+     2. simply use a PI "less than character"?rfc include="reference.RFC.2119.xml"?> here
+        (for I-Ds: include="reference.I-D.narten-iana-considerations-rfc2434bis.xml")
+
+     Both are cited textually in the same manner: by using xref elements.
+     If you use the PI option, xml2rfc will, by default, try to find included files in the same
+     directory as the including file. You can also define the XML_LIBRARY environment variable
+     with a value containing a set of directories to search.  These can be either in the local
+     filing system or remote ones accessed by http (http://domain/dir/... ).-->
+
     <references title="Normative References">
+      <!--?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml"?-->
       &RFC2119;
       &I-D.ietf-core-coap;
+      &I-D.ietf-core-link-format;
+      &I-D.ietf-core-observe;
+      &I-D.shelby-core-resource-directory;
+
     </references>
+
+    <references title="Informative References">
+      &RFC3552;
+
+    </references>
+
+
+
   </back>
 </rfc>
