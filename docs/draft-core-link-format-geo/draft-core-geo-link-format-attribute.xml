@@ -76,7 +76,7 @@
     </section>  <!-- The geo Link Format Attribute -->
 
     <section title="Examples">
-      <t>A fire detector somewhere in the Pollino National Park:</t>
+      <t><list style="symbols"><t>A fire detector somewhere in the Pollino National Park:</t></list></t>
       <figure>
         <artwork align="left"><![CDATA[
   REQ: GET /.well-known/core
@@ -85,13 +85,13 @@
   </fire>;ct=40;if="sensor;geo="40,16.34"
         ]]></artwork>
      </figure>
-      <t>An underwater current sampler in the sea between Ithaki and Kefallonia:</t>
+      <t><list style="symbols"><t>An underwater current sampler in the sea between Ithaki and Kefallonia:</t></list></t>
       <figure>
         <artwork align="left"><![CDATA[
   REQ: GET /.well-known/core
 
   RES: 2.05 Content
-  </fire>;ct=40;if="sensor;geo="38.295326,20.642624,-20"
+  </water>;ct=40;if="sensor;geo="38.295326,20.642624,-20"
         ]]></artwork>
      </figure>
     </section>  <!-- Examples -->
