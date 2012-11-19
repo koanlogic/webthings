@@ -24,14 +24,9 @@
     <title abbrev="The geo Link-Format Attribute">
       A Link-Format Attribute for Locating Things
     </title>
-    <author
-      fullname="Thomas Fossati"
-      initials="T.F."
-      surname="Fossati">
+    <author fullname="Thomas Fossati" initials="T.F." surname="Fossati">
       <organization>KoanLogic</organization>
-        <address>
-        <email>tho@koanlogic.com</email>
-      </address>
+      <address><email>tho@koanlogic.com</email></address>
     </author>
 
     <date year="2012" />
