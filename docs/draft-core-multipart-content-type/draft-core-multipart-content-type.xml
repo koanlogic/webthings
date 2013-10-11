@@ -2,7 +2,8 @@
 <!-- vim: set ts=2 expandtab: -->
 <!DOCTYPE rfc SYSTEM "rfc2629.dtd" [
 <!ENTITY RFC2119 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml">
-<!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-coap-12.xml">
+<!ENTITY RFC4627 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.4627.xml">
+<!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-coap-18.xml">
 ]>
 <?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
 <?rfc strict="yes" ?>
@@ -14,10 +15,10 @@
 <?rfc subcompact="no" ?>
 <?rfc comments="yes" ?>
 <?rfc inline="yes" ?>
-<rfc category="std" docName="draft-fossati-core-multipart-ct-01" ipr="trust200902">
+<rfc category="std" docName="draft-fossati-core-multipart-ct-02" ipr="trust200902">
   <front>
-    <title abbrev="Multipart Content Format for CoAP">
-      Multipart Content Format Encoding for CoAP
+    <title abbrev="Multipart Content-Format for CoAP">
+      Multipart Content-Format Encoding for CoAP
     </title>
     <author
       fullname="Thomas Fossati"
@@ -26,131 +27,112 @@
     >
       <organization>KoanLogic</organization>
         <address>
-          <postal>
-            <street>Via di Sabbiuno, 11/5</street>
-            <city>Bologna</city>
-            <code>40100</code>
-            <country>Italy</country>
-        </postal>
-        <email>tho@koanlogic.com</email>
+          <email>tho@koanlogic.com</email>
       </address>
     </author>
 
-    <date year="2012" />
+    <date year="2013" month="October" />
 
     <area>General</area>
     <workgroup>Internet Engineering Task Force</workgroup>
 
-    <keyword>CoAP, Multipart Content Format</keyword>
+    <keyword>CoAP, Multipart Content-Format</keyword>
 
     <abstract>
-      <t>This memo defines a new content format encoding that can be used to combine several different media types into a single CoAP message-body.  The proposed encoding provides a cheap framing facility aimed at minimizing the overhead bits as much as possible.</t>
-      <t>Its main use case is for applications whose purpose is as simple as just pulling together a number of known content formats, with the caveat that their juxtaposition must not raise any semantic ambiguity on the receiving side (i.e. strictly ordered, with no optional parts).</t>
+      <t>This memo defines Multipart, an "anonymous" Content-Format that can be used to combine several different media types into a single CoAP message-body with minimal framing overhead.</t>
     </abstract>
   </front>
 
   <middle>
     <section title="Introduction">
-      <t>This memo defines a new media type encoding that can be used to combine several different media types into a single CoAP message-body.</t>
-      
+      <t>This memo defines Multipart, an "anonymous" Content-Format that can be used to combine several different media types into a single CoAP message-body with minimal framing overhead.</t>
+      <t>This simple and pretty efficient binary framing mechanism can be employed as an alternative to fully fledged marshalling mechanisms (e.g. JSON <xref target="RFC4627" />), to create application specific formats which build on already existing types by assigning to them individual semantics.</t>
+      <t>Applications using the Multipart Content-Format are supposed to define the internal structure of the Multipart representation, as well as registering its outermost type -- typically one in range 10000-64999.</t>
+      <t>Specific sub-types in a Multipart container are always found at the same fixed position corresponding to their implicit name.  Thus, the way to allow for optional parts, is to carry them as zero-length values for their respective types.</t>
       <section title="Requirements Language">
         <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
       </section>
     </section>
 
     <section title="Multipart Content-Format Encoding">
-      <t>Multipart encoding uses multiple adjacent frames each of which represents a single media.  Every frame can further be broken in three logical pieces: the type of the framed media (T), its length in bytes (L), and the media payload itself (V) as depicted in the following figure.</t>
+      <t>Multipart encoding uses multiple adjacent frames each of which represents a single media.  Every frame can be broken down into three logical pieces: the type of the framed media (T), its length in bytes (L), and the media payload itself (V) as depicted in the following figure.</t>
 
       <figure>
         <artwork align="center"><![CDATA[
-,------------------ multi part -----------------.
+,------------------ Multipart ------------------.
 +------+------+------+     +------+------+------+
-| T[0] | L[0] | V[0] | ... | T[n] | L[n] | V[n] |
+| T[1] | L[1] | V[1] | ... | T[n] | L[n] | V[n] |
 +------+------+------+     +------+------+------+
-`------ part 0 ------'     `------ part n ------'
+`------ part 1 ------'     `------ part n ------'
         ]]></artwork>
       </figure>
     
       <t>
-        The semantics associated to the TLV atoms is as follows:
+        The syntax and semantics associated to the TLV frames is as follows:
         <list style="hanging">
-          <t hangText="T:"> is one of the numeric content format identifiers defined in the CoAP Content-Format Registry (Section 12.3 of <xref target="I-D.ietf-core-coap" />), and is encoded as a 16-bit uint (Section 3.4.1. of <xref target="I-D.ietf-core-coap" />).</t>
-          <t hangText="L:"> is the lentgh in bytes of the following V frame, and has two possible encodings: short or extended (see <xref target="length-encoding" />).  It determines the offset of the next part, or the end of the multipart representation when applied to the last frame.</t>
-          <t hangText="V:"> is the media, encoded as implied by the preceding T field.</t>
+          <t hangText="T:"> is one of the numeric content format identifiers defined in the CoAP Content-Format Registry (Section 12.3 of <xref target="I-D.ietf-core-coap" />), and is encoded as a 16-bit unsigned integer.</t>
+          <t hangText="L:"> is the length in bytes of the following V frame, encoded as defined in <xref target="length-encoding"/>.  It determines the offset of the next part, or the end of the multipart representation when applied to the last part.</t>
+          <t hangText="V:"> is the media, encoded as implied by the preceding T field, yet opaquely to the Multipart encoder/decoder.</t>
         </list>
+        The T and L fields are in network byte order.
       </t>
     </section>
 
-    <section title="Length Encoding" anchor="length-encoding" >
-      <t>Two different encodings are defined for the L value: short for parts where length(V) measured in bytes is in range [0, 32767]; extended for parts with length(V) in range (32767, 2^127-1].</t>
+    <section title="Length Encoding" anchor="length-encoding">
+      <t>Three different encodings are defined for the L value depending on the actual size of the corresponding V: Small for V whose size in bytes is in range [0, 127], Medium for sizes in [128, 16383], and Large to cover the [16384, 2^63 - 1] range.</t>
+      <t>An encoder MUST always use the most compact encoding, i.e. Small for size less than 128 bytes, Medium for size less then 16384 bytes, and Large in all other cases.  A decoder MAY discard a received Multipart payload if any of its L fields does not use the most compact encoding for the given size.</t>
 
-      <section title="Short">
-        <t>The short format uses a fixed 16-bit uint with the most significant bit set to '0'. The remaining 15 bits encode a length(V) value up to 32767 bytes.</t>
+      <section title="Small" anchor="small-length-encoding">
+        <t>The Small encoding uses exactly one byte.  The MSB is set to 0, and the next 7 bits are used to represent an unsigned integer in range [0, 127].</t>
         <figure>
           <artwork align="center"><![CDATA[
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|0|          0-32767            |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ 0   1 2 3 4 5 6 7 
++-+ +-+-+-+-+-+-+-+
+|0| | 0x00 - 0x7F |
++-+ +-+-+-+-+-+-+-+
+          ]]></artwork>
+        </figure>
+      </section>
+
+      <section title="Medium" anchor="medium-length-encoding">
+        <t>The Medium encoding uses exactly two bytes.  The two upper bits of the first byte are set to 1 and 0 respectively.  The following 14 bits are used to represent an unsigned integer in range [128, 16383].  Values outside this range MUST not be encoded using the Medium format.</t>
+        <figure>
+          <artwork align="center"><![CDATA[
+ 0 1   2 3 4 5 6 7 8 9 0 1 2 3 4 5
++-+-+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|1 0| |      0x0080 - 0x3FFF      |
++-+-+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+
       ]]></artwork>
         </figure>
       </section>
 
-      <section title="Extended">
-        <t>The extended format uses a fixed 8-bit uint with the most significant bit set to '1'. The remaining 7 bits encode the number of bytes needed to uint-encode the length(V) bytes.</t>
+      <section title="Large" anchor="large-length-encoding">
+        <t>The Large encoding uses a variable number of bytes (at least three) and is logically split into two parts.  The first part is exactly one byte with the two upper bits set to 1.  The lower 6 bits of the first byte encode the length's length (LL) as an unsigned integer which MUST NOT be less than 2.</t>
         <figure>
           <artwork align="center"><![CDATA[
- 0 1 2 3 4 5 6 7
-+-+-+-+-+-+-+-+-+------/   /------+
-|1|    0-127    |   0-(2^127-1)   |
-+-+-+-+-+-+-+-+-+------/   /------+
+ 0 1   2 3 4 5 6 7 
++-+-+ +-+-+-+-+-+-+
+|1 1| |0x02 - 0x3F|
++-+-+ +-+-+-+-+-+-+
       ]]></artwork>
         </figure>
-      </section>
-
-      <section title="Constraints">
-        <t>The most compact encoding MUST be used, i.e.:
-          <list style="numbers">
-            <t>always use the short encoding when length(V) &lt; 32768; </t>
-            <t>never zero-pad the most significant byte when using the extended encoding.</t>
-          </list>
-        </t>
-        <t>The former implies that 0x81 would be an invalid value for the first octet, and that in case the first octet is 0x82 the length(V) value MUST be &gt; 0x7FFF.</t>
-      </section>
-
-      <section title="Examples">
-      <t>
-        A length of 32767 bytes would use short encoding:
-        <figure>
-          <artwork align="center"><![CDATA[
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|0|1 1 1 1 1 1 1 1 1 1 1 1 1 1 1|
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- S          len=32767
-      ]]></artwork>
-        </figure>
-      </t>
-
-      <t>
-        A length of 32768 bytes would use extended encoding with length of length 2:
-        <figure>
-          <artwork align="center"><![CDATA[
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|1|0 0 0 0 0 1 0|1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0|
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- E   lenlen=2            len=32768
-      ]]></artwork>
-        </figure>
-      </t>
-
+        <t>The actual length of V -- which consumes at least 2 other bytes -- follows, encoded using as many bytes as declared by the preceding LL.</t>
+            
+        <t>When LL is 0x02, then the length MUST NOT be less than 0x4000.</t>
       </section>
     </section>
 
-<!--
-    <section title="Interaction with Block Transfer">
-      <t>any?</t>
+ <!--
+    <section title="Examples" anchor="examples">
+      <t>TODO</t>
+      <figure>
+        <artwork align="center"><![CDATA[
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|             TODO              |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      ]]></artwork>
+      </figure>
     </section>
 -->
 
@@ -158,22 +140,13 @@
     <?rfc needLines="8" ?>
 
     <section anchor="IANA" title="IANA Considerations">
-      <t>The following entry is added to the CoAP Content Format registry:</t>
-      <figure align="center">
-        <artwork><![CDATA[
-.--------------------------------.
-| Number | Name      | Reference |
-:--------:-----------:-----------:
-|  n     | Multipart | RFC XXXX  |
-`--------------------------------'
-        ]]></artwork>
-      </figure>
-      <t>When used as the payload in a CoAP message, one Content-Format option MUST be present and set to n.</t>
+      <t>Applications using the Multipart Content-Format are supposed to define the internal structure of the Multipart representation, as well as registering its outermost type (typically one in range 10000-64999) in the "CoAP Content-Formats" sub-registry, within the "CoRE Parameters" registry.</t>
     </section>
 
     <section anchor="Security" title="Security Considerations">
-      <t>The extended encoding may trigger insanely huge buffer allocations on the receiving party.  Receivers of multipart media SHOULD put a cap on the maximum allowed size of the whole Multipart.  A CoAP server MAY respond with a 4.13 (Request Entity Too Large) status code to such requests, and refuse to proceed further (e.g. processing more blocks).</t>
-      <t>A CoAP client can't tell if a 4.15 status code applies to the whole Multipart or just to one of its parts.  An attacker may leverage on this ambiguity to craft application specific attacks (e.g. cause downgraded behavior).  Applications built on top of Multipart need to handle such eventuality in a safe way.</t>
+      <t>The Large encoding may trigger insanely huge buffer allocations on the receiving party.  Receivers of Multipart SHOULD put a cap on the maximum allowed size of the whole Multipart.  A CoAP server MAY respond with a 4.13 (Request Entity Too Large) status code to such requests, and refuse to proceed further (i.e. processing remaining parts).</t>
+
+      <t>A CoAP client can't tell whether a 4.15 (Unsupported Content-Format) status code applies to the whole Multipart or just to one of its sub-types.  An attacker may leverage on this ambiguity to craft application specific attacks (e.g. to cause downgraded behaviour).  Applications built on top of Multipart need to handle such eventuality in a safe way.</t>
     </section>
   </middle>
 
@@ -182,5 +155,10 @@
       &RFC2119;
       &I-D.ietf-core-coap;
     </references>
+    <references title="Informative References">
+      &RFC4627;
+    </references>
   </back>
 </rfc>
+
+<!-- vim: set ts=2 : -->
