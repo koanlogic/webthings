@@ -97,7 +97,12 @@
     <?rfc needLines="8" ?>
 
     <section title="IANA Considerations">
-      <t>TODO</t>
+        <t>Really needed?</t>
+        <t><list style="symbols">
+          <t>Attribute Value: geo</t> 
+          <t>Description: associate positioning metadata to the linked resource.</t> 
+          <t>Reference: this memo</t> 
+        </list></t>
     </section>  <!-- IANA Considerations -->
 
     <section title="Security Considerations">
