@@ -18,7 +18,7 @@
 <?rfc subcompact="no" ?>
 <?rfc comments="yes" ?>
 <?rfc inline="yes" ?>
-<rfc category="std" docName="draft-fossati-core-geo-link-format-attribute-00" ipr="trust200902">
+<rfc category="std" docName="draft-fossati-core-geo-link-format-attribute-01" ipr="trust200902">
   <front>
     <title abbrev="The geo Link-Format Attribute">
       A Link-Format Attribute for Locating Things
