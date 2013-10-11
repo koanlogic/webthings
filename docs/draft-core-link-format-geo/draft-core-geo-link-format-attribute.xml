@@ -70,22 +70,22 @@
     </section>  <!-- The geo Link Format Attribute -->
 
     <section title="Examples">
-      <t><list style="symbols"><t>A fire detector somewhere in the Pollino National Park:</t></list></t>
+      <t><list style="symbols"><t>A fire detector somewhere in the Pollino National Park (approx. 10cm accuracy, enough to distinguish trees from each other):</t></list></t>
       <figure>
         <artwork align="left"><![CDATA[
   REQ: GET /.well-known/core
 
   RES: 2.05 Content
-  </fire>;ct=40;if="sensor;geo="40,16.34"
+  </fire>;ct=0;if="sensor;geo="40.00201,16.34007"
         ]]></artwork>
      </figure>
-      <t><list style="symbols"><t>An underwater current sampler in the sea between Ithaki and Kefallonia:</t></list></t>
-      <figure>
+     <t><list style="symbols"><t>An underwater current sampler in the sea between Ithaki and Kefallonia (approx. 10m accuracy):</t></list></t>
+     <figure>
         <artwork align="left"><![CDATA[
   REQ: GET /.well-known/core
 
   RES: 2.05 Content
-  </water>;ct=40;if="sensor;geo="38.295326,20.642624,-20"
+  </water>;ct=0;if="sensor;geo="38.2953,20.6426,-20"
         ]]></artwork>
      </figure>
     </section>  <!-- Examples -->
