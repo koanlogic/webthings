@@ -4,6 +4,8 @@
 <!ENTITY RFC2119 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml">
 <!ENTITY RFC4627 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.4627.xml">
 <!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-coap-18.xml">
+<!ENTITY I-D.fossati-core-publish-option SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-fossati-core-publish-option-00.xml">
+<!ENTITY I-D.bormann-cbor SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-bormann-cbor-09.xml">
 ]>
 <?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
 <?rfc strict="yes" ?>
@@ -15,7 +17,7 @@
 <?rfc subcompact="no" ?>
 <?rfc comments="yes" ?>
 <?rfc inline="yes" ?>
-<rfc category="std" docName="draft-fossati-core-multipart-ct-02" ipr="trust200902">
+<rfc category="std" docName="draft-fossati-core-multipart-ct-03" ipr="trust200902">
   <front>
     <title abbrev="Multipart Content-Format for CoAP">
       Multipart Content-Format Encoding for CoAP
@@ -39,19 +41,28 @@
     <keyword>CoAP, Multipart Content-Format</keyword>
 
     <abstract>
-      <t>This memo defines Multipart, an "anonymous" Content-Format that can be used to combine several different media types into a single CoAP message-body with minimal framing overhead.</t>
+      <t>This memo defines Multipart, an "anonymous" Content-Format that can be used to combine (even recursively) several different media types into a single CoAP message-body with minimal framing overhead.</t>
     </abstract>
   </front>
 
   <middle>
     <section title="Introduction">
-      <t>This memo defines Multipart, an "anonymous" Content-Format that can be used to combine several different media types into a single CoAP message-body with minimal framing overhead.</t>
-      <t>This simple and pretty efficient binary framing mechanism can be employed as an alternative to fully fledged marshalling mechanisms (e.g. JSON <xref target="RFC4627" />), to create application specific formats which build on already existing types by assigning to them individual semantics.</t>
+      <t>This memo defines Multipart, an "anonymous" Content-Format that can be used to combine (even recursively) several different media types into a single CoAP message-body with minimal framing overhead.</t>
+
+      <t>This simple and pretty efficient binary framing mechanism can be employed as an alternative to fully fledged marshalling mechanisms (e.g. JSON <xref target="RFC4627" />, or CBOR <xref target="I-D.bormann-cbor" />), to create application specific formats which build on already existing types by assigning to them the appropriate semantics.</t>
+
       <t>Applications using the Multipart Content-Format are supposed to define the internal structure of the Multipart representation, as well as registering its outermost type -- typically one in range 10000-64999.</t>
-      <t>Specific sub-types in a Multipart container are always found at the same fixed position corresponding to their implicit name.  Thus, the way to allow for optional parts, is to carry them as zero-length values for their respective types.</t>
+
+      <t>Specific sub-types in a Multipart container are always found at the same fixed position, corresponding to their implicit name.  Thus, the way to allow for optional parts is to carry them as zero-length values for their respective types.</t>
+
       <section title="Requirements Language">
-        <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
+       <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
       </section>
+    </section>
+
+    <section title="Use Cases">
+        <t>Multipart originated from the need to atomically and compactly publish a resource's data and meta-data (in form of its link-format attributes) via the Publish Option <xref target="I-D.fossati-core-publish-option" />.</t>
+        <t>Another plausible use-case for Multipart would be that of a CoAP proxy which has to aggregate the many responses to a multicast request into a single PDU back to the original requester.</t>
     </section>
 
     <section title="Multipart Content-Format Encoding">
@@ -107,24 +118,24 @@
       </section>
 
       <section title="Large" anchor="large-length-encoding">
-        <t>The Large encoding uses a variable number of bytes (at least three) and is logically split into two parts.  The first part is exactly one byte with the two upper bits set to 1.  The lower 6 bits of the first byte encode the length's length (LL) as an unsigned integer which MUST NOT be less than 2.</t>
+        <t>The Large encoding uses a variable number of bytes (at least three) and is logically split into two parts.  The first part is exactly one byte with the two upper bits set to 1.  The lower 6 bits of the first byte encode the length's length (LL) as an unsigned integer which MUST NOT be less than 2.  The actual length of V (L) -- which consumes at least 2 other bytes -- follows, encoded using as many bytes as declared by the preceding LL.</t>
         <figure>
           <artwork align="center"><![CDATA[
- 0 1   2 3 4 5 6 7 
-+-+-+ +-+-+-+-+-+-+
-|1 1| |0x02 - 0x3F|
-+-+-+ +-+-+-+-+-+-+
+ 0 1   2 3 4 5 6 7   8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 
++-+-+ +-+-+-+-+-+-+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|1 1| |0x02 - 0x3F| |       (at least 2 bytes)      | (possibly more)
++-+-+ +-+-+-+-+-+-+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ 
+      LL            L
       ]]></artwork>
         </figure>
-        <t>The actual length of V -- which consumes at least 2 other bytes -- follows, encoded using as many bytes as declared by the preceding LL.</t>
-            
         <t>When LL is 0x02, then the length MUST NOT be less than 0x4000.</t>
       </section>
     </section>
 
  <!--
     <section title="Examples" anchor="examples">
-      <t>TODO</t>
+      <t>1) aggregate multicast responses (using application/coap analogous to application/http</t>
+      <t>2) publish resource and metadata atomically</t>
       <figure>
         <artwork align="center"><![CDATA[
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
@@ -148,6 +159,11 @@
 
       <t>A CoAP client can't tell whether a 4.15 (Unsupported Content-Format) status code applies to the whole Multipart or just to one of its sub-types.  An attacker may leverage on this ambiguity to craft application specific attacks (e.g. to cause downgraded behaviour).  Applications built on top of Multipart need to handle such eventuality in a safe way.</t>
     </section>
+
+    <section title="Acknowledgements">
+      <t>Thanks to Carsten Bormann for the interesting discussions, and for providing the multicast aggregation use-case.</t>
+    </section>
+
   </middle>
 
   <back>
@@ -157,6 +173,8 @@
     </references>
     <references title="Informative References">
       &RFC4627;
+      &I-D.bormann-cbor;
+      &I-D.fossati-core-publish-option;
     </references>
   </back>
 </rfc>
