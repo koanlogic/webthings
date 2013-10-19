@@ -44,7 +44,7 @@
     <section title="Introduction">
       <t>This memo proposes a new CoAP link-format attribute, "geo", that can be used to associate positioning metadata to a CoAP resource, and make this information available to other endpoints that, directly or indirectly, participate in to CoAP link-format discovery <xref target="RFC6690" />.</t>
       <t>The ability for a consuming application to access positioning information about a sensing resource is crucial in a number of use cases, especially those in which one or more sensor networks provide input to an emergency handling service (e.g. fire, flood, etc.).</t>
-      <t>This spec reuses the geo URI syntax <xref target="RFC5870"/>, which is capable to describe physical locations in two or three dimensions (also supporting underground and underwater localisation using negative numbers) in a compact, simple and human readable way.</t>
+      <t>This spec reuses the geo URI syntax <xref target="RFC5870"/>, which is capable of describing physical locations in two or three dimensions (also supporting underground and underwater localisation using negative numbers) in a compact, simple and human readable way.</t>
 
       <section title="Requirements Language">
         <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
@@ -97,12 +97,15 @@
     <?rfc needLines="8" ?>
 
     <section title="IANA Considerations">
-        <t>Really needed?</t>
-        <t><list style="symbols">
-          <t>Attribute Value: geo</t> 
-          <t>Description: associate positioning metadata to the linked resource.</t> 
-          <t>Reference: this memo</t> 
-        </list></t>
+      <t>TODO</t>
+    <!--
+      <t>Really needed?</t>
+      <t><list style="symbols">
+        <t>Attribute Value: geo</t> 
+        <t>Description: associate positioning metadata to the linked resource.</t> 
+        <t>Reference: this memo</t> 
+      </list></t>
+    -->
     </section>  <!-- IANA Considerations -->
 
     <section title="Security Considerations">
