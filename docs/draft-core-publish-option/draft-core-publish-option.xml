@@ -2,15 +2,14 @@
 <!-- vim: set ts=2 expandtab: -->
 <!DOCTYPE rfc SYSTEM "rfc2629.dtd" [
 <!ENTITY RFC2119 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml">
-<!ENTITY RFC2629 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2629.xml">
-<!ENTITY RFC3552 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.3552.xml">
 <!ENTITY RFC3986 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.3986.xml">
-<!ENTITY I-D.narten-iana-considerations-rfc2434bis SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.narten-iana-considerations-rfc2434bis.xml">
-<!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-coap-08.xml">
-<!ENTITY I-D.ietf-core-observe SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-observe-04.xml">
-<!ENTITY I-D.ietf-core-link-format SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-link-format-11.xml">
+<!ENTITY RFC5988 SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.RFC.5988.xml">
+<!ENTITY RFC6690 SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.RFC.6690.xml">
+<!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-coap-18.xml">
+<!ENTITY I-D.ietf-core-observe SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-observe-11.xml">
 <!ENTITY I-D.shelby-core-coap-req SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-shelby-core-coap-req-02.xml">
-<!ENTITY I-D.shelby-core-resource-directory SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-shelby-core-resource-directory-02.xml">
+<!ENTITY I-D.ietf-core-resource-directory SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-resource-directory-00.xml">
+<!ENTITY I-D.rahman-core-sleepy-problem-statement SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-rahman-core-sleepy-problem-statement-01.xml">
 ]>
 <?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
 <?rfc strict="yes" ?>
@@ -22,43 +21,24 @@
 <?rfc subcompact="no" ?>
 <?rfc comments="yes" ?>
 <?rfc inline="yes" ?>
-<rfc category="std" docName="draft-fossati-core-publish-monitor-options-01" ipr="trust200902">
+<rfc category="std" docName="draft-fossati-core-publish-option-02" ipr="trust200902">
   <front>
     <title>
-      Publish and Monitor Options for CoAP
+      Publish Option for CoAP
     </title>
-    <author
-      fullname="Thomas Fossati"
-      initials="T.F."
-      surname="Fossati"
-    >
+    <author fullname="Thomas Fossati" initials="T.F." surname="Fossati">
       <organization>KoanLogic</organization>
-        <address>
-          <postal>
-            <street>Via di Sabbiuno, 11/5</street>
-            <city>Bologna</city>
-            <code>40100</code>
-            <country>Italy</country>
-        </postal>
+      <address>
         <email>tho@koanlogic.com</email>
       </address>
     </author>
-
-    <author
-      fullname="Pierpaolo Giacomin"
-      initials="P.G."
-      surname="Giacomin"
-    >
+    <author fullname="Pierpaolo Giacomin" initials="P.G." surname="Giacomin">
       <organization>Freelance</organization>
       <address>
         <email>yrz@anche.no</email>
       </address>
     </author>
-
-    <author
-      fullname="Salvatore Loreto"
-      initials="S.L."
-      surname="Loreto">
+    <author fullname="Salvatore Loreto" initials="S.L." surname="Loreto">
       <organization>Ericsson</organization>
       <address>
         <postal>
@@ -70,334 +50,214 @@
         <email>salvatore.loreto@ericsson.com</email>
       </address>
     </author>
-
-    <date year="2012" />
-
+    <date year="2013" month="October"/>
     <area>General</area>
     <workgroup>Internet Engineering Task Force</workgroup>
-
-    <keyword>CoAP, Monitor option, Publish option, sleepy sensor</keyword>
-
+    <keyword>CoAP, Monitor Option, sleepy sensor</keyword>
     <abstract>
-      <t>This memo defines two additional Options for the Constrained Application Protocol (CoAP) especially targeted at sleepy sensors: Publish and Monitor.</t>
-      
-      <t>The Publish Option enables opportunistic updates of a given resource state, by temporarily delegating the authority of the Publish'ed resource to a Proxy node.  The whole process is driven by the (sleepy) origin -- which may actually never need to listen.</t>
-
-      <t>The Monitor Option complements the typical Observe pattern, enabling the tracking of a resource hosted by a node sleeping most of the time, by taking care of establishing and maintaining an Observe relationship with the (sleepy) origin on behalf of the (sleepy) client.</t>
-
+      <t>This memo defines the Publish Option for the Constrained Application Protocol (CoAP).  This Option is employed by a CoAP end-point to control the authority delegation of one of its resources to another end-point.  All the phases of the authority delegation process (setup, renewal, cancellation) are controlled by a simple RESTful protocol.</t>
+      <t>This memo also introduces the 'proxies' Web Linking relation type, to be used by a CoAP proxy to explicitly advertise the resources that it can serve either from cache or by forwarding the client request upstream.</t>
     </abstract>
   </front>
-
   <middle>
     <section title="Introduction">
-
-      <t>The proposal described in this memo covers the following use case: <list style="empty"><t>a node N, which is sleeping most of the time, depends one or more resources hosted at another sleepy node M. In cases as such, the probability of an empty intersection between their respective wake periods is very high, making it hard for the two to synchronize.</t></list></t>
-
-      <t>In this scenario, using the basic observe <xref target="I-D.ietf-core-observe" /> functionality is not enough, as it could lead to lost state updates in case N is offline while M pushes its notifications; further, the observation may never bootstrap since its initialization needs both client and origin awake at the same time.</t>
-
-      <t>This memo introduces two extensions to the Proxy caching functionality that give the Proxy an explicit mediation role in the sleepy-to-sleepy CoAP <xref target="I-D.ietf-core-coap" /> communication.</t>
-      
-<!--
-      <t>i.e. the ability to keep the freshest copy of a resource while its origin and clients may be offline, and conversely, clients and origins are provided the ability to respectively read and write a copy of the resource while the other party may be off-duty.</t>
--->
-
+      <t>This memo defines the Publish Option for the Constrained Application Protocol (CoAP).</t>
+      <t>The Publish Option is used by a sleepy end-point (SEP) to temporarily delegate the authority of one of its resources to another, always on, node which is typically a proxy but doesn't need to be necessarily.</t>
+      <t>The SEP is given a simple RESTful messaging protocol that enables the setup, renewal and cancellation of the authority transfer.  The whole process is driven by the SEP, which may actually never need to listen or to keep any state.</t>
+      <t>This memo also introduces the 'proxies' Web Linking relation type.  This new relation -- complementing the default 'hosts' relation -- can be used by a CoAP proxy to explicitly advertise the resources that it can serve either from cache or by forwarding the client request upstream.</t>
+      <t>The 'proxies' relation works in concert with the Publish Option to enable SEP discovery even while SEP is off-line.</t>
       <section title="Requirements Language and Motivation">
-        <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
-
-        <t>This specification makes use of the following terminology:
-            <list style="hanging">
-              <t hangText="Sleepy Device:">a sensor/actuator (usually battery operated) that powers down its radio beyond the normal radio duty cycle in order to save energy.</t>
-            </list>
-          </t>
-
-        <t>and tries to provide an in-protocol solution for the requirement REQ3 stated in  <xref target="I-D.shelby-core-coap-req" />:</t>
-
-        <figure align="center">
-          <artwork align="left"><![CDATA[
-    The ability to deal with sleeping nodes.  Devices may be
-    powered down at any point in time but periodically "wake up"
-    for brief periods of time.
-          ]]></artwork>
-        </figure>
+        <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119"/>.</t>
+        <t>This memo reuses the terminology introduced in <xref target="I-D.rahman-core-sleepy-problem-statement"/>, and aims at meeting the objectives stated in its Section 4 via an entirely in-protocol solution.</t>
       </section>
     </section>
-
-    <section title="Options">
+    <section title="Publish Option">
+      <t>The Publish Option enables a SEP to temporarily (i.e. for a specified "lease" time) delegate the authority of one of its hosted resources to a Proxy node that will start to behave as the origin for the Publish'ed resource.  This allows a SEP to use the Proxy as the rendezvous point for one-way SEP to SEP signaling.</t>
       <figure align="center">
         <artwork align="left"><![CDATA[
-+-----+----------+---------+--------+--------+---------+
-| No. | C/E      | Name    | Format | Length | Default |
-+-----+----------+---------+--------+--------+---------+
-|  YY | Critical | Publish | uint   | 1 B    | 0x2     |
-|  XX | Critical | Monitor | (none) | 0 B    | (none)  |
-+-----+----------+---------+--------+--------+---------+
++------+---+---+---+---+---------+--------+--------+---------+
+|  No. | C | U | N | R | Name    | Format | Length | Default |
++------+---+---+---+---+---------+--------+--------+---------+
+| 2n+1 | x | x | x | - | Publish | uint   | 1      | (none)  |
++------+---+---+---+---+---------+--------+--------+---------+
         ]]></artwork>
       </figure>
-
-      <section title="Publish Option">
-
-        <t>The Publish Option enables the sleepy origin to temporarily (i.e. for a specified "lease" time) delegate the authority of one of its hosted resources to a Proxy node that will start to behave as the origin for the Publish'ed resource.  This allows a sleepy sensor to use the Proxy as the rendezvous point for one-way sleepy to sleepy signaling.</t>
-
-      <section title="Publishing a Resource">   
-        <figure align="center" anchor="publish_creation">
+      <section title="Publishing a Resource">
+        <t>The origin server publishes one of its hosted resources, specified by the enclosed Proxy-URI, by PUT'ing it to the Proxy with a Publish Option attached.  The Publish Option value specifies the CoAP methods that clients are allowed to use on the resource (see <xref target="publish_format"/>).</t>
+        <t>The example in <xref target="publish_creation"/> shows a delegation where the GET and PUT methods are allowed while POST and DELETE are explicitly prohibited, meaning that the resource can be read and updated by clients, but it can't be deleted nor created.</t>
+        <figure align="left" anchor="publish_creation">
           <artwork align="left"><![CDATA[
 P         S
 |   PUT   | Proxy-URI: coap://sleepy.example.org/res
-|<--------+ Publish: 0110
-|    r    | Content-Type: text/plain
+|<--------+ Publish: 0x60
+|    r    | Content-Format: text/plain
 |         | ETag: 0xabcd
 |         | Max-Age: 1200
-|         |
 |  2.01   |
 +-------->| 
 |         |
           ]]></artwork>
-<!-- OK with draft-ietf-core-coap-08#section-5.8.3 -->
         </figure>
-        <t>The origin server publishes one of its hosted resources, specified by the enclosed Proxy-URI, by PUT'ing it to the Proxy with a Publish Option attached.  The Publish Option value specifies the CoAP methods that clients are allowed to use on the resource (see <xref target="publish_format" />).</t>  
- 
-        <t>The example in <xref target="publish_creation" /> shows a delegation where the GET and PUT methods are allowed while POST and DELETE are explicitly prohibited, meaning that the resource can be read and updated by clients, but it can't be deleted nor created.</t>
-
-        <t>The Proxy, which is voluntarily charged by the resource owner to act as the delegated origin for the "lease" time specified by Max-Age, replies with a 2.01 if the authority transfer has succeeded.  An exact duplicate of the submitted representation is created, and from now on it can be accessed using the original URI provided that clients go through the delegated Proxy.  If the Publish operation does not succeed, the origin transfer fails, and an appropriate response code is returned.</t>
-
-        <t>An ETag MAY be supplied as a metadata to be included in responses involving the Publish'ed representation.  If no Max-Age is given, a default of 3600 seconds MUST be assumed.  The Max-Age value, either implicit or explicit, determines the lifetime of the origin delegation.  When the Max-Age value is elapsed, the Proxy MUST delete the Publish'ed resource value and fall back to its usual proxying function.</t>
-
-        <t>The Publish Option is critical and MUST be present in the request only. If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the client.  If the option value is not correctly formatted (see <xref target="publish_format" />), a 4.00 (Bad Request) MUST be returned to the client.</t>
-  
-        <t>It is sufficient for any client wishing to access the resource to do so using the Proxy node that, following the Publish operation, will start behaving a the origin, satisfying requests on behalf of the sleeping node.</t>
-
-        <t>The Proxy MUST save the identity of the resource Publish'er in order to distinguish "maintainance" operations such as update and explicit deletion, from "regular" access to the published resource by clients.</t>
-
-        <t>An interesting outcome of this communication strategy is that the sleepy origin may really never need to listen on its radio interface.</t>
+        <t>The Proxy, which is voluntarily charged by the resource owner to act as the delegated origin for the "lease" time specified by Max-Age, replies with a 2.01 if the authority transfer succeeds.  An exact duplicate of the submitted representation is created, and from now on it can be accessed using the original URI provided that clients request it through the delegated Proxy.  If the Publish operation does not succeed (e.g. because the Proxy does not support Publish), then the origin transfer fails, and an appropriate response code is returned (e.g. 4.02 Bad Option).</t>
+        <t>An ETag MAY be supplied as a metadata to be included in responses involving the Publish'ed representation.  If no Max-Age is given, a default of 3600 seconds MUST be assumed.  The Max-Age value, either implicit or explicit, determines the lifetime of the origin delegation.  When Max-Age is elapsed, the Proxy MUST delete the Publish'ed resource value and fall back to its usual proxying function.</t>
+        <t>The Publish Option is critical and MUST be present in the request only. If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the client.  If the Option value is not correctly formatted (see <xref target="publish_format"/>), a 4.00 (Bad Request) MUST be returned to the client.  The Publish Option is not Safe-to-Forward, and neither is a Cache-Key.</t>
+        <t>Since the 2.01 is emitted, and for the duration of the delegation, any client wishing to access the resource can do so by making a Proxy-URI request to the Proxy node, which shall then serve the resource off from its own storage.</t>
+        <t>The Proxy MUST save the identity of the resource Publish'er and MUST use it to distinguish "maintainance" operations such as update or explicit deletion, from "regular" access to the published resource by third parties.</t>
+        <t>An interesting outcome of this communication strategy is that the SEP may really never need to listen on its radio interface.  However, ignoring the response status code from Proxy is not a safe practice and is not encouraged.</t>
       </section>
-
       <section title="Updating a Resource">
-        <figure align="center" anchor="publish_update">
+        <t>In order to update the delegated resource state, the SEP shall send the very same request (except possibly the representation value) to the Proxy, which in turn replies with a 2.04 Changed status code in case the update operation succeeds.  If the operation fails, e.g. because the request comes from an end-point different from the Publish'ing SEP, a suitable status code is returned (e.g. 4.01 Unauthorized).</t>
+        <figure align="left" anchor="publish_update">
           <artwork align="left"><![CDATA[
 P         S
 |   PUT   | Proxy-URI: coap://sleepy.example.org/res
-|<--------+ Publish: 0110
-|    r    | Content-Type: text/plain
+|<--------+ Publish: 0x60
+|    r    | Content-Format: text/plain
 |         | ETag: 0xdcba
 |         | Max-Age: 1200
-|         |
 |  2.04   |
 +-------->| 
 |         |
           ]]></artwork>
-<!-- OK with draft-ietf-core-coap-08#section-5.8.3 -->
         </figure>
-
-        <t>In order to update the delegated resource state, the sleepy node shall send the very same request to the Proxy, which in turn replies with a 2.04 (Changed) status code in case the update operation has succeeded, or an appropriate error code in case it fails.</t>
-
       </section>
-
       <section title="Unpublishing a Resource" anchor="publish_removal">
-        <figure align="center">
+        <t>The delegation of a given resource can be explicitly revoked by the SEP at any time before the lease time expires, by issuing a DELETE request to the Proxy hosting the resource duplicate with a Publish Option with value 0x00.</t>
+        <figure align="left">
           <artwork align="left"><![CDATA[
 P          S
 |  DELETE  | Proxy-URI: coap://sleepy.example.org/res
-|<---------+ Publish: 0x0
-|          |
+|<---------+ Publish: 0x00
 |          |
 |   2.02   |
 +--------->| 
 |          |
           ]]></artwork>
         </figure>
-
-        <t>The delegation of a given resource can be explicitly revoked by the real origin at any time before the lease time expires, by issuing a DELETE request to the Proxy hosting the resource duplicate with a Publish Option with value 0x0.</t>
-
-        <t>On successful deletion of the delegation a 2.02 (Deleted) response code is returned by the Proxy.</t>
+        <t>On successful deletion of the delegation, a 2.02 Deleted response code is returned by the Proxy.  On error a suitable status code is returned.</t>
       </section>
-
       <section title="Value Format" anchor="publish_format">
-
         <figure align="center">
           <artwork align="left"><![CDATA[
-0 1 2 3 4 5 6 7
+ 0 1 2 3 4 5 6 7
 +-+-+-+-+-+-+-+-+
 |C R U D 0 0 0 0|
 +-+-+-+-+-+-+-+-+
           ]]></artwork>
         </figure>
-
-        <t>Each of the first 4 bits is a flag field indicating whether the associated CoAP method (respectively: POST, GET, PUT and DELETE) is allowed on the Publish'ed resource.  The remaining 4 bits are unused and MUST be set to 0.</t>
-
-        <t>In case the value is missing, the default is assumed to be 0x2, i.e. the resource is read-only.</t>
-
-        <t>An all-0 value is used to explicitly revoke the delegation (see <xref target="publish_removal" />.)</t>
-
-        <t>If the delegated Proxy receives a request with a method that is not compatible with the supplied mask, it MUST respond with a 4.05 (Method Not Allowed) response code.</t>
+        <t>Each of the higher 4 bits is a flag field indicating whether the associated CoAP method (respectively: POST, GET, PUT and DELETE) is allowed on the Publish'ed resource.  The lower 4 bits are reserved and MUST be set to 0.</t>
+        <!--
+        <t>If the (optional) value is missing, then:
+          <list>
+            <t>on PUT, a default of 0x40 SHALL be assumed, indicating a read-only resource;</t>
+            <t>on DELETE, a default value of 0x00 is assumed.</t> 
+          </list>
+        </t>
+        -->
+        <t>The 0x00 value is used to explicitly revoke the delegation (see <xref target="publish_removal"/>.) and MUST NOT be used for any other purpose of the Option.</t>
+        <t>If the delegated Proxy receives a request for the Publish'ed resource with a method that is not compatible with the mask supplied by the SEP, it MUST respond with a 4.05 (Method Not Allowed) response code.</t>
       </section>
-
-      <section title="Discovery">
+    </section>
+    <section title="Discovery">
+      <section title="The 'proxies' Relation Type">
+        <t>The 'proxies' Web Linking relation type tells the requesting entity that the carried resource, identified by an absolute URI-Reference, is reachable through a Proxy-URI request made to the responding end-point.</t>
+        <section title="Examples">
+          <t>
+            <list style="symbols">
+              <t>C discovers resources that P "proxies":</t>
+            </list>
+          </t>
+          <figure align="left">
+            <artwork align="left"><![CDATA[
+P         C
+|   GET   | Uri-Path: .well-known
+|<--------+ Uri-Path: core
+|         | Uri-Query: rel="proxies"
+|  2.05   |
++-------->| <http://sleepy.example.org/res>; rel="proxies"
+|         | ...
+                  ]]></artwork>
+          </figure>
+          <t>
+            <list style="symbols">
+              <t>C GETs a "proxied" resource from P:</t>
+            </list>
+          </t>
+          <figure align="left">
+            <artwork align="left"><![CDATA[
+P         C
+|   GET   |
+|<--------+ Proxy-URI: coap://sleepy.example.org/res 
+|         |
+|  2.05   |
++-------->| "res" data...
+|         |
+                  ]]></artwork>
+          </figure>
+          <t>It's up to P to decide whether to serve coap://sleepy.example.org/res from its store/cache, or to forward the request to the origin at coap://sleepy.example.org.</t>
+        </section>
+      </section>
+      <section title="Adjusting Link-Format Attributes">
+        <section title="Implicitly">
+          <t>The resource metadata are implicitly pulled off from the Publish'ed  representation.  Basically, the Proxy works out the ct and sz attributes by inspecting Content-Format and the request payload size.</t>
+        </section>
+        <section title="Explicitly">
+          <t>The resource metadata are explicitly Publish'ed to the same Proxy-URI used for the sibling resource, either in a separate request/response cycle (see <xref target="non_atomic_publish"/>),</t>
+          <figure align="left" anchor="non_atomic_publish">
+            <artwork align="left"><![CDATA[
+P         S
+|   PUT   | Proxy-URI: coap://sleepy.example.org/res
+|<--------+ Publish: 0x60
+|  <meta> | Content-Format: application/link-format
+|         |
+|  2.01   |
++-------->|
+|         |
+              ]]></artwork>
+          </figure>
+          <t>or atomically, within the same Publish operation, e.g. by using the Multipart Content-Format to aggregate one (or even more than one) representation(s) together with the application/link-format entry (see <xref target="atomic_publish"/>).</t>
+          <figure align="left" anchor="atomic_publish">
+            <artwork align="left"><![CDATA[
+P         S
+|   PUT   | Proxy-URI: coap://sleepy.example.org/res
+|<--------+ Publish: 0x60
+|  [mp]   | Content-Format: application/multipart+publish
+|         | ETag: 0xabcd
+|         | Max-Age: 1200
+|  2.01   |
++-------->|
+|         |
+              ]]></artwork>
+          </figure>
+          <t>Note that the former (<xref target="non_atomic_publish"/>) is non-atomic, and limited to only one representation of the resource; the latter (<xref target="atomic_publish"/>) is atomic and supports multiple Content-Format's for the published resource.</t>
+        </section>
+      </section>
+      <!--
         <section title="Publishing the /.well-known/core Resource" anchor="wkc">
 
-          <t>The <xref target="I-D.ietf-core-link-format" /> has no explicit text about "well-known" discovery of devices through a Proxy, nor about the cacheability rules for such resource.  Even if it seems reasonable to assume that the /.well-known/core URI is both query-able and cacheable through a Proxy, on the contrary the situation is not very much so.</t>  
-
+          <t>The Link-Format specification <xref target="RFC6690" /> has no explicit text about discovery of "well-known" devices through a Proxy, or about the cacheability rules for such resource.  Even if it seems reasonable to assume that the /.well-known/core URI is both query-able and cacheable through a Proxy, on the contrary the situation is not very much so.</t>  
           <t>In fact, since the "well-known" interface relies on the resource origin being implicitly defined by the source address of the UDP packet carrying the response, quering the "well-known" interface (either unicast or multicast) through a Proxy-URI has little hope to be fully functional.  The (ab)use of a an implicit L3 locator as the identifier of the resource authority makes "well-known" discovery generally incompatible with Proxy mediated communication, unless each target URI in a link is given as a URI and not as a relative-ref (section 4.1 of <xref target="RFC3986" />).</t>
 
-          <t>Consequently, in this proposal we assume that the /.well-known/core of a sleepy node can be Publish'ed if and only if the target URI in the each link is not a relative-ref.</t>
+          <t>Consequently, in this proposal we assume that the /.well-known/core of a SEP can be Publish'ed if and only if the target URI in the each link is not a relative-ref.</t>
  
-          <t>Its registration is the same as in <xref target="publish_creation" />, but the Proxy MAY need to treat it in a way that is slightly different from other "normal" delegated resources.  In fact, while delegation is in place (i.e. the lease period is not elapsed, and neither explicit revocation has happened) the Proxy MAY be able to respond to filtered queries (section 4.1 of <xref target="I-D.ietf-core-link-format" />) regarding the Publish'ed /.well-known/core.</t>
-       </section>
+          <t>Its registration is the same as in <xref target="publish_creation" />, but the Proxy MAY need to treat it in a way that is slightly different from other "normal" delegated resources.  In fact, while delegation is in place (i.e. the lease period is not elapsed, and neither explicit revocation has happened) the Proxy MAY be able to respond to filtered queries (section 4.1 of <xref target="RFC6690" />) regarding the Publish'ed /.well-known/core.</t>
+      </section>
 
        <section title="Resource Directory">
-        <t>Given the strong requirement on the link formatting given in <xref target="wkc" />, it could be preferable (or even necessary) to use the Resource Directory <xref target="I-D.shelby-core-resource-directory" /> as a means of delegating the discovery of the resources hosted at a sleepy node.</t>
+        <t>Given the strong requirement on the link formatting given in <xref target="wkc" />, it could be preferable (or even necessary) to use the Resource Directory <xref target="I-D.ietf-core-resource-directory" /> as a means of delegating the discovery of the resources hosted at a SEP.</t>
 
-        <t>This can be done either by the sleepy node, or automatically by the delegated Proxy when a Publish request is received.</t> 
+        <t>This can be done either by the SEP, or automatically by the delegated Proxy when a Publish request is received.</t> 
         
         <t><cref anchor="Automatic push to RD">check it out</cref></t>
 
        </section>
-    </section>
-    </section>
-  
-      <section title="Monitor Option">
-
-        <t>The Monitor Option is a variant of the Observe Option that is aimed at solving some issues that may occur when sleepy sensors are involved.</t>  
-
-	<t>Suppose that the resource of interest is not in cache, and a sleepy endpoint wants to Observe it through the Proxy.  If the origin of the requested resource is sleeping at the time the observation is requested, the requesting node gets an error, and may need to stay awake and retry until the target node gets ready -- which is clearly not an option in case the sensor has a very small duty cycle.</t>
-
-        <t>The Monitor Option is used to ask a Proxy to keep a given resource fresh by observing it, while the requesting node is sleeping. Thus the sleepy sensor can possibly get the latest representation published by the monitored resource when it wakes up, even if the origin is sleeping -- and was sleeping at the time the Monitor has been requested.</t>
-
-        <!--
-       <t>How the Proxy actually implements the Monitor to keep a monitored resource fresh is out of the scope for this document.</t>
-         -->
-
-        <t>The Monitor Option is critical and MUST be present in the request only. If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the client.</t>
-  
-        <section title="Public Monitor Registration">
-          <figure align="center" anchor="monitor_registration">
-            <artwork align="left"><![CDATA[
-P        C
-|  POST  | Proxy-URI: coap://sleepy.example.org/res
-|<-------+ Monitor: <empty>
-|        | Max-Age: 86400
-|        | Content-Type: application/json
-|  2.01  |
-+------->| Location-Path: temp
-|        | Location-Path: res
-|        |
-            ]]></artwork>
-          </figure>
-          <t>The client POST's the resource to be monitored, identified by the Proxy-URI. The request message contains an empty Monitor Option, and possibly specifies a TTL (i.e. an implicit de-registration indication) for the monitor through Max-Age.  One or more content types for the acceptable representations of the resource are optionally specified via the Accept option.  In case no TTL is supplied, a default value of 3600 seconds is assumed.</t>
-
-<!--
-TODO: check the impact on cache
-  If a response with a Location-Path and/or Location-Query Option
-  passes through a cache and the implied URI identifies one or more
-  currently stored responses, those entries SHOULD be marked as not
-  fresh.
 -->
-  
-          <t>The operation creates a "monitor" resource at the Proxy, that MUST maintain a fresh carbon copy of one or more representations of the requested resource depending on the supplied Content-Type's.  For convenience, multiple "monitor" resources corresponding to the same target resource, can be coalesced into the same monitor object at the Proxy -- possibly with the same URI.  In such case, a set containing one entry for each registered client is kept, which holds the client identities, their expiry and one or more preferred media types for their representation(s).  When all entries are deleted (either because clients have explicitly deregistered the monitor, or the monitor period has expired), the corresponding "monitor" object is deleted. Note that an underlying cache entry MAY still be kept in case the cached representation(s) are still fresh (i.e. the Max-Age of the "monitor" resource and Max-Age of the target resource have completely different semantics.)</t>
-        
-        <t>If the monitor resource is successfully created, the server MUST return a 2.01 response containing one or more Location-Path and/or Location-Query Options to identify the monitored resource instance, which can be used from now on by the requester as an alias to the target resource.</t>
-
-        <t>At a later time, the client wakes up and wants to access the monitored resource.  It does so by requesting the Proxy monitor resource that has been previously created.</t>
-
-          <figure align="center" anchor="monitor_usage">
-            <artwork align="left"><![CDATA[
-P        C
-|   GET  | URI-Path: temp 
-|<-------+ URI-Path: res
-|        | Accept: application/json
-|        |
-|  2.05  |
-+------->| (Content)
-|        |
-|        |
-            ]]></artwork>
-          </figure>
-
-          <t>In case the observation on the target node has not been started because the Proxy has not yet been able to contact the origin, the Proxy will return a [TBD] error code.</t>
-
-          <t>In case the requested resource was not present on the origin, the Proxy will return an empty response (i.e. one with no payload.)</t>
-          
-          <t><cref anchor="XXX">add an explicit response code perhaps like HTTP 204 ?</cref></t>
-
-          <t>In case the monitor resource is not found in the Proxy, either because the Proxy has rebooted and lost its state, or the monitor resource has been de-registered (see <xref target="monitor_deregistration" />), a 4.04 response code is returned to the client -- that can recreate it, if needed.</t>
- 
-        </section>
-
-<!--
-        <section title="Private Monitor Registration">
-          <figure align="center" anchor="private_monitor_registration">
-            <artwork align="left"><![CDATA[
-P        C
-|  POST  | Proxy-URI: coap://sleepy.example.org/res
-|<- - - -+ Monitor: 1
-|        | Max-Age: 86400
-|        | Content-Type: application/json
-|  2.01  |
-+- - - ->| Location-Path: private
-|        | Location-Path: unique
-|        | Location-Path: res
-|        | Etag: 420e420e
-|        |
-            ]]></artwork>
-          </figure>
-    
-    <t>The Proxy MAY offer also private monitoring.</t>
-    
-          <t>The client POST's the resource to be privately monitored, identified by the Proxy-URI. The request message contains a Monitor Option with value 1, and possibly specifies a TTL (i.e. an implicit de-registration indication) for the monitor through Max-Age. One or more content types for the acceptable representations of the resource are optionally specified via the Accept Option.</t>
-  
-          <t>The operation creates a private monitor resource at the Proxy, that SHALL be a carbon copy of one representation of the monitored resource.</t>
-    
-    <t>The Proxy returns one or more location-path and/or location-query Options to identify the new monitored resource instance.</t>
-    
-    <t>The location pointed by location-paths and/or location-query Options MUST be unique.</t>
-  
-        </section>
- --> 
-
-  
-        <section title="Monitor De-registration" anchor="monitor_deregistration">
-          <t>The monitor object MUST be deleted at the Proxy when all its associated resources have been de-registered or have expired.</t>
-  
-          <t>In order to save storage, a Proxy MAY decide to delete a monitor resource in case it has not been requested for a sufficiently long time, or for any other reason.   Note that the Proxy may also reboot and lose its state, including the state associated to any monitored resource.  The requester can realize that the state at the Proxy has been lost, and re-instantiate the monitor, when it receives an unexpected 4.04 from the "monitor" resource.</t>
-  
-          <section title="Explicit De-registration">
-            <figure align="center" anchor="explicit_monitor_deregistration">
-              <artwork align="left"><![CDATA[
-P        C
-| DELETE | Path: temp
-|<-------+ Path: res
-|        |
-|  2.02  |
-+------->|
-|        |
-              ]]></artwork>
-            </figure>
-      
-      <t>Explicit de-registration is performed by a client, with a DELETE on the URI returned by the Proxy on the corresponding registration.</t>
-      
-          </section>
-  
-          <section title="Implicit De-registration">
-           <t>Implicit de-registration MUST occur when the monitoring period specified by the client via Max-Age expires.  If no Max-Age was supplied at registration time, a default of 3600 seconds MUST be assumed.</t>
-          </section>
-  
-        </section>
-  
-        <section title="Resource Refresh">
-          <t>In order to minimize the number of messages used by the monitoring process, the Proxy MUST try to install an observation on the requested resource. In case this first attempt fails, the Proxy MAY fall back to repeated poll whose duration is upper bounded by the Max-Age value indicated by the client during registration.</t>  
-          
-          <t>Usual cache validation MUST be applied to the cached copy of the monitored resource.</t>
-        </section>
-      </section>
-  
     </section>
-
     <!-- This PI places the pagebreak correctly (before the section title) in the text output. -->
     <?rfc needLines="8" ?>
-
     <section title="Acknowledgements">
-      <t>Bruce Nordman.</t>
+      <t>Thanks to Bruce Nordman and Matthieu Vial.</t>
     </section>
-
     <section anchor="IANA" title="IANA Considerations">
       <t>The following entries are added to the CoAP Option Numbers registry:</t>
       <figure align="center">
@@ -406,69 +266,75 @@ P        C
 | Number | Name    | Reference |
 :--------:---------:-----------:
 |  2n+1  | Publish | RFC XXXX  |
-+--------+---------+-----------+
-|  2m+1  | Monitor | RFC XXXX  |
 `------------------------------'
         ]]></artwork>
       </figure>
+      <t>This memo registers the new "proxies" Web Linking relation type as per <xref target="RFC5988"/>.</t>
+      <t>
+        <list>
+          <t>Relation Name: proxies</t>
+          <t>Description: the link is the absolute URI of a resource proxied by the server.</t>
+          <t>Reference: this memo</t>
+          <t>Notes: This relation is used in CoRE where links are retrieved as a "/.well-known/core" resource representation.</t>
+          <t>Application Data: None</t>
+        </list>
+      </t>
     </section>
-
     <section anchor="Security" title="Security Considerations">
-
-    <?rfc subcompact="yes"?>
-    <t>
-      <list style="hanging" hangIndent="6">
-        <t hangText="Threat:">cache poisoning.</t>
-        <t hangText="Countermeasure:">authenticate sender.</t>
-      </list>
-    </t>
-
-    <t>
-      <list style="hanging" hangIndent="6">
-        <t hangText="Threat:">unauthorized de-registration</t>
-        <t hangText="Countermeasure:">authenticate requester.</t>
-      </list>
-    </t>
-
-    <t>
-      <list style="hanging" hangIndent="6">
-        <t hangText="Threat:">Proxy resources' exhaustion.</t>
-        <t hangText="Countermeasure:">authenticate requester + quota limit.</t>
-      </list>
-    </t>
-
-    <t>
-      <list style="hanging" hangIndent="6">
-        <t hangText="Threat:">global state loss.</t>
-        <t hangText="Countermeasure:">cache redundancy.</t>
-      </list>
-    </t>
-
-    <!--
-    <t>
-      <list style="hanging" hangIndent="6">
-        <t hangText="Threat:">DoS on remote constrained resource via unneeded monitoring.</t>
-        <t hangText="Countermeasure:">[TBD]</t>
-      </list>
-    </t>
+      <t>This section identifies Threats (T) and related countermeasures (C).</t>
+      <?rfc subcompact="yes"?>
+      <t>
+        <list style="symbols">
+          <t>T: cache poisoning.</t>
+          <t>C: use strong auth to identify SEP.</t>
+        </list>
+      </t>
+      <t>
+        <list style="symbols">
+          <t>T: unauthorized update or de-registration</t>
+          <t>C: strong auth to identify SEP.</t>
+        </list>
+      </t>
+      <t>
+        <list style="symbols">
+          <t>T: Proxy resources' exhaustion.</t>
+          <t>C: use strong auth to identify SEP + quota limit.</t>
+        </list>
+      </t>
+      <t>
+        <list style="symbols">
+          <t>T: lobal state loss.</t>
+          <t>C: cache redundancy.</t>
+        </list>
+      </t>
+      <t>
+        <list style="symbols">
+          <t>T: Inject fake copies of the resource by a 3rd party.</t>
+          <t>C: use delegation scheme that bundles the identities of the SEP and the Proxy, together with the resource being delegated.  A third party must be able to verify SEP and Proxy identities, maybe offline, and check the resource fingerprint.</t>
+        </list>
+      </t>
+      <?rfc subcompact="no"?>
+      <section title="Securing the Delegation">
+        <t>(Sketch) SEP signs the identity of the delegated Proxy and a fingerprint of the resource (both data and meta), and bundles it up with the resource itself, maybe in a MP envelope (TBD define signed resource).  Client verifies the resource is indeed from the SEP (check signature), and it has been served by the intended origin, in the validity frame of the delegation.  Apparently, there's an issue with hierarchical caching: the resource can't be served from a downstream Proxy different from the one that was originally delegated unless each proxy in the delivery chain wraps the received message with its own credentials?</t>
+        <!--
+        each proxy should wrap the received message with its own credentials).</t>
     -->
-
-    <?rfc subcompact="no"?>
-
+      </section>
     </section>
   </middle>
-
   <back>
     <references title="Normative References">
       &RFC2119;
       &RFC3986;
       &I-D.ietf-core-coap;
       &I-D.ietf-core-observe;
-      &I-D.ietf-core-link-format;
+      &RFC5988;
+      &RFC6690;
     </references>
     <references title="Informative References">
       &I-D.shelby-core-coap-req;
-      &I-D.shelby-core-resource-directory;
+      &I-D.ietf-core-resource-directory;
+      &I-D.rahman-core-sleepy-problem-statement;
     </references>
   </back>
 </rfc>
