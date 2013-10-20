@@ -52,13 +52,13 @@
     <keyword>CoAP, Monitor Option, sleepy sensor</keyword>
     <abstract>
       <t>This memo defines the Publish Option for the Constrained Application Protocol (CoAP).  This Option is used by a CoAP Endpoint to control the authority delegation of one of its resources to another Endpoint.  All the phases of the authority delegation process (setup, renewal, cancellation) are controlled by a simple RESTful protocol.</t>
-      <t>This memo also introduces the 'proxies' Web Linking relation type, to be used by a CoAP Proxy to explicitly advertise the resources that it can serve either from cache or by forwarding the Client request upstream (either to the origin, or to another Proxy).</t>
+      <t>This memo also introduces the 'proxies' Web Linking relation type, to be used by a CoAP Proxy to explicitly advertise the resources that it can serve from its cache, or by forwarding the Client request upstream (either to the origin, or to another Proxy).</t>
     </abstract>
   </front>
   <middle>
     <section title="Introduction">
       <t>This memo defines the Publish Option for the Constrained Application Protocol <xref target="I-D.ietf-core-coap" />.</t>
-      <t>The Publish Option is used by a sleepy Endpoint (SEP) to temporarily delegate the authority of one of its resources to another, always on, Endpoint.  The delegated Endpoint is typically a Proxy, though it could be one with no other special network role.</t>
+      <t>The Publish Option is used by a sleepy Endpoint (SEP) to temporarily delegate the authority of one of its resources to another, always on, Endpoint.  The delegated Endpoint is typically a Proxy, though it could be an Endpoint with no other special network role.</t>
       <t>The SEP is given a simple RESTful messaging protocol that enables the setup, renewal and cancellation of the authority transfer.  The whole process is driven by the SEP, which may actually never need to listen or to keep any state.</t>
       <t>This memo also introduces the 'proxies' Web Linking <xref target="RFC5988" /> relation type.</t>
       <t>This new relation, which complements the default 'hosts' relation defined in <xref target="RFC6690" />, can be used by a CoAP Proxy to explicitly advertise the resources that it can serve either from cache or by forwarding the Client request upstream.</t>
@@ -97,15 +97,15 @@ P         S
 |         |
           ]]></artwork>
         </figure>
-        <t>The Proxy, which is voluntarily charged by the resource owner to act as the delegated origin for the "lease" time specified by Max-Age, replies with a 2.01 if the authority transfer succeeds.  An exact duplicate of the submitted representation is created, and from now on it can be accessed using the original URI provided that Clients request it through the delegated Proxy.  If the Publish operation isn't successful (e.g. because the Proxy does not support Publish), then the origin transfer fails, and an appropriate response code is returned (e.g. 4.02 Bad Option).</t>
+        <t>The Proxy, which is voluntarily entrusted by the resource owner to act as the delegated origin for the "lease" time specified by Max-Age, replies with a 2.01 if the authority transfer succeeds.  An exact duplicate of the submitted representation is created, and from now on it can be accessed using the original URI provided that Clients request it through the delegated Proxy.  If the Publish operation isn't successful (e.g. because the Proxy does not support Publish), then the origin transfer fails, and an appropriate response code is returned (e.g. 4.02 Bad Option).</t>
         <t>An ETag MAY be supplied as a further metadatum to be included in responses involving the published representation.  If no Max-Age is given, a default of 3600 seconds MUST be assumed.  The Max-Age value, either implicit or explicit, determines the lifetime of the origin delegation.  When Max-Age is elapsed, the Proxy MUST delete the published resource value and fall back to its usual proxying function.</t>
-        <t>The Publish Option is critical and MUST be present in the request PDU only.  If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the Client.  If the Option value is not correctly formatted (see <xref target="publish_format"/>), a 4.00 (Bad Request) MUST be returned to the Client.  The Publish Option is not Safe-to-Forward, and neither is a Cache-Key.</t>
+        <t>The Publish Option is critical, and MUST NOT be present in a response.  If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the Client.  If the Option value is not correctly formatted (see <xref target="publish_format"/>), a 4.00 (Bad Request) MUST be returned to the Client.  The Publish Option is not Safe-to-Forward, and neither is a Cache-Key.</t>
         <t>Since the 2.01 is emitted, and for the duration of the delegation, any Client wishing to access the resource can do so by making a Proxy-URI request to the Proxy, which shall then serve the resource off from its own storage.</t>
         <t>An interesting outcome of this communication strategy is that the SEP may really never need to listen on its radio interface.  However, ignoring the response status code from Proxy is not a safe practice and is not encouraged.</t>
-        <t>Upon publishing, the Proxy MUST save the identity of the publishing SEP, and MUST use it to correctly authorise "maintenance" operations such as renewal or cancellation of the published resource.  The SEP identity MUST be kept for the whole duration of the delegation (including any associated renewal) and forgotten as soon as the delegation vanishes either implicitly or explicitly.</t>
+        <t>Upon publishing, the Proxy MUST save the identity of the publishing SEP, and MUST use it to correctly authorise "maintenance" operations such as renewal or cancellation of the published resource.  The SEP identity MUST be kept for the whole duration of the delegation (including any associated renewal) and can be forgotten as soon as the delegation vanishes either implicitly or explicitly.</t>
       </section>
       <section title="Updating a Resource">
-        <t>In order to update the delegated resource state or to just extend the lease period, the SEP shall send basically the same request (except possibly the representation value and its associated ETag) to the Proxy, which in turn replies with a 2.04 Changed status code in case the update operation succeeds.  If the operation fails, e.g. because the request comes from an Endpoint different from the publishing SEP, a suitable status code is returned (e.g. 4.01 Unauthorized).</t>
+        <t>In order to update the delegated resource state or to just extend the lease period, the SEP shall send basically the same request (except possibly for the representation value and the associated ETag) to the Proxy, which in turn replies with a 2.04 Changed status code in case the update operation succeeds.  If the operation fails, e.g. because the request comes from an Endpoint different from the publishing SEP, a suitable status code is returned (e.g. 4.01 Unauthorized).</t>
         <figure align="left" anchor="publish_update">
           <artwork align="left"><![CDATA[
 P         S
@@ -161,7 +161,7 @@ P          S
     <section title="Discovery">
       <section title="The 'proxies' Relation Type">
         <t>The new 'proxies' Web Linking <xref target="RFC5988"/> relation type is meant to signify that the target resource carried by the link, which MUST be identified by an absolute URI, is reachable through a Proxy-URI request made to the anchored Origin (i.e. the Proxy).</t>
-        <t>(Note that we need to specify the Proxy through an explicit anchor, increasing the verbosity of the link value, because of the way the context URI override rules are defined in Section 2.1 of <xref target="RFC6690"/>.  In fact, rule (b) would set the context to the SEP origin, which is definitely not what we want.)</t>
+        <t>(Note that we need to specify the Proxy through an explicit anchor, thus increasing the verbosity of the link value, because of the way the context URI override rules are defined in Section 2.1 of <xref target="RFC6690"/>.  In fact, absent an explicit anchor, rule (b) would set the context to the SEP origin, which is definitely not what we want.)</t>
         <section title="Examples">
           <t>
             <list style="symbols">
@@ -197,7 +197,7 @@ P         C
 |         |
                   ]]></artwork>
           </figure>
-          <t>It's up to P to decide whether to serve coap://sleepy.example.org/res from its store/cache, or to forward the request to the origin at coap://sleepy.example.org.</t>
+          <t>The 'proxies' relation is orthogonal to the Publish Option, so it's up to P to decide whether to serve coap://sleepy.example.org/res from its store/cache, or to forward the request to the origin at coap://sleepy.example.org.</t>
         </section>
       </section>
       <section title="Adjusting Link-Format Attributes">
