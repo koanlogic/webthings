@@ -53,6 +53,7 @@
     <abstract>
       <t>This memo defines the Publish Option for the Constrained Application Protocol (CoAP).  This Option is used by a CoAP Endpoint to control the authority delegation of one of its resources to another Endpoint.  All the phases of the authority delegation process (setup, renewal, cancellation) are controlled by a simple RESTful protocol.</t>
       <t>This memo also introduces the 'proxies' Web Linking relation type, to be used by a CoAP Proxy to explicitly advertise the resources that it can serve from its cache, or by forwarding the Client request upstream (either to the origin, or to another Proxy).</t>
+      <t>The Publish Option, together with the 'proxies' relation, provide the building blocks for a comprehensive, in-protocol, solution to the sleepy/intermittent Endpoint use case.</t>
     </abstract>
   </front>
   <middle>
@@ -87,7 +88,7 @@
         <figure align="left" anchor="publish_creation">
           <artwork align="left"><![CDATA[
 P         S
-|   PUT   | Proxy-URI: coap://sleepy.example.org/res
+|   PUT   | Proxy-URI: coap://sep.example.org/res
 |<--------+ Publish: 0x60
 |    r    | Content-Format: text/plain
 |         | ETag: 0xabcd
@@ -109,7 +110,7 @@ P         S
         <figure align="left" anchor="publish_update">
           <artwork align="left"><![CDATA[
 P         S
-|   PUT   | Proxy-URI: coap://sleepy.example.org/res
+|   PUT   | Proxy-URI: coap://sep.example.org/res
 |<--------+ Publish: 0x60
 |    r    | Content-Format: text/plain
 |         | ETag: 0xdcba
@@ -122,10 +123,11 @@ P         S
       </section>
       <section title="Unpublishing a Resource" anchor="publish_removal">
         <t>The delegation of a given resource can be explicitly revoked by the SEP at any time before the lease time expires, by issuing a DELETE request to the Proxy hosting the resource duplicate with a Publish Option with value 0x00.</t>
+        <t>On successful deletion of the delegation, a 2.02 Deleted response code is returned by the Proxy.  On error a suitable status code is returned.</t>
         <figure align="left">
           <artwork align="left"><![CDATA[
 P          S
-|  DELETE  | Proxy-URI: coap://sleepy.example.org/res
+|  DELETE  | Proxy-URI: coap://sep.example.org/res
 |<---------+ Publish: 0x00
 |          |
 |   2.02   |
@@ -133,7 +135,6 @@ P          S
 |          |
           ]]></artwork>
         </figure>
-        <t>On successful deletion of the delegation, a 2.02 Deleted response code is returned by the Proxy.  On error a suitable status code is returned.</t>
       </section>
       <section title="Value Format" anchor="publish_format">
         <t>The Publish Option consists of a single byte having the following layout:</t>
@@ -165,6 +166,23 @@ P          S
         <section title="Examples">
           <t>
             <list style="symbols">
+              <t>C multicasts a query to the /.well-known/core interface to discover the P that "proxies" a given (e.g. pre-configured) resource:</t>
+            </list>
+          </t>
+          <figure align="left">
+            <artwork align="left"><![CDATA[
+M         C
+|   GET   | Uri-Path: .well-known
+|<--------+ Uri-Path: core
+          | Uri-Query: href="coap://sep.example.org/res"
+P  2.05   |
++-------->| <coap://sep.example.org/res>;
+|         |     anchor="coap://proxy.example.org/";
+|         |     rel="proxies"
+                  ]]></artwork>
+          </figure>
+          <t>
+            <list style="symbols">
               <t>C discovers resources that P "proxies":</t>
             </list>
           </t>
@@ -175,7 +193,7 @@ P         C
 |<--------+ Uri-Path: core
 |         | Uri-Query: rel="proxies"
 |  2.05   |
-+-------->| <coap://sleepy.example.org/res>;
++-------->| <coap://sep.example.org/res>;
 |         |     anchor="coap://proxy.example.org/";
 |         |     rel="proxies",
 |         | <...
@@ -190,14 +208,14 @@ P         C
             <artwork align="left"><![CDATA[
 P         C
 |   GET   |
-|<--------+ Proxy-URI: coap://sleepy.example.org/res 
+|<--------+ Proxy-URI: coap://sep.example.org/res 
 |         |
 |  2.05   |
 +-------->| "res" data...
 |         |
                   ]]></artwork>
           </figure>
-          <t>The 'proxies' relation is orthogonal to the Publish Option, so it's up to P to decide whether to serve coap://sleepy.example.org/res from its store/cache, or to forward the request to the origin at coap://sleepy.example.org.</t>
+          <t>The 'proxies' relation is orthogonal to the Publish Option, so it's up to P to decide whether to serve coap://sep.example.org/res from its store/cache, or to forward the request to the origin at coap://sep.example.org.</t>
         </section>
       </section>
       <section title="Adjusting Link-Format Attributes">
@@ -209,7 +227,7 @@ P         C
           <figure align="left" anchor="non_atomic_publish">
             <artwork align="left"><![CDATA[
 P         S
-|   PUT   | Proxy-URI: coap://sleepy.example.org/res
+|   PUT   | Proxy-URI: coap://sep.example.org/res
 |<--------+ Publish: 0x60
 |  <meta> | Content-Format: application/link-format
 |         |
@@ -222,7 +240,7 @@ P         S
           <figure align="left" anchor="atomic_publish">
             <artwork align="left"><![CDATA[
 P         S
-|   PUT   | Proxy-URI: coap://sleepy.example.org/res
+|   PUT   | Proxy-URI: coap://sep.example.org/res
 |<--------+ Publish: 0x60
 |  [mp]   | Content-Format: application/multipart+publish
 |         | ETag: 0xabcd
@@ -259,7 +277,11 @@ P         S
     <!-- This PI places the pagebreak correctly (before the section title) in the text output. -->
     <?rfc needLines="8" ?>
     <section title="Acknowledgements">
-      <t>Thanks to Bruce Nordman and Matthieu Vial.</t>
+      <t>Thanks to
+          Bruce Nordman,
+          Matthieu Vial,
+          Akbar Rahman.
+      </t>
     </section>
     <section anchor="IANA" title="IANA Considerations">
       <t>The following entries are added to the CoAP Option Numbers registry:</t>
