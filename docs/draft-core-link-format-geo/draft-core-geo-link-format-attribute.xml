@@ -54,7 +54,7 @@
 
     <section title="Motivation and Use Cases">
       <t>Location-aware applications and location-based services like seismic networks, gas pipeline monitoring deployments, fire or flood detection systems, etc., need to precisely locate the source of sensed stimulus in order to react in a sensible way.</t>
-      <t>{TODO collect other use cases}</t>
+      <t>Smart city scenarios, e.g. street lights control, often have similar (yet less critical) needs.</t>
     </section>  <!-- Motivation and Use Cases -->
 
     <section title="The geo Link Format Attribute">
@@ -66,7 +66,7 @@
         ]]></artwork>
      </figure>
       <t>The geo attribute MUST NOT appear more than once in a link.</t>
-      <t>(NOTE about Link-Format queries: non exact matches cannot be easily/effectively queried.)</t>
+      <t>(NOTE about Link-Format queries: non exact matches cannot be easily/effectively queried.  To allow effective location-based queries, we should either extend the query filtering rules defined in Section 4.1 of <xref target="RFC6690" />, or split the geo attribute into its explicit axes.)</t>
     </section>  <!-- The geo Link Format Attribute -->
 
     <section title="Examples">
