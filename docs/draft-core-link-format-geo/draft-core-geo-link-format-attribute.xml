@@ -53,8 +53,8 @@
     </section>  <!-- Introduction -->
 
     <section title="Motivation and Use Cases">
-      <t>Location-aware applications and location-based services like seismic networks, gas pipeline monitoring deployments, fire or flood detection systems, etc., need to precisely locate the source of sensed stimulus in order to react in a sensible way.</t>
-      <t>Smart city scenarios, e.g. street lights control, often have similar (yet less critical) needs.</t>
+      <t>Location-aware applications and location-based services like rescue systems in devastated areas, seismic networks, gas pipeline monitoring deployments, fire or flood detection systems, etc., need to precisely locate the source of sensed stimulus in order to react in a sensible way.</t>
+      <t>Smart city scenarios, e.g. street lights control, emergency services, often have similar needs.</t>
     </section>  <!-- Motivation and Use Cases -->
 
     <section title="The geo Link Format Attribute">
@@ -88,6 +88,9 @@
   </water>;ct=0;if="sensor;geo="38.2953,20.6426,-20"
         ]]></artwork>
      </figure>
+
+    <!-- TODO add example with explicit uncertainty attribute, e.g. 40m (geo:48.198634,16.371648;u=40) -->
+
     </section>  <!-- Examples -->
 
     <section title="Encoding Considerations">

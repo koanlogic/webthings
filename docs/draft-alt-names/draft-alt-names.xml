@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<!-- vim: set ts=2 expandtab: -->
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd" [
+<!ENTITY RFC2119 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml">
+<!ENTITY RFC2818 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2818.xml">
+<!ENTITY RFC3986 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.3986.xml">
+<!ENTITY RFC4648 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.4648.xml">
+<!ENTITY RFC5234 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.5234.xml">
+<!ENTITY RFC5280 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.5280.xml">
+<!ENTITY RFC6066 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.6066.xml">
+<!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-coap-18.xml">
+<!ENTITY I-D.ietf-core-resource-directory SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-resource-directory-00.xml">
+]>
+<?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
+<?rfc strict="yes" ?>
+<?rfc toc="yes"?>
+<?rfc tocdepth="4"?>
+<?rfc symrefs="yes"?>
+<?rfc sortrefs="yes" ?>
+<?rfc compact="yes" ?>
+<?rfc subcompact="no" ?>
+<?rfc comments="yes" ?>
+<?rfc inline="yes" ?>
+<rfc category="std" docName="draft-alt-names-00" ipr="trust200902">
+  <front>
+    <title abbrev="Alt Authority Names for coaps URIs">
+      Alternative Authority Names for Certificate Mode DTLS
+    </title>
+    <author fullname="Thomas Fossati" initials="T.F." surname="Fossati">
+      <organization>Alcatel-Lucent</organization>
+      <address>
+        <!--
+        <postal>
+          <street>3 Ely Road</street>
+          <city>Milton, Cambridge</city>
+          <code>CB24 6DD</code>
+          <country>England</country>
+        </postal>
+        -->
+        <email>thomas.fossati@alcatel-lucent.com</email>
+      </address>
+    </author>
+
+    <date year="2013" month="October" />
+
+    <area>General</area>
+    <workgroup>Internet Engineering Task Force</workgroup>
+
+    <keyword>CoAP, TLS, coaps</keyword>
+
+    <abstract>
+      <t>This memo describes the use of EUI-64 and Resource Directory names for the purpose of verifying the identity of a server by a client endpoint in PKIX-based (D)TLS.</t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section title="Terminology and Requirements Language">
+      <t>This specification requires the reader to be familiar with the terminology used in documents produced by the CoRE, TLS, and PKIX working groups.</t>
+
+      <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
+    </section>  <!-- Terminology and Requirements Language -->
+
+    <section title="Motivation">
+      <t>The CoAP protocol <xref target="I-D.ietf-core-coap" /> defines a "Certificate mode" for DTLS access to 'coaps' URIs.  In this mode, a X.509 certificate <xref target="RFC5280" /> is used to authenticate a server endpoint to the requesting party.  The selection of the presented certificate is guided by the client by means of the SNI handshake extension <xref target="RFC6066" />.</t>
+
+      <t>According to Section 9.1.3.3 of <xref target="I-D.ietf-core-coap" />, a client, when presented with a certificate carrying the identity of the server in the SubjectAltName (SAN), must check that the authority of the requested URI matches at least one of the authority names of any CoAP URI found in a field of URI type in the SAN set.</t>
+
+      <t>According to Section 4.2.1.6 of <xref target="RFC5280" /> an URI that includes an authority, such as a 'coaps' URI, needs to include a fully qualified domain name, or an IP literal as its host part.</t>
+
+      <t>The combination of the two requirements above, together with text in Section 3 of <xref target="RFC6066" /> which allows only fully qualified DNS hostname of the server in the ServerName field, basically binds "Certificate mode" to either DNS, or static host tables, or some other system for lookup of registered names which is able to mimic the DNS naming scheme.</t>
+
+      <t>Because DNS can't be assumed in CoAP networks, and static configuration is not generally a viable option, there is a need to define some kind of stable, non-DNS, identifier that can be used for 'coaps' URIs in "Certificate mode" as a fall-back in case DNS is not deployed, or understood by CoAP endpoints.</t>
+
+      <t>The purpose of this memo is to describe syntax and rules for using Resource Directory endpoint names (and domains) <xref target="I-D.ietf-core-resource-directory" />, and EUI-64 identifiers <xref target="EUI-64" /> as an alternative to DNS names.</t>
+
+      <t>This memo contains updates to <xref target="I-D.ietf-core-coap" />, <xref target="RFC6066" />, and <xref target="RFC5280" />.</t>
+    </section>  <!-- Motivation -->
+
+    <section title="Proposal to Ban Common Name for Endpoint Identification">
+      <t>This is a proposal to amend text in Section 9.1.3.3 of <xref target="I-D.ietf-core-coap" /> that allows CN to be used as a fall back identifier in case SAN is not present.  In fact, <xref target="RFC2818" /> already deprecated the use of CN, and encouraged the use of SAN.dNSName instead.</t>
+      <t>Rationale:
+        <list style="format %d">
+          <t>Reduce complexity by defining one only path for identity lookup;</t>
+          <t>No legacy deployments that we need to support means we are in the perfect position to place an explicit requirement on CAs to issue proper certificates.</t>
+        </list>
+      </t>
+    </section>
+
+    <section title="New OID arc for DICE">
+      <t>This OID designates the OID arc for DICE-related OIDs assigned by future IETF action, including those introduced by the present document:</t>
+      <figure>
+        <artwork align="center"><![CDATA[
+   id-dice OBJECT IDENTIFIER ::=
+      { iso(1) identified-organization(3) dod(6)
+        internet(1) security(5) dice(XXX) }
+        ]]></artwork>
+     </figure>
+    </section>
+
+    <section title="EUI-64">
+      <section title="Uniqueness Guarantee">
+        <t>The uniqueness of EUI-64 identifiers is jointly guaranteed by IEEE (via the Organizationally Unique Identifier part), and the device vendor (via the extension identifier).</t>
+      </section>
+      <section anchor="EUI-64-format" title="Authority Format">
+        <t>The following ABNF defines the syntax of a EUI-64 authority.  It reuses 'port' from <xref target="RFC3986" /> and HEXDIG from <xref target="RFC5234" />.</t>
+        <figure>
+          <artwork align="center"><![CDATA[
+hex-byte         = HEXDIG HEXDIG
+eui-64           = hex-byte 7("-" hex-byte)
+eui-64-authority = eui-64 [":" port]
+          ]]></artwork>
+        </figure>
+        <t>Example:  AC-DE-48-23-45-67-AB-CD:58640</t>
+        <t>
+          Notes:
+          <list style="format %d">
+            <t>eui-64 is a subset of unreserved (<xref target="RFC3986" />) chars.  As such it encodes a strict subset of reg-name, thus fitting smoothly in the host part of a coaps URI.</t>
+            <t>A more space efficient encoding could be used, e.g. (a) removing the "-" separator, or (b) using a wider base, e.g. base-64 with URL safe alphabet <xref target="RFC4648" />.  The present encoding has been preferred over (a) as it is immune from collisions with IPv4 addresses in plain numeric notation.  For example, provided an OUI-24 of 92-23-37 exist, then 9223372038985482241 (hex 800000007F000001), a completely plausible EUI-64 identifier, could be associated to IPv4 127.0.0.1 if interpreted as a 64-bit integer truncated to 32-bits.  And preferred over option (b) because that encoding would require the host part of the URI to be case sensitive, contradicting <xref target="RFC3986" />.</t>
+            <t>When eui-64 is used in a 'coaps' URI, it MUST be explicitly set in the associated Uri-Host Option -- i.e. the default host defined in Section 5.10.1 of <xref target="I-D.ietf-core-coap" /> is not suitable.  The default 'coaps' port (i.e. 5864) SHALL be assumed when the optional port component of the eui-64-authority is missing.</t>
+            <t>No percent encoding is needed, thus percent encoding MUST NOT be used.</t>
+          </list>
+        </t>
+      </section>
+      <section title="SNI Name Type and Server Name Syntax">
+        <figure>
+          <artwork align="center"><![CDATA[
+struct {
+    NameType name_type;
+    select (name_type) {
+        ...
+        case eui64_authority: EUI64Authority;
+    } name;
+} ServerName;
+
+enum {
+    ...
+    eui64_authority(1),
+    (255)
+} NameType;
+
+opaque EUI64Authority<1..2^16-1>;
+          ]]></artwork>
+        </figure>
+        <t>The EUI64Authority NameType begins with a 16-bit length field indicating the length of the following EUI-64 authority.  The EUI-64 authority is represented as a byte string using ASCII encoding.</t>
+      </section>
+      <section title="OtherName type-id and value Syntax">
+        <t>A X.509 Server Certificate intended to be used for resources hosted by EUI-64 authorities MUST contain an otherName SAN identified using a type-id of 'id-eui64authority-san':</t>
+        <figure>
+          <artwork align="center"><![CDATA[
+id-eui64authority-san OBJECT IDENTIFIER ::= { id-dice 1 }
+          ]]></artwork>
+        </figure>
+        <t>The value field of the otherName MUST contain an EUI-64 authority (<xref target="EUI-64-format" />), encoded as an IA5String.  No percent encoding is allowed.</t>
+      </section>
+      <section title="Server Behaviour">
+      </section>
+      <section title="Client Behaviour">
+      </section>
+      <section title="Examples">
+      </section>
+    </section>
+
+    <section title="Resource Directory Names and Domains">
+      <section title="Uniqueness Guarantee">
+        <t>An endpoint name is guaranteed to be unique within the associated domain.  If the domain is elided during registration, the RD should assure its uniqueness within an implicit default domain (Allow an empty default domain?  In which case, modify the ABNF to allow authorities like "node2.:12345").</t>
+      </section>
+      <section title="Authority Format" anchor="RD-format">
+        <t>The following ABNF defines the syntax of a RD name authority.  It reuses 'port', 'pct-encoded' and 'sub-delims' from <xref target="RFC3986" />; ALPHA and DIGIT from  <xref target="RFC5234" />.</t>
+        <t>XXX: this belongs to <xref target="I-D.ietf-core-resource-directory" />.</t>
+        <figure>
+          <artwork align="center"><![CDATA[
+rd-char = ALPHA / DIGIT / "-" / "_" / "~" /
+          pct-encoded / sub-delims
+rd-name = 1*63rd-char
+rd-domain = 1*63rd-char
+rd-fullname = rd-name ["." rd-domain]
+rd-authority = rd-fullname [":" port]
+          ]]></artwork>
+        </figure>
+        <t>Example: node1.domain1:5864</t>
+        <t>
+          Notes:
+          <list style="format %d">
+            <t>rd-fullname encodes a subset of reg-name <xref target="RFC3986" />, thus fitting smoothly in the host part of a coaps URI.</t>
+          </list>
+        </t>
+      </section>
+      <section title="SNI Name Type and Server Name Syntax">
+        <figure>
+          <artwork align="center"><![CDATA[
+struct {
+    NameType name_type;
+    select (name_type) {
+        ...
+        case rd_authority: RDAuthority;
+    } name;
+} ServerName;
+
+enum {
+    ...
+    eui64_authority(2),
+    (255)
+} NameType;
+
+opaque RDAuthority<1..2^16-1>;
+          ]]></artwork>
+        </figure>
+
+      </section>
+      <section title="OtherName type-id and value Syntax">
+        <t>A X.509 Server Certificate intended to be used for resources hosted by RD authorities SHALL contain an otherName SAN identified using a type-id of 'id-rdauthority-san':</t>
+        <figure>
+          <artwork align="center"><![CDATA[
+id-rdauthority-san OBJECT IDENTIFIER ::= { id-dice 2 }
+          ]]></artwork>
+        </figure>
+        <t>The value field of the otherName SHALL contain an RD authority, defined in <xref target="RD-format" />, encoded as an IA5String.</t>
+      </section>
+      <section title="Client Behaviour">
+        <t><list>
+          <t>Send ClientHello containing SNI extension with one (and one only, as per 6066) server_name matching the authority of the URI to be requested.</t>
+          <t>Verify that the intended server name is indeed written in the server's certificate: check that the identity in the SAN matches what has been requested via server_name.</t>
+          <t>Upon receiving the XXX message requesting its own certificate, it sends it via YYY message.</t>
+        </list></t>
+      </section>
+      <section title="Server Behaviour">
+        <t>Server receives SNI and selects an appropriate cert.  If no cert can be selected, the session MUST terminate the handshake by sending a fatal-level unrecognized_name(112) alert (prefer hard failures).  Otherwise, server sends the matching certificate back to client.</t>
+        <t>Server MUST requests via ... the client certificate.</t>
+        <t>The server application running on top of (D)TLS MUST check the requested URI authority matches the requested server_name.</t>
+        <t>XXX what happens if the client sends also a PSK ciphersuite and the server agrees?</t>
+        <t>XXX what happens if the server has no SAN (i.e. uses CN)?</t>
+      </section>
+      <section title="Examples">
+      </section>
+    </section>
+
+    <section title="IANA Considerations">
+      <t>
+        Actions for IANA:
+        <list>
+          <t>id-dice</t>
+          <t>OtherName.type-id::id-eui64authority-san</t>
+          <t>OtherName.type-id::id-rdauthority-san</t>
+          <t>NameType::eui64_authority</t>
+          <t>NameType::rd_authority</t>
+          <t>ServerName.name::EUI64Authority</t>
+          <t>ServerName.name::RDAuthority</t>
+        </list>
+      </t>
+    </section>  <!-- IANA Considerations -->
+
+    <section title="Security Considerations">
+      <t>Security considerations from Section 11.1 of <xref target="RFC6066" /> fully apply.</t>
+    </section>  <!-- Security Considerations -->
+
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      &RFC2119;
+      &RFC2818;
+      &RFC3986;
+      &RFC4648;
+      &RFC5234;
+      &RFC5280;
+      &RFC6066;
+      &I-D.ietf-core-coap;
+      &I-D.ietf-core-resource-directory;
+      <reference anchor="EUI-64">
+        <front>
+          <title>Guidelines for 64-bit Global Identifier (EUI-64)</title>
+          <author>
+            <organization>IEEE</organization>
+          </author>
+          <date month="November" year="2012" />
+        </front>
+      </reference>
+    </references>
+  </back>
+</rfc>
