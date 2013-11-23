@@ -16,11 +16,11 @@
 <?rfc toc="yes"?>
 <?rfc tocdepth="4"?>
 <?rfc symrefs="yes"?>
-<?rfc sortrefs="yes" ?>
-<?rfc compact="yes" ?>
-<?rfc subcompact="no" ?>
-<?rfc comments="yes" ?>
-<?rfc inline="yes" ?>
+<?rfc sortrefs="yes"?>
+<?rfc compact="yes"?>
+<?rfc subcompact="no"?>
+<?rfc comments="yes"?>
+<?rfc inline="yes"?>
 <rfc category="std" docName="draft-alt-names-00" ipr="trust200902">
   <front>
     <title abbrev="Alt Authority Names for coaps URIs">
@@ -49,7 +49,7 @@
     <keyword>CoAP, TLS, coaps</keyword>
 
     <abstract>
-      <t>This memo describes the use of EUI-64 and Resource Directory names for the purpose of verifying the identity of a server by a client endpoint in PKIX-based (D)TLS.</t>
+      <t>This memo describes the use of EUI-64 and Resource Directory names for the purpose of verifying the identity of a server by a client endpoint in CoAP Certificate Mode DTLS.</t>
     </abstract>
   </front>
 
@@ -60,30 +60,28 @@
       <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
     </section>  <!-- Terminology and Requirements Language -->
 
-    <section title="Motivation">
-      <t>The CoAP protocol <xref target="I-D.ietf-core-coap" /> defines a "Certificate mode" for DTLS access to 'coaps' URIs.  In this mode, a X.509 certificate <xref target="RFC5280" /> is used to authenticate a server endpoint to the requesting party.  The selection of the presented certificate is guided by the client by means of the SNI handshake extension <xref target="RFC6066" />.</t>
+    <section title="Motivation and Scope">
+      <t>The CoAP protocol <xref target="I-D.ietf-core-coap" /> defines a so called "Certificate Mode" for DTLS to access 'coaps' URIs.  In this mode, a X.509 certificate <xref target="RFC5280" /> is used to authenticate a server endpoint to the requesting party.  The selection of the server certificate to be presented is determined by the URI authority of the requested resource, which is hinted by the client by means of the Server Name Indication (SNI) extension <xref target="RFC6066" /> during the DTLS handshake with the server.</t>
 
       <t>According to Section 9.1.3.3 of <xref target="I-D.ietf-core-coap" />, a client, when presented with a certificate carrying the identity of the server in the SubjectAltName (SAN), must check that the authority of the requested URI matches at least one of the authority names of any CoAP URI found in a field of URI type in the SAN set.</t>
 
-      <t>According to Section 4.2.1.6 of <xref target="RFC5280" /> an URI that includes an authority, such as a 'coaps' URI, needs to include a fully qualified domain name, or an IP literal as its host part.</t>
+      <t>According to Section 4.2.1.6 of <xref target="RFC5280" /> an URI that includes an authority - such as a 'coaps' URI - needs to include a fully qualified domain name (FQDN), or an IP literal as its host part.</t>
 
-      <t>The combination of the two requirements above, together with text in Section 3 of <xref target="RFC6066" /> which allows only fully qualified DNS hostname of the server in the ServerName field, basically binds "Certificate mode" to either DNS, or static host tables, or some other system for lookup of registered names which is able to mimic the DNS naming scheme.</t>
+      <t>The combination of the two requirements above, together with text in Section 3 of <xref target="RFC6066" /> which only allows FQDN hostname of the server in the ServerName field, basically binds Certificate Mode DTLS to either DNS, or static host tables containing FQDN's mappings, or some other system for lookup of registered names which is able to fully mimic the DNS naming scheme.</t>
 
-      <t>Because DNS can't be assumed in CoAP networks, and static configuration is not generally a viable option, there is a need to define some kind of stable, non-DNS, identifier that can be used for 'coaps' URIs in "Certificate mode" as a fall-back in case DNS is not deployed, or understood by CoAP endpoints.</t>
+      <t>Because DNS is not mandatory to implement in CoAP networks, and static configuration is not generally a viable option, there is a need to define some kind of stable, non-DNS, identifier that can be used for 'coaps' URIs in Certificate Mode DTLS as a fall-back in case DNS is not deployed, or understood by CoAP endpoints.</t>
 
-      <t>The purpose of this memo is to describe syntax and rules for using Resource Directory endpoint names (and domains) <xref target="I-D.ietf-core-resource-directory" />, and EUI-64 identifiers <xref target="EUI-64" /> as an alternative to DNS names.</t>
+      <t>The purpose of this memo is to describe syntax and rules for using Resource Directory endpoint names (and domains) <xref target="I-D.ietf-core-resource-directory" /> or EUI-64 identifiers <xref target="EUI-64" /> as an alternative to DNS names in the above said context.</t>
 
       <t>This memo contains updates to <xref target="I-D.ietf-core-coap" />, <xref target="RFC6066" />, and <xref target="RFC5280" />.</t>
     </section>  <!-- Motivation -->
 
     <section title="Proposal to Ban Common Name for Endpoint Identification">
-      <t>This is a proposal to amend text in Section 9.1.3.3 of <xref target="I-D.ietf-core-coap" /> that allows CN to be used as a fall back identifier in case SAN is not present.  In fact, <xref target="RFC2818" /> already deprecated the use of CN, and encouraged the use of SAN.dNSName instead.</t>
-      <t>Rationale:
-        <list style="format %d">
-          <t>Reduce complexity by defining one only path for identity lookup;</t>
-          <t>No legacy deployments that we need to support means we are in the perfect position to place an explicit requirement on CAs to issue proper certificates.</t>
-        </list>
-      </t>
+      <t>This section contains a proposal to amend text in Section 9.1.3.3 of <xref target="I-D.ietf-core-coap" /> to disallow Common Name (CN) to be used as a fall back identifier in case SAN is not present in the certificate of the server.  In fact, <xref target="RFC2818" /> already deprecated the use of CN in this same scenario, and encouraged the use of the dNSName field in SAN instead.</t>
+      
+      <t>Proposed text: "Implementations in Certificate Mode MUST verify the identity of their peers by looking at the Subject Alternative Name's set found in the presented certificate.  Common Name's MUST NOT be used to verify peers' identities."</t>
+
+    <t>The intention is to achieve a reduction in complexity in both spec and code, that comes from defining one only path for identity lookup.  Since there are virtually no legacy deployments, we are in the ideal position to place an explicit requirement on clients to request proper certificates to their Certification Authority (CA).</t>
     </section>
 
     <section title="New OID arc for DICE">
@@ -98,6 +96,7 @@
     </section>
 
     <section title="EUI-64">
+      <t>This section...</t>
       <section title="Uniqueness Guarantee">
         <t>The uniqueness of EUI-64 identifiers is jointly guaranteed by IEEE (via the Organizationally Unique Identifier part), and the device vendor (via the extension identifier).</t>
       </section>
@@ -105,23 +104,27 @@
         <t>The following ABNF defines the syntax of a EUI-64 authority.  It reuses 'port' from <xref target="RFC3986" /> and HEXDIG from <xref target="RFC5234" />.</t>
         <figure>
           <artwork align="center"><![CDATA[
-hex-byte         = HEXDIG HEXDIG
-eui-64           = hex-byte 7("-" hex-byte)
 eui-64-authority = eui-64 [":" port]
+eui-64           = hex-byte 7("-" hex-byte)
+hex-byte         = HEXDIG HEXDIG
           ]]></artwork>
         </figure>
         <t>Example:  AC-DE-48-23-45-67-AB-CD:58640</t>
+
+        <t>When eui-64 is used in a 'coaps' (or 'coap') URI, the encoded value MUST be explicitly set in the associated Uri-Host Option <cref>TODO: explore implicit Uri-Host alternatives, e.g. EUI-64 Interface Identifier</cref>.  The default 'coaps' port (i.e. 5864) MUST be assumed when the optional port component of the eui-64-authority is missing.</t>
+
+        <t>No character needs to be percent encoded, thus percent encoding MUST NOT be used when encoding a eui-64-authority.</t>
+
         <t>
           Notes:
           <list style="format %d">
-            <t>eui-64 is a subset of unreserved (<xref target="RFC3986" />) chars.  As such it encodes a strict subset of reg-name, thus fitting smoothly in the host part of a coaps URI.</t>
-            <t>A more space efficient encoding could be used, e.g. (a) removing the "-" separator, or (b) using a wider base, e.g. base-64 with URL safe alphabet <xref target="RFC4648" />.  The present encoding has been preferred over (a) as it is immune from collisions with IPv4 addresses in plain numeric notation.  For example, provided an OUI-24 of 92-23-37 exist, then 9223372038985482241 (hex 800000007F000001), a completely plausible EUI-64 identifier, could be associated to IPv4 127.0.0.1 if interpreted as a 64-bit integer truncated to 32-bits.  And preferred over option (b) because that encoding would require the host part of the URI to be case sensitive, contradicting <xref target="RFC3986" />.</t>
-            <t>When eui-64 is used in a 'coaps' URI, it MUST be explicitly set in the associated Uri-Host Option -- i.e. the default host defined in Section 5.10.1 of <xref target="I-D.ietf-core-coap" /> is not suitable.  The default 'coaps' port (i.e. 5864) SHALL be assumed when the optional port component of the eui-64-authority is missing.</t>
-            <t>No percent encoding is needed, thus percent encoding MUST NOT be used.</t>
+            <t>eui-64 is a subset of unreserved (<xref target="RFC3986" />) chars.  As such it encodes a strict subset of reg-name, which fits smoothly in the host part of a 'coaps' URI.</t>
+            <t>A more space efficient encoding could be used, e.g. (a) removing the "-" separator, or (b) using a wider base, e.g. base-64 with URL safe alphabet <xref target="RFC4648" />.  The present encoding has been preferred over (a) as it is immune from collisions with IPv4 addresses in plain numeric notation.  For example, provided an OUI-24 of 92-23-37 exist, then 9223372038985482241 (hex 800000007F000001), which is a completely plausible EUI-64 identifier, could be associated to IPv4 127.0.0.1 if interpreted as a 64-bit integer truncated to 32-bits.  And preferred over option (b) because that encoding would require the host part of the URI to be case sensitive, contradicting <xref target="RFC3986" />.</t>
           </list>
         </t>
       </section>
       <section title="SNI Name Type and Server Name Syntax">
+        <t>In order to encode EUI-64 authorities in a ServerNameList, the extension_data field of the server_name extension is expanded to allow a EUI64Authority as a ServerName:</t>
         <figure>
           <artwork align="center"><![CDATA[
 struct {
@@ -150,42 +153,34 @@ opaque EUI64Authority<1..2^16-1>;
 id-eui64authority-san OBJECT IDENTIFIER ::= { id-dice 1 }
           ]]></artwork>
         </figure>
-        <t>The value field of the otherName MUST contain an EUI-64 authority (<xref target="EUI-64-format" />), encoded as an IA5String.  No percent encoding is allowed.</t>
-      </section>
-      <section title="Server Behaviour">
-      </section>
-      <section title="Client Behaviour">
-      </section>
-      <section title="Examples">
+        <t>The value field of the otherName MUST contain an EUI-64 authority (<xref target="EUI-64-format" />), encoded as a IA5String.  No percent encoding is allowed.</t>
       </section>
     </section>
 
     <section title="Resource Directory Names and Domains">
+      <t>This section...</t>
       <section title="Uniqueness Guarantee">
-        <t>An endpoint name is guaranteed to be unique within the associated domain.  If the domain is elided during registration, the RD should assure its uniqueness within an implicit default domain (Allow an empty default domain?  In which case, modify the ABNF to allow authorities like "node2.:12345").</t>
+        <t>An endpoint name is guaranteed to be unique within the associated domain.  If the domain is elided during registration, the RD should assure its uniqueness within an implicit default domain <cref>TODO: allow an empty default domain?  In which case, modify the ABNF to allow authorities like "node2.:12345"</cref>.</t>
       </section>
       <section title="Authority Format" anchor="RD-format">
+        <t><cref>This belongs to the RD spec.</cref></t>
         <t>The following ABNF defines the syntax of a RD name authority.  It reuses 'port', 'pct-encoded' and 'sub-delims' from <xref target="RFC3986" />; ALPHA and DIGIT from  <xref target="RFC5234" />.</t>
-        <t>XXX: this belongs to <xref target="I-D.ietf-core-resource-directory" />.</t>
         <figure>
           <artwork align="center"><![CDATA[
-rd-char = ALPHA / DIGIT / "-" / "_" / "~" /
-          pct-encoded / sub-delims
-rd-name = 1*63rd-char
-rd-domain = 1*63rd-char
-rd-fullname = rd-name ["." rd-domain]
 rd-authority = rd-fullname [":" port]
+rd-fullname  = rd-name ["." rd-domain]
+rd-name      = 1*63rd-char
+rd-domain    = 1*63rd-char
+rd-char      = ALPHA / DIGIT / "-" / "_" / "~" /
+               pct-encoded / sub-delims   ; reg-name chars \ "."
           ]]></artwork>
         </figure>
         <t>Example: node1.domain1:5864</t>
-        <t>
-          Notes:
-          <list style="format %d">
-            <t>rd-fullname encodes a subset of reg-name <xref target="RFC3986" />, thus fitting smoothly in the host part of a coaps URI.</t>
-          </list>
-        </t>
+        <t>Note that rd-char is the set of chars allowed in reg-name minus the dot.  Hence, rd-fullname encodes a subset of reg-name <xref target="RFC3986" />, which fits smoothly in the host part of a coaps URI.</t>
+        <t>Percent encoding MUST NOT be used if not needed, i.e. it can be used only to encode non otherwise allowed chars.</t>
       </section>
       <section title="SNI Name Type and Server Name Syntax">
+        <t>In order to encode RD authorities in a ServerNameList, the extension_data field of the server_name extension is expanded to allow a RDAuthority as a ServerName:</t>
         <figure>
           <artwork align="center"><![CDATA[
 struct {
@@ -208,30 +203,35 @@ opaque RDAuthority<1..2^16-1>;
 
       </section>
       <section title="OtherName type-id and value Syntax">
-        <t>A X.509 Server Certificate intended to be used for resources hosted by RD authorities SHALL contain an otherName SAN identified using a type-id of 'id-rdauthority-san':</t>
+        <t>A X.509 Server Certificate intended to be used for resources hosted by a RD authority MUST contain an otherName SAN identified using a type-id of 'id-rdauthority-san':</t>
         <figure>
           <artwork align="center"><![CDATA[
 id-rdauthority-san OBJECT IDENTIFIER ::= { id-dice 2 }
           ]]></artwork>
         </figure>
-        <t>The value field of the otherName SHALL contain an RD authority, defined in <xref target="RD-format" />, encoded as an IA5String.</t>
+        <t>The value field of the otherName MUST contain an RD authority (<xref target="RD-format" />), encoded as a IA5String.</t>
       </section>
-      <section title="Client Behaviour">
-        <t><list>
-          <t>Send ClientHello containing SNI extension with one (and one only, as per 6066) server_name matching the authority of the URI to be requested.</t>
-          <t>Verify that the intended server name is indeed written in the server's certificate: check that the identity in the SAN matches what has been requested via server_name.</t>
-          <t>Upon receiving the XXX message requesting its own certificate, it sends it via YYY message.</t>
-        </list></t>
-      </section>
-      <section title="Server Behaviour">
-        <t>Server receives SNI and selects an appropriate cert.  If no cert can be selected, the session MUST terminate the handshake by sending a fatal-level unrecognized_name(112) alert (prefer hard failures).  Otherwise, server sends the matching certificate back to client.</t>
-        <t>Server MUST requests via ... the client certificate.</t>
-        <t>The server application running on top of (D)TLS MUST check the requested URI authority matches the requested server_name.</t>
-        <t>XXX what happens if the client sends also a PSK ciphersuite and the server agrees?</t>
-        <t>XXX what happens if the server has no SAN (i.e. uses CN)?</t>
-      </section>
-      <section title="Examples">
-      </section>
+    </section>
+
+    <section title="Client Behaviour">
+      <t><list>
+        <t>Send ClientHello containing SNI extension with one (and one only, as per <xref target="RFC6066" />) server_name matching the authority of the URI to be requested.</t>
+        <t>Verify that the intended server name is indeed written in the server's certificate: check that the identity in the SAN matches what has been requested via server_name.</t>
+        <t>Upon receiving the XXX message requesting its own certificate, it sends it via YYY message.</t>
+        <t>XXX what happens if the server has no SAN in certificate (i.e. uses CN)?</t>
+      </list></t>
+    </section>
+    <section title="Server Behaviour">
+      <t>Server receives extended ClientHello carrying a SNI extension, and uses the given server_name to select the appropriate certificate.</t>
+      <t>If no certificate can be selected, the server MUST terminate the handshake by sending a fatal-level unrecognized_name(112) alert (prefer a single, hard failure, path over soft failure or ignoring the error altogether.  Rationale: do not waste time/energy, provide clear and prompt diagnostic to the peer).</t>
+      <t>If a matching certificate exist, the server SHALL include an extension of type "server_name" in the (extended) ServerHello message with an empty value.</t>
+      <t>The server MUST send the selected certificate back to the client in the Certificate message.</t>
+      <t>Server MUST then request the client certificate via a CertificateRequest message and conclude its negotiation with a ServerHelloDone message.</t>
+      <t>When server receives the Certificate message from the client then, depending on the specific application security policy, MAY match one of the identities of the client against an ACL, and decide whether to continue or to tear down the session (XXX which alert code to use?).</t>
+      <t>The server application running on top of (D)TLS MUST check the requested URI authority matches the requested server_name.</t>
+      <t>XXX what happens if the client sends also a PSK ciphersuite and the server agrees?</t>
+    </section>
+    <section title="Examples">
     </section>
 
     <section title="IANA Considerations">
