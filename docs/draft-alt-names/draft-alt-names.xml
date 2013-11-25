@@ -49,7 +49,7 @@
     <keyword>CoAP, TLS, coaps</keyword>
 
     <abstract>
-      <t>This memo describes the use of EUI-64 and Resource Directory names for the purpose of verifying the identity of a server by a client endpoint in CoAP Certificate Mode DTLS.</t>
+      <t>This memo describes the use of EUI-64 and Resource Directory names in CoAP Certificate Mode DTLS for the purpose of verifying the identity of a server by a client endpoint.</t>
     </abstract>
   </front>
 
@@ -61,7 +61,7 @@
     </section>  <!-- Terminology and Requirements Language -->
 
     <section title="Motivation and Scope">
-      <t>The CoAP protocol <xref target="I-D.ietf-core-coap" /> defines a so called "Certificate Mode" for DTLS to access 'coaps' URIs.  In this mode, a X.509 certificate <xref target="RFC5280" /> is used to authenticate a server endpoint to the requesting party.  The selection of the server certificate to be presented is determined by the URI authority of the requested resource, which is hinted by the client by means of the Server Name Indication (SNI) extension <xref target="RFC6066" /> during the DTLS handshake with the server.</t>
+      <t>The CoAP protocol <xref target="I-D.ietf-core-coap" /> defines a so called "Certificate Mode" for DTLS to dereference URIs using the 'coaps' scheme.  In this mode, a X.509 certificate <xref target="RFC5280" /> is used to authenticate a server endpoint to the requesting party.  The selection of the server certificate to be presented is determined by the URI authority of the requested resource, which is hinted by the client by means of the Server Name Indication (SNI) extension <xref target="RFC6066" /> during the DTLS handshake with the server.</t>
 
       <t>According to Section 9.1.3.3 of <xref target="I-D.ietf-core-coap" />, a client, when presented with a certificate carrying the identity of the server in the SubjectAltName (SAN), must check that the authority of the requested URI matches at least one of the authority names of any CoAP URI found in a field of URI type in the SAN set.</t>
 
@@ -69,7 +69,7 @@
 
       <t>The combination of the two requirements above, together with text in Section 3 of <xref target="RFC6066" /> which only allows FQDN hostname of the server in the ServerName field, basically binds Certificate Mode DTLS to either DNS, or static host tables containing FQDN's mappings, or some other system for lookup of registered names which is able to fully mimic the DNS naming scheme.</t>
 
-      <t>Because DNS is not mandatory to implement in CoAP networks, and static configuration is not generally a viable option, there is a need to define some kind of stable, non-DNS, identifier that can be used for 'coaps' URIs in Certificate Mode DTLS as a fall-back in case DNS is not deployed, or understood by CoAP endpoints.</t>
+      <t>Because DNS is not mandatory to implement in CoAP networks, and static configuration is not generally a viable option, there is a need to define some kind of stable, non-DNS, identifier that can be used for 'coaps' URIs in Certificate Mode DTLS as a fall-back in case DNS is not deployed, or not understood by CoAP endpoints.</t>
 
       <t>The purpose of this memo is to describe syntax and rules for using Resource Directory endpoint names (and domains) <xref target="I-D.ietf-core-resource-directory" /> or EUI-64 identifiers <xref target="EUI-64" /> as an alternative to DNS names in the above said context.</t>
 
@@ -78,25 +78,21 @@
 
     <section title="Proposal to Ban Common Name for Endpoint Identification">
       <t>This section contains a proposal to amend text in Section 9.1.3.3 of <xref target="I-D.ietf-core-coap" /> to disallow Common Name (CN) to be used as a fall back identifier in case SAN is not present in the certificate of the server.  In fact, <xref target="RFC2818" /> already deprecated the use of CN in this same scenario, and encouraged the use of the dNSName field in SAN instead.</t>
-      
+    <t>The intention is to achieve a reduction in complexity in both spec and code that comes from defining one only path for identity lookup.  Since there are virtually no legacy deployments, we are in the ideal position to place an explicit requirement on clients to request proper certificates to their Certification Authority (CA).</t>
       <t>Proposed text: "Implementations in Certificate Mode MUST verify the identity of their peers by looking at the Subject Alternative Name's set found in the presented certificate.  Common Name's MUST NOT be used to verify peers' identities."</t>
-
-    <t>The intention is to achieve a reduction in complexity in both spec and code, that comes from defining one only path for identity lookup.  Since there are virtually no legacy deployments, we are in the ideal position to place an explicit requirement on clients to request proper certificates to their Certification Authority (CA).</t>
     </section>
 
     <section title="New OID arc for DICE">
       <t>This OID designates the OID arc for DICE-related OIDs assigned by future IETF action, including those introduced by the present document:</t>
       <figure>
         <artwork align="center"><![CDATA[
-   id-dice OBJECT IDENTIFIER ::=
-      { iso(1) identified-organization(3) dod(6)
-        internet(1) security(5) dice(XXX) }
+   id-dice OBJECT IDENTIFIER ::= { id-pkix dice(TODO) }
         ]]></artwork>
      </figure>
     </section>
 
     <section title="EUI-64">
-      <t>This section...</t>
+      <t><cref>TODO preamble</cref></t>
       <section title="Uniqueness Guarantee">
         <t>The uniqueness of EUI-64 identifiers is jointly guaranteed by IEEE (via the Organizationally Unique Identifier part), and the device vendor (via the extension identifier).</t>
       </section>
@@ -110,33 +106,38 @@ hex-byte         = HEXDIG HEXDIG
           ]]></artwork>
         </figure>
         <t>Example:  AC-DE-48-23-45-67-AB-CD:58640</t>
-
-        <t>When eui-64 is used in a 'coaps' (or 'coap') URI, the encoded value MUST be explicitly set in the associated Uri-Host Option <cref>TODO: explore implicit Uri-Host alternatives, e.g. EUI-64 Interface Identifier</cref>.  The default 'coaps' port (i.e. 5864) MUST be assumed when the optional port component of the eui-64-authority is missing.</t>
+        <t>The default port, e.g. 5864 for 'coaps', MUST be assumed if it is not explicitly set in the eui-64-authority.</t>
 
         <t>No character needs to be percent encoded, thus percent encoding MUST NOT be used when encoding a eui-64-authority.</t>
+
 
         <t>
           Notes:
           <list style="format %d">
             <t>eui-64 is a subset of unreserved (<xref target="RFC3986" />) chars.  As such it encodes a strict subset of reg-name, which fits smoothly in the host part of a 'coaps' URI.</t>
-            <t>A more space efficient encoding could be used, e.g. (a) removing the "-" separator, or (b) using a wider base, e.g. base-64 with URL safe alphabet <xref target="RFC4648" />.  The present encoding has been preferred over (a) as it is immune from collisions with IPv4 addresses in plain numeric notation.  For example, provided an OUI-24 of 92-23-37 exist, then 9223372038985482241 (hex 800000007F000001), which is a completely plausible EUI-64 identifier, could be associated to IPv4 127.0.0.1 if interpreted as a 64-bit integer truncated to 32-bits.  And preferred over option (b) because that encoding would require the host part of the URI to be case sensitive, contradicting <xref target="RFC3986" />.</t>
+            <t>A more space efficient encoding could have been used, e.g. (a) removing the "-" separator, or (b) using a wider base, e.g. base-64 with URL safe alphabet <xref target="RFC4648" />.  The present encoding has been preferred over (a) as it is immune from collisions with IPv4 addresses in plain numeric notation.  For example, provided an OUI-24 of 92-23-37 exist, then 9223372038985482241, which is a completely plausible EUI-64 identifier, could be associated to IPv4 127.0.0.1 if interpreted as a 64-bit integer truncated to 32-bits.  The present encoding has been preferred over option (b) because that would require the host part of the URI to be case sensitive, thus contradicting <xref target="RFC3986" />.</t>
           </list>
         </t>
       </section>
-      <section title="SNI Name Type and Server Name Syntax">
-        <t>In order to encode EUI-64 authorities in a ServerNameList, the extension_data field of the server_name extension is expanded to allow a EUI64Authority as a ServerName:</t>
+      <section title="Uri-Host and Uri-Port Considerations" anchor="Implicit-Option-Values">
+        <t>When eui-64-authority is used in a 'coaps' URI, its value is the same as the ServerName.name included (and successfully validated) by the client in the associated DTLS handhshake (see <xref target="EUI-64-SNI" />).</t>
+        <t>Hence, there is no need to include explicit Uri-Host and Uri-Port Options in requests associated to the same security context <cref>This updates Sections 6.4 and 6.5 of [I-D.ietf-core-coap]</cref>.</t>
+        <t>If any of Uri-Host or Uri-Port is included in the request, then its value MUST match the corresponding value set in the established security context.</t>
+      </section>
+      <section title="SNI Name Type and Server Name Syntax" anchor="EUI-64-SNI">
+        <t>In order to encode EUI-64 authorities in a ServerNameList, the extension_data field of the server_name extension is expanded to allow a EUI64Authority in a ServerName:</t>
         <figure>
           <artwork align="center"><![CDATA[
 struct {
     NameType name_type;
     select (name_type) {
-        ...
+        case host_name: HostName;
         case eui64_authority: EUI64Authority;
     } name;
 } ServerName;
 
 enum {
-    ...
+    host_name(0),
     eui64_authority(1),
     (255)
 } NameType;
@@ -144,10 +145,10 @@ enum {
 opaque EUI64Authority<1..2^16-1>;
           ]]></artwork>
         </figure>
-        <t>The EUI64Authority NameType begins with a 16-bit length field indicating the length of the following EUI-64 authority.  The EUI-64 authority is represented as a byte string using ASCII encoding.</t>
+        <t>EUI64Authority, the data structure associated with the eui64_authority NameType, is a variable-length vector that begins with a 16-bit length field indicating the length of the following EUI-64 authority.  The EUI-64 authority is represented as a byte string using ASCII encoding.</t>
       </section>
       <section title="OtherName type-id and value Syntax">
-        <t>A X.509 Server Certificate intended to be used for resources hosted by EUI-64 authorities MUST contain an otherName SAN identified using a type-id of 'id-eui64authority-san':</t>
+        <t>A X.509 Server Certificate intended to be used for resources served by EUI-64 authorities MUST contain an otherName SAN identified using a type-id of 'id-eui64authority-san':</t>
         <figure>
           <artwork align="center"><![CDATA[
 id-eui64authority-san OBJECT IDENTIFIER ::= { id-dice 1 }
@@ -158,7 +159,7 @@ id-eui64authority-san OBJECT IDENTIFIER ::= { id-dice 1 }
     </section>
 
     <section title="Resource Directory Names and Domains">
-      <t>This section...</t>
+      <t><cref>TODO preamble</cref></t>
       <section title="Uniqueness Guarantee">
         <t>An endpoint name is guaranteed to be unique within the associated domain.  If the domain is elided during registration, the RD should assure its uniqueness within an implicit default domain <cref>TODO: allow an empty default domain?  In which case, modify the ABNF to allow authorities like "node2.:12345"</cref>.</t>
       </section>
@@ -178,65 +179,85 @@ rd-char      = ALPHA / DIGIT / "-" / "_" / "~" /
         <t>Example: node1.domain1:5864</t>
         <t>Note that rd-char is the set of chars allowed in reg-name minus the dot.  Hence, rd-fullname encodes a subset of reg-name <xref target="RFC3986" />, which fits smoothly in the host part of a coaps URI.</t>
         <t>Percent encoding MUST NOT be used if not needed, i.e. it can be used only to encode non otherwise allowed chars.</t>
+        <t>The considerations about the implicit value for Uri-Host and Uri-Port Options contained in <xref target="Implicit-Option-Values" /> equally apply to the rd-authority case.</t>
       </section>
       <section title="SNI Name Type and Server Name Syntax">
-        <t>In order to encode RD authorities in a ServerNameList, the extension_data field of the server_name extension is expanded to allow a RDAuthority as a ServerName:</t>
+        <t>In order to encode RD authorities in a ServerNameList, the extension_data field of the server_name extension is expanded to allow a RDAuthority in a ServerName:</t>
         <figure>
           <artwork align="center"><![CDATA[
 struct {
     NameType name_type;
     select (name_type) {
-        ...
+        case host_name: HostName;
+        case eui64_authority: EUI64Authority;
         case rd_authority: RDAuthority;
     } name;
 } ServerName;
 
 enum {
-    ...
-    eui64_authority(2),
+    host_name(0),
+    eui64_authority(1),
+    rd_authority(2),
     (255)
 } NameType;
 
 opaque RDAuthority<1..2^16-1>;
           ]]></artwork>
         </figure>
-
+        <t>RDAuthority, the data structure associated with the rd_authority NameType, is a variable-length vector that begins with a 16-bit length field indicating the length of the following RD authority.  The RD authority is represented as a byte string using ASCII encoding.  It MUST NOT contain any percent-encoded character other than for those characters not explicitly allowed by the grammar in <xref target="RD-format" /> <cref>TODO Make this statement clearer</cref>.</t>
       </section>
       <section title="OtherName type-id and value Syntax">
-        <t>A X.509 Server Certificate intended to be used for resources hosted by a RD authority MUST contain an otherName SAN identified using a type-id of 'id-rdauthority-san':</t>
+        <t>A X.509 Server Certificate intended to be used for resources served by a RD authority MUST contain an otherName SAN identified using a type-id of 'id-rdauthority-san':</t>
         <figure>
           <artwork align="center"><![CDATA[
 id-rdauthority-san OBJECT IDENTIFIER ::= { id-dice 2 }
           ]]></artwork>
         </figure>
-        <t>The value field of the otherName MUST contain an RD authority (<xref target="RD-format" />), encoded as a IA5String.</t>
+        <t>The value field of the otherName MUST contain an RD authority (<xref target="RD-format" />), encoded as a IA5String. A maximum length of 29 bytes MAY be assumed by the ASN.1 decoder.</t>
       </section>
     </section>
 
     <section title="Client Behaviour">
-      <t><list>
-        <t>Send ClientHello containing SNI extension with one (and one only, as per <xref target="RFC6066" />) server_name matching the authority of the URI to be requested.</t>
-        <t>Verify that the intended server name is indeed written in the server's certificate: check that the identity in the SAN matches what has been requested via server_name.</t>
-        <t>Upon receiving the XXX message requesting its own certificate, it sends it via YYY message.</t>
-        <t>XXX what happens if the server has no SAN in certificate (i.e. uses CN)?</t>
-      </list></t>
+      <t>
+        <list style="format %d)">
+          <t>Send extended ClientHello containing:
+            <list style="format %c)">
+              <t>server_name extension with one (and one only) ServerName, case-insensitive matching the authority of the URI to be requested;</t>
+              <t>Any other potentially useful extension, e.g. client_certificate_url;</t>
+            </list>
+          </t>
+          <t>Verify that the intended server name is indeed one of the identities bound to the presented certificate, by checking that the name in the SAN otherName (one of type id-rdauthority-san, or id-eui64authority-san) case-insensitive matches the authority requested via server_name;</t>
+          <t>Upon receiving the CertificateRequest message, send the certificate via a Certificate message -- or CertificateURL message, if the client_certificate_url extension has been successfully negotiated during the "hello" phase;</t>
+          <t>Send ClientKeyExchange and then CertificateVerify to complete the mutual authentication process.</t>
+        </list>
+      </t>
+      <t><cref>FIXME Add para that states "all other requirements given in CoAP are still valid".</cref></t>
+      <t><cref>FIXME Remember to use established TLS notation, e.g. ClientHello.random, etc.</cref></t>
     </section>
     <section title="Server Behaviour">
-      <t>Server receives extended ClientHello carrying a SNI extension, and uses the given server_name to select the appropriate certificate.</t>
-      <t>If no certificate can be selected, the server MUST terminate the handshake by sending a fatal-level unrecognized_name(112) alert (prefer a single, hard failure, path over soft failure or ignoring the error altogether.  Rationale: do not waste time/energy, provide clear and prompt diagnostic to the peer).</t>
-      <t>If a matching certificate exist, the server SHALL include an extension of type "server_name" in the (extended) ServerHello message with an empty value.</t>
-      <t>The server MUST send the selected certificate back to the client in the Certificate message.</t>
-      <t>Server MUST then request the client certificate via a CertificateRequest message and conclude its negotiation with a ServerHelloDone message.</t>
-      <t>When server receives the Certificate message from the client then, depending on the specific application security policy, MAY match one of the identities of the client against an ACL, and decide whether to continue or to tear down the session (XXX which alert code to use?).</t>
-      <t>The server application running on top of (D)TLS MUST check the requested URI authority matches the requested server_name.</t>
-      <t>XXX what happens if the client sends also a PSK ciphersuite and the server agrees?</t>
+      <t><list style="format %d)">
+        <t>Server receives extended ClientHello carrying a server_name extension, and uses the given server_name (one defined by current specification) to select the appropriate certificate.  The selected certificate MUST include a SAN otherName with a pertinent type-id (basically: id-rdauthority-san maps rd_authority, while id-eui64authority-san maps eui64_authority) and value, which MUST case-insensitive match the requested ServerName;
+        <list style="format %c)">
+          <t>If no certificate can be selected, the server MUST terminate the handshake by sending a fatal-level unrecognized_name(112) alert. <cref>Prefer a single, hard failure, path over soft failure, or worse: ignoring the error altogether.  Rationale: do not waste time/energy; provide clear and prompt diagnostic to the peer.  It doesn't look like the condition that could be exploited by a timing attack.</cref></t>
+          <t>If a matching certificate exist, the server SHALL include an extension of type "server_name" in the (extended) ServerHello message with an empty value.</t>
+        </list></t>
+        <t>The server MUST send the selected certificate back to the client in the Certificate message.</t>
+        <t>Server MUST then request the client certificate via a CertificateRequest message and conclude its negotiation with a ServerHelloDone message.</t>
+        <t>When server receives the Certificate message from the client then, depending on the specific application security policy, it MAY want to match one of the identities of the client against a configured ACL, and decide whether to continue or to tear down the session <cref>TODO Which alert code to use if ACL fails?</cref>.</t>
+        <t>The server application running on top of DTLS MUST check the requested URI authority case-insensitive matches the requested server_name.</t>
+      </list></t>
+      <t><cref>What happens if the client sends also a PSK ciphersuite and the server agrees?</cref></t>
+      <t><cref>FIXME Add para that states "all other requirements given in CoAP are still valid".</cref></t>
+      <t><cref>FIXME Remember to use established TLS notation, e.g. ClientHello.random, etc.</cref></t>
     </section>
     <section title="Examples">
+      <t><cref>TODO</cref></t>
     </section>
 
     <section title="IANA Considerations">
-      <t>
-        Actions for IANA:
+      <t><cref>Need to register a few new IDs, not sure where (IANA, PKIX registry, TLS registry)?</cref></t>
+      <t><cref>Need a small ASN.1 module to collect the OIDs and syntax for otherName?</cref></t>
+      <t>The list:
         <list>
           <t>id-dice</t>
           <t>OtherName.type-id::id-eui64authority-san</t>
