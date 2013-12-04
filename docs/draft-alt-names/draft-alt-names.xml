@@ -5,11 +5,15 @@
 <!ENTITY RFC2818 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2818.xml">
 <!ENTITY RFC3986 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.3986.xml">
 <!ENTITY RFC4648 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.4648.xml">
+<!ENTITY RFC4944 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.4944.xml">
+<!ENTITY RFC5055 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.5055.xml">
 <!ENTITY RFC5234 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.5234.xml">
 <!ENTITY RFC5280 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.5280.xml">
 <!ENTITY RFC6066 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.6066.xml">
+<!ENTITY RFC7043 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.7043.xml">
 <!ENTITY I-D.ietf-core-coap SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-coap-18.xml">
 <!ENTITY I-D.ietf-core-resource-directory SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-core-resource-directory-00.xml">
+<!ENTITY I-D.ietf-lwig-tls-minimal SYSTEM "http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-lwig-tls-minimal-00.xml">
 ]>
 <?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
 <?rfc strict="yes" ?>
@@ -21,9 +25,9 @@
 <?rfc subcompact="no"?>
 <?rfc comments="yes"?>
 <?rfc inline="yes"?>
-<rfc category="std" docName="draft-alt-names-00" ipr="trust200902">
+<rfc category="std" docName="draft-fossati-core-certmode-alt-names-00" ipr="trust200902">
   <front>
-    <title abbrev="Alt Authority Names for coaps URIs">
+    <title abbrev="Alt Names for Certificate Mode DTLS">
       Alternative Authority Names for Certificate Mode DTLS
     </title>
     <author fullname="Thomas Fossati" initials="T.F." surname="Fossati">
@@ -41,7 +45,7 @@
       </address>
     </author>
 
-    <date year="2013" month="October" />
+    <date year="2013" month="December" />
 
     <area>General</area>
     <workgroup>Internet Engineering Task Force</workgroup>
@@ -54,15 +58,22 @@
   </front>
 
   <middle>
-    <section title="Terminology and Requirements Language">
-      <t>This specification requires the reader to be familiar with the terminology used in documents produced by the CoRE, TLS, and PKIX working groups.</t>
+    <section title="Introduction">
+      <t>The CoAP protocol <xref target="I-D.ietf-core-coap" /> defines three distinct mechanisms based on DTLS to de-reference URI in the 'coaps' scheme: Pre-Shared Keys (PSK), Raw Public Keys (RPK) and the so called Certificate Mode.</t>
+      <t>The latter uses X.509 certificates <xref target="RFC5280" /> to authenticate a server endpoint to the requesting party, and viceversa.  (The selection of the X.509 certificate to be presented by the server is determined by the URI authority of the requested resource, which is hinted by the client by means of the Server Name Indication (SNI) extension <xref target="RFC6066" /> during the DTLS handshake with the server.)</t>
 
-      <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
-    </section>  <!-- Terminology and Requirements Language -->
+      <t>Compared to PSK and RPK, Certificate Mode requires more ROM - approximately a 10 KB increment <xref target="I-D.ietf-lwig-tls-minimal" /> -, and more bandwidth to accomodate the transfer of certificates between the parties.  Also, the certificate validation phase is not cheap in terms of RAM and CPU utilisation, making this security mode not well suited for really constrained use-cases.  Scenarios where secured CoAP exchanges are made by unconstrained devices, such as typical proxy-to-proxy communication, are however a good match for the stronger and more scalable authentication services offered by Certificate Mode.</t>
+        
+      <t>(There exist already standardised alternatives such as DVCS <xref target="RFC5055" /> for offloading the burden of certificate validation to a trusted third party, or the client_certificate_url TLS extension to let the server retrieve the client certificate from an external store.  However, the use of such mechanisms in order to make the TLS handshake less demanding for a constrained device is out of scope for the present document.)</t>
+
+      <section title="Terminology and Requirements Language">
+        <t>This specification requires the reader to be familiar with the terminology used in documents produced by the CoRE, TLS, and PKIX working groups.</t>
+
+        <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
+      </section>  <!-- Terminology and Requirements Language -->
+    </section>
 
     <section title="Motivation and Scope">
-      <t>The CoAP protocol <xref target="I-D.ietf-core-coap" /> defines a so called "Certificate Mode" for DTLS to dereference URIs using the 'coaps' scheme.  In this mode, a X.509 certificate <xref target="RFC5280" /> is used to authenticate a server endpoint to the requesting party.  The selection of the server certificate to be presented is determined by the URI authority of the requested resource, which is hinted by the client by means of the Server Name Indication (SNI) extension <xref target="RFC6066" /> during the DTLS handshake with the server.</t>
-
       <t>According to Section 9.1.3.3 of <xref target="I-D.ietf-core-coap" />, a client, when presented with a certificate carrying the identity of the server in the SubjectAltName (SAN), must check that the authority of the requested URI matches at least one of the authority names of any CoAP URI found in a field of URI type in the SAN set.</t>
 
       <t>According to Section 4.2.1.6 of <xref target="RFC5280" /> an URI that includes an authority - such as a 'coaps' URI - needs to include a fully qualified domain name (FQDN), or an IP literal as its host part.</t>
@@ -82,17 +93,17 @@
       <t>Proposed text: "Implementations in Certificate Mode MUST verify the identity of their peers by looking at the Subject Alternative Name's set found in the presented certificate.  Common Name's MUST NOT be used to verify peers' identities."</t>
     </section>
 
-    <section title="New OID arc for DICE">
-      <t>This OID designates the OID arc for DICE-related OIDs assigned by future IETF action, including those introduced by the present document:</t>
+    <section title="New OID arc for CoAP">
+      <t>This OID designates the OID arc for CoAP-related OIDs assigned by future IETF action, including those introduced by the present document:</t>
       <figure>
         <artwork align="center"><![CDATA[
-   id-dice OBJECT IDENTIFIER ::= { id-pkix dice(TODO) }
+   id-coap OBJECT IDENTIFIER ::= { id-pkix coap(TODO) }
         ]]></artwork>
      </figure>
     </section>
 
     <section title="EUI-64">
-      <t><cref>TODO preamble</cref></t>
+      <t>In IEEE 802.15.4 networks, the IPv6 interface identifier used for stateless autoconfiguration is typically obtained from the EUI-64 identifier assigned to the device (see Section 6 of <xref target="RFC4944" />).  By using said identifier as the host component for CoAP authorities bound to that interface, we get a name that is stable even in presence of network re-numbering, or device re-location.</t>
       <section title="Uniqueness Guarantee">
         <t>The uniqueness of EUI-64 identifiers is jointly guaranteed by IEEE (via the Organizationally Unique Identifier part), and the device vendor (via the extension identifier).</t>
       </section>
@@ -105,10 +116,10 @@ eui-64           = hex-byte 7("-" hex-byte)
 hex-byte         = HEXDIG HEXDIG
           ]]></artwork>
         </figure>
-        <t>Example:  AC-DE-48-23-45-67-AB-CD:58640</t>
+        <t>Example:  ac-de-48-23-45-67-ab-cd:58640</t>
         <t>The default port, e.g. 5864 for 'coaps', MUST be assumed if it is not explicitly set in the eui-64-authority.</t>
 
-        <t>No character needs to be percent encoded, thus percent encoding MUST NOT be used when encoding a eui-64-authority.</t>
+        <t>No character needs to be percent encoded, thus percent encoding MUST NOT be used when encoding a eui-64-authority.  As per <xref target="RFC3986" />, eui-64 SHOULD be lower case.</t>
 
 
         <t>
@@ -116,6 +127,7 @@ hex-byte         = HEXDIG HEXDIG
           <list style="format %d">
             <t>eui-64 is a subset of unreserved (<xref target="RFC3986" />) chars.  As such it encodes a strict subset of reg-name, which fits smoothly in the host part of a 'coaps' URI.</t>
             <t>A more space efficient encoding could have been used, e.g. (a) removing the "-" separator, or (b) using a wider base, e.g. base-64 with URL safe alphabet <xref target="RFC4648" />.  The present encoding has been preferred over (a) as it is immune from collisions with IPv4 addresses in plain numeric notation.  For example, provided an OUI-24 of 92-23-37 exist, then 9223372038985482241, which is a completely plausible EUI-64 identifier, could be associated to IPv4 127.0.0.1 if interpreted as a 64-bit integer truncated to 32-bits.  The present encoding has been preferred over option (b) because that would require the host part of the URI to be case sensitive, thus contradicting <xref target="RFC3986" />.</t>
+            <t>eui-64 syntax matches the EUI64 RR Presentation Format defined in <xref target="RFC7043" />.</t>
           </list>
         </t>
       </section>
@@ -151,17 +163,17 @@ opaque EUI64Authority<1..2^16-1>;
         <t>A X.509 Server Certificate intended to be used for resources served by EUI-64 authorities MUST contain an otherName SAN identified using a type-id of 'id-eui64authority-san':</t>
         <figure>
           <artwork align="center"><![CDATA[
-id-eui64authority-san OBJECT IDENTIFIER ::= { id-dice 1 }
+id-eui64authority-san OBJECT IDENTIFIER ::= { id-coap 1 }
           ]]></artwork>
         </figure>
-        <t>The value field of the otherName MUST contain an EUI-64 authority (<xref target="EUI-64-format" />), encoded as a IA5String.  No percent encoding is allowed.</t>
+        <t>The value field of the otherName MUST contain an EUI-64 authority (<xref target="EUI-64-format" />), encoded as a IA5String.  No percent encoding is allowed.  A maximum length of 29 bytes MAY be assumed by the ASN.1 decoder.</t>
       </section>
     </section>
 
     <section title="Resource Directory Names and Domains">
-      <t><cref>TODO preamble</cref></t>
+      <t>In CoAP networks, a Resource Directory (RD) <xref target="I-D.ietf-core-resource-directory" /> is an entity that acts as a centralised store where protocol endpoints can register and lookup links to resources that are made available in the network.  The RD defines the concept of an "endpoint name" which identifies a given Endpoint (i.e. web server) within a given "domain".  Under the assumption of its uniqueness, an endpoint name/domain can be used as a stable host component for CoAP authorities.</t>
       <section title="Uniqueness Guarantee">
-        <t>An endpoint name is guaranteed to be unique within the associated domain.  If the domain is elided during registration, the RD should assure its uniqueness within an implicit default domain <cref>TODO: allow an empty default domain?  In which case, modify the ABNF to allow authorities like "node2.:12345"</cref>.</t>
+        <t>An endpoint name is guaranteed to be unique within the associated domain.  If the domain is elided during registration, the RD should assure its uniqueness within an implicit default domain <cref>Check with RD authors: allow an empty default domain?  In which case, modify the ABNF to allow authorities like "node2.:12345"</cref>.</t>
       </section>
       <section title="Authority Format" anchor="RD-format">
         <t><cref>This belongs to the RD spec.</cref></t>
@@ -180,6 +192,9 @@ rd-char      = ALPHA / DIGIT / "-" / "_" / "~" /
         <t>Note that rd-char is the set of chars allowed in reg-name minus the dot.  Hence, rd-fullname encodes a subset of reg-name <xref target="RFC3986" />, which fits smoothly in the host part of a coaps URI.</t>
         <t>Percent encoding MUST NOT be used if not needed, i.e. it can be used only to encode non otherwise allowed chars.</t>
         <t>The considerations about the implicit value for Uri-Host and Uri-Port Options contained in <xref target="Implicit-Option-Values" /> equally apply to the rd-authority case.</t>
+      </section>
+      <section title="Uri-Host and Uri-Port Considerations">
+        <t>The same considerations stated in <xref target="Implicit-Option-Values" /> hold.</t>
       </section>
       <section title="SNI Name Type and Server Name Syntax">
         <t>In order to encode RD authorities in a ServerNameList, the extension_data field of the server_name extension is expanded to allow a RDAuthority in a ServerName:</t>
@@ -210,10 +225,10 @@ opaque RDAuthority<1..2^16-1>;
         <t>A X.509 Server Certificate intended to be used for resources served by a RD authority MUST contain an otherName SAN identified using a type-id of 'id-rdauthority-san':</t>
         <figure>
           <artwork align="center"><![CDATA[
-id-rdauthority-san OBJECT IDENTIFIER ::= { id-dice 2 }
+id-rdauthority-san OBJECT IDENTIFIER ::= { id-coap 2 }
           ]]></artwork>
         </figure>
-        <t>The value field of the otherName MUST contain an RD authority (<xref target="RD-format" />), encoded as a IA5String. A maximum length of 29 bytes MAY be assumed by the ASN.1 decoder.</t>
+        <t>The value field of the otherName MUST contain an RD authority (<xref target="RD-format" />), encoded as a IA5String.</t>
       </section>
     </section>
 
@@ -227,7 +242,7 @@ id-rdauthority-san OBJECT IDENTIFIER ::= { id-dice 2 }
             </list>
           </t>
           <t>Verify that the intended server name is indeed one of the identities bound to the presented certificate, by checking that the name in the SAN otherName (one of type id-rdauthority-san, or id-eui64authority-san) case-insensitive matches the authority requested via server_name;</t>
-          <t>Upon receiving the CertificateRequest message, send the certificate via a Certificate message -- or CertificateURL message, if the client_certificate_url extension has been successfully negotiated during the "hello" phase;</t>
+          <t>Upon receiving the CertificateRequest message, send the certificate via a Certificate message - or CertificateURL message, if the client_certificate_url extension has been successfully negotiated during the "hello" phase;</t>
           <t>Send ClientKeyExchange and then CertificateVerify to complete the mutual authentication process.</t>
         </list>
       </t>
@@ -243,10 +258,12 @@ id-rdauthority-san OBJECT IDENTIFIER ::= { id-dice 2 }
         </list></t>
         <t>The server MUST send the selected certificate back to the client in the Certificate message.</t>
         <t>Server MUST then request the client certificate via a CertificateRequest message and conclude its negotiation with a ServerHelloDone message.</t>
-        <t>When server receives the Certificate message from the client then, depending on the specific application security policy, it MAY want to match one of the identities of the client against a configured ACL, and decide whether to continue or to tear down the session <cref>TODO Which alert code to use if ACL fails?</cref>.</t>
+        <t>When server receives the Certificate message from the client then, depending on the specific application security policy, it MAY want to match one of the identities of the client against a configured ACL, and decide whether to continue or to tear down the session <cref>TODO Which alert code to use if ACL check fails?</cref>.</t>
         <t>The server application running on top of DTLS MUST check the requested URI authority case-insensitive matches the requested server_name.</t>
       </list></t>
-      <t><cref>What happens if the client sends also a PSK ciphersuite and the server agrees?</cref></t>
+      <!--
+      <t><cref>TODO What happens if the client sends also a PSK ciphersuite and the server agrees?</cref></t>
+      -->
       <t><cref>FIXME Add para that states "all other requirements given in CoAP are still valid".</cref></t>
       <t><cref>FIXME Remember to use established TLS notation, e.g. ClientHello.random, etc.</cref></t>
     </section>
@@ -256,10 +273,9 @@ id-rdauthority-san OBJECT IDENTIFIER ::= { id-dice 2 }
 
     <section title="IANA Considerations">
       <t><cref>Need to register a few new IDs, not sure where (IANA, PKIX registry, TLS registry)?</cref></t>
-      <t><cref>Need a small ASN.1 module to collect the OIDs and syntax for otherName?</cref></t>
       <t>The list:
         <list>
-          <t>id-dice</t>
+          <t>id-coap</t>
           <t>OtherName.type-id::id-eui64authority-san</t>
           <t>OtherName.type-id::id-rdauthority-san</t>
           <t>NameType::eui64_authority</t>
@@ -271,8 +287,18 @@ id-rdauthority-san OBJECT IDENTIFIER ::= { id-dice 2 }
     </section>  <!-- IANA Considerations -->
 
     <section title="Security Considerations">
+      <t>It's the responsibility of the CA, by means of its Registration Authority component, to verify the identity of the requester before issuing a new certificate.  In particular, the CA MUST ensure that no more than one certificate per SAN is valid at any given time.  This should exclude the threat of a (possibly rogue) node to successfully impersonate another node's identity.</t>
+
       <t>Security considerations from Section 11.1 of <xref target="RFC6066" /> fully apply.</t>
+      <!--
+      <t>The security properties of the EUI-64 based authority relies on the uniqueness of the assignment of OUI's by IEEE, and the uniqueness of the assignment of the remaining 40 bits by the device manufacturer.  If this assumption is not met, then rogue authorities can be created.  <cref>The Duplicate Address Detection (DAD) mechanism mitigates this threat when a clash happens on the same link by making the condition explicit at the time the (clashing) device joins the network link.</cref></t>
+      <t>The security properties of the RD name and domain based authority relies on the uniqueness of the assignment which MUST be ensured by the RD.  If this assumption is not met, then rogue authorities can be created.</t>
+    -->
     </section>  <!-- Security Considerations -->
+
+    <section title="Acknowledgements">
+      <t>Thanks to Carsten Bormann for reviewing an initial version of this document.</t>
+    </section>
 
   </middle>
 
@@ -282,6 +308,8 @@ id-rdauthority-san OBJECT IDENTIFIER ::= { id-dice 2 }
       &RFC2818;
       &RFC3986;
       &RFC4648;
+      &RFC4944;
+      &RFC5055;
       &RFC5234;
       &RFC5280;
       &RFC6066;
@@ -297,5 +325,9 @@ id-rdauthority-san OBJECT IDENTIFIER ::= { id-dice 2 }
         </front>
       </reference>
     </references>
-  </back>
+    <references title="Informative References">
+      &I-D.ietf-lwig-tls-minimal;
+      &RFC7043;
+    </references>
+   </back>
 </rfc>
