@@ -28,15 +28,17 @@
       initials="T.F."
       surname="Fossati"
     >
-      <organization>KoanLogic</organization>
+      <organization>Alcatel-Lucent</organization>
         <address>
+       <!--
           <postal>
             <street>Via di Sabbiuno, 11/5</street>
             <city>Bologna</city>
             <code>40100</code>
             <country>Italy</country>
-        </postal>
-        <email>tho@koanlogic.com</email>
+          </postal>
+        -->
+        <email>thomas.fossati@alcatel-lucent.com</email>
       </address>
     </author>
 
