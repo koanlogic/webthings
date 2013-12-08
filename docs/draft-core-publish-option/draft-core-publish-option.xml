@@ -25,6 +25,12 @@
     <author fullname="Thomas Fossati" initials="T.F." surname="Fossati">
       <organization>Alcatel-Lucent</organization>
       <address>
+        <postal>
+          <street>3 Ely Road</street>
+          <city>Milton, Cambridge</city>
+          <code>CB24 6DD</code>
+          <country>England</country>
+        </postal>
         <email>thomas.fossati@alcatel-lucent.com</email>
       </address>
     </author>
