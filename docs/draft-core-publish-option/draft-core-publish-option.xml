@@ -80,7 +80,7 @@
 +------+---+---+---+---+---------+--------+--------+---------+
 |  No. | C | U | N | R | Name    | Format | Length | Default |
 +------+---+---+---+---+---------+--------+--------+---------+
-| 2n+1 | x | x | x | - | Publish | uint   | 1      | (none)  |
+|  31  | x | x | x | - | Publish | uint   | 1      | (none)  |
 +------+---+---+---+---+---------+--------+--------+---------+
         ]]></artwork>
       </figure>
@@ -103,6 +103,7 @@ P         S
         <t>The Proxy, which is voluntarily entrusted by the resource owner to act as the delegated origin for the "lease" time specified by Max-Age, replies with a 2.01 (Created) if the authority transfer succeeds.  An exact duplicate of the submitted representation is created, and from now on it can be accessed via the delegated Proxy using the original URI encoded in a Proxy-Uri Option.  If the Publish operation isn't successful (e.g. because the Proxy does not support Publish), then the origin transfer fails, and an appropriate response code is returned (e.g. 4.02 Bad Option).</t>
         <t>If no Max-Age is given, a default of 3600 seconds MUST be assumed.  The Max-Age value, either implicit or explicit, determines the lifetime of the origin delegation.  When Max-Age is elapsed, the Proxy MUST delete the published resource value and fall back to its usual proxying function.</t>
         <t>On successful delegation, the Proxy MUST generate a new ETag and return it in the 2.01 response to the Client, and the Client SHOULD save its value.  The returned ETag value represents the state of the resource at the time the Publish operation is performed.  The Proxy MUST change its value whenever the underlying resource representation changes, e.g. if it gets UPDATE'd.  The current ETag value SHOULD be included by the Proxy in all responses involving the published representation.</t>
+        <t>The ETag can be used by SEP to make conditional requests to the Proxy to check whether the representation state has changed.  SEP issues a GET for the published resource with If-Match Option set to the last seen ETag value.  The possible results are: 4.04 (Not Found) if the resource has been deleted, 2.05 (Content) if it has been otherwise modified, 2.03 (Valid) if it has the same original value.  In case a 2.05 is returned, the SEP need to save the updated ETag returned by the Proxy, and use it on subsequent If-Match GET's.</t>
         <t>The Publish Option is critical, and MUST NOT be present in a response.  If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the Client.  If the Option value is not correctly formatted (see <xref target="publish_format"/>), a 4.00 (Bad Request) MUST be returned to the Client.  The Publish Option is not Safe-to-Forward, and neither is a Cache-Key.</t>
         <t>Since the 2.01 is emitted, and for the duration of the delegation, any Client wishing to access the resource can do so by making a Proxy-URI request to the Proxy, which shall then serve the resource off from its own storage.</t>
         <t>An interesting outcome of this communication strategy is that the SEP may really never need to listen on its radio interface.  However, ignoring the response status code from Proxy, as well as the ETag value, is not a safe practice and is not encouraged.</t>
@@ -245,7 +246,6 @@ P         S
 |   PUT   | Proxy-URI: coap://sep.example.org/res
 |<--------+ Publish: 0x60
 |  [mp]   | Content-Format: application/multipart+publish
-|         | ETag: 0xabcd
 |         | Max-Age: 1200
 |  2.01   |
 +-------->|
@@ -282,17 +282,19 @@ P         S
       <t>Thanks to
           Bruce Nordman,
           Matthieu Vial,
-          Akbar Rahman.
+          Akbar Rahman,
+          Esko Dijk
+         for comments and discussions that have helped shaping this document.
       </t>
     </section>
     <section anchor="IANA" title="IANA Considerations">
-      <t>The following entries are added to the CoAP Option Numbers registry:</t>
+      <t>The following entry is added to the CoAP Option Numbers registry:</t>
       <figure align="center">
         <artwork align="left"><![CDATA[
 .------------------------------.
 | Number | Name    | Reference |
 :--------:---------:-----------:
-|  2n+1  | Publish | RFC XXXX  |
+|   31   | Publish | This memo |
 `------------------------------'
         ]]></artwork>
       </figure>
@@ -342,7 +344,7 @@ P         S
       </t>
       <?rfc subcompact="no"?>
       <section title="Securing the Delegation">
-        <t>(Sketch) SEP signs the identity of the delegated Proxy and a fingerprint of the resource (both data and meta), and bundles it up with the resource itself, maybe in a MultiPart envelope (TBD define signed Content-Format).  Client verifies the resource is indeed from the SEP by checking the signature, and it has been served by the intended origin, within the validity frame of the delegation.  There seems to be an issue with hierarchical caching: the resource can't be served from a downstream Proxy which is different from the one that was originally delegated unless each Proxy in the delivery chain wraps the received message with its own credentials?</t>
+        <t><cref>Sketch</cref> SEP signs the identity of the delegated Proxy and a fingerprint of the resource (both data and meta), and bundles it up with the resource itself, maybe in a MultiPart envelope (TBD define signed Content-Format).  Client verifies the resource is indeed from the SEP by checking the signature, and it has been served by the intended origin, within the validity frame of the delegation.  There seems to be an issue with hierarchical caching: the resource can't be served from a downstream Proxy which is different from the one that was originally delegated unless each Proxy in the delivery chain wraps the received message with its own credentials?</t>
         <!--
         each proxy should wrap the received message with its own credentials).</t>
     -->
@@ -360,6 +362,7 @@ P         S
       &I-D.rahman-core-sleepy-problem-statement;
     </references>
     <section title="A (fairly) Comprehensive Example">
+      <t>The following section details the whole life-cycle of an hypothetical Sleepy/Intermittent node that uses Publish to exchange (i.e. read and write) data with other agents in a CoAP network.</t>
       <section title="Actors">
         <t>
           <list style="hanging" hangIndent="6">
@@ -386,21 +389,110 @@ P         S
         </t>
       </section>
       <section title="Application Flow">
-        <t>TODO</t>
         <section title="Bootstrap">
-          <t>SEP publishes all the application resources to P:</t>
+          <t>SEP publishes all the application resources to P.</t>
+          <?rfc subcompact="yes"?>
+          <t>Configurable parameter for F1:
+            <list style="hanging" hangIndent="11">
+              <t hangText="SEP -> P :">PUT Proxy-URI=coap://sep1/i1, Publish="G,U", Payload="1"</t>
+              <t hangText="P -> SEP :">2.01 (Created), ETag=0x01</t>
+            </list>
+          </t>
+          <t>Configurable parameter for F2:
+            <list style="hanging" hangIndent="11">
+              <t hangText="SEP -> P :">PUT Proxy-URI=coap://sep1/i2, Publish="G,U", Payload="2"</t>
+              <t hangText="P -> SEP :">2.01 (Created), ETag=0x01</t>
+            </list>
+          </t>
+          <t>Output of F1:
+            <list style="hanging" hangIndent="11">
+              <t hangText="SEP -> P :">PUT Proxy-URI=coap://sep1/o1, Publish="G", Payload=""</t>
+              <t hangText="P -> SEP :">2.01 (Created), ETag=0x01</t>
+            </list>
+          </t>
+          <t>Output of F2:
+            <list style="hanging" hangIndent="11">
+              <t hangText="SEP -> P :">PUT Proxy-URI=coap://sep1/o2, Publish="G", Payload=""</t>
+              <t hangText="P -> SEP :">2.01 (Created), ETag=0x01</t>
+            </list>
+          </t>
+          <t>This assumes that SEP has pre-canned values "1" and "2" for its configurable parameters i1 and i2 respectively.</t>
+          <t>Optionally:
+            <list style="hanging" hangIndent="11">
+              <t hangText="SEP -> P :">PUT Proxy-URI=coap://sep1/im, Publish="G,U", Payload="update_mask_cleared"</t>
+              <t hangText="P -> SEP :">2.01 (Created), ETag=0x01</t>
+            </list>
+          </t>
         </section>
-        <section title="Configuration and Reconfiguration">
-          <t>TODO</t>
+        <section title="Configuration and Reconfiguration" anchor="example_configuration">
+          <t>W sets a new value, e.g. 5, for i2:
+            <list style="hanging" hangIndent="11">
+              <t hangText="W -> P :">PUT Proxy-URI=coap://sep1/i2, Payload="5"</t>
+              <t hangText="P -> W :">2.04 (Changed), ETag=0x02</t>
+            </list>
+            P updates the value of i2 accordingly, and sets a new ETag on it, e.g. 0x02.
+          </t>
+          <t>When SEP wakes up, it polls its configuration variables via a conditional GET that uses the ETags returned by P at publishing time.  Since i1 has not changed, and is still associated with the original ETag, a 2.03 status code is returned:
+            <list style="hanging" hangIndent="11">
+              <t hangText="SEP -> P :">GET Proxy-URI=coap://sep1/i1, If-Match=0x01</t>
+              <t hangText="P -> SEP :">2.03 (Valid)</t>
+            </list>
+            Since i2 has changed, a 2.05 status code is returned and the payload carries the new value.  Also, the new ETag associated with i2 is returned and is updated locally by the SEP:
+            <list style="hanging" hangIndent="11">
+              <t hangText="SEP -> P :">GET Proxy-URI=coap://sep1/i2, If-Match=0x01</t>
+              <t hangText="P -> SEP :">2.05 (Content), ETag=0x02, Payload="5"</t>
+            </list>
+          </t>
+          <t>The SEP reconfigures its F1 based on the new configuration setting, and continues its operations.</t>
         </section>
-        <section title="Updating Functional Output">
-          <t>TODO</t>
+        <section title="Updating Functional Output" anchor="example_update_output">
+          <t>SEP wakes up and commits the newly computed values, e.g. 6 and 8, to P:
+            <list style="hanging" hangIndent="11">
+              <t hangText="SEP -> P :">PUT Proxy-URI=coap://sep1/o1, Publish="G", Payload="6"</t>
+              <t hangText="P -> SEP :">2.04 (Changed), ETag=0x02</t>
+            </list>
+            <list style="hanging" hangIndent="11">
+              <t hangText="SEP -> P :">PUT Proxy-URI=coap://sep1/o2, Publish="G", Payload="8"</t>
+              <t hangText="P -> SEP :">2.04 (Changed), ETag=0x02</t>
+            </list>
+            P sets the new values, assigns a new ETag, and gives it back to P together with a 2.04 status code.
+          </t>
         </section>
-        <section title="Retrieving Functional Output">
-          <t>TODO</t>
+        <section title="Retrieving Functional Output" anchor="example_retrieve_output">
+          <t>R needs to retrieve the latest values for the functions computed by SEP; thus, it asks P to retrieve the associated resources:
+            <list style="hanging" hangIndent="11">
+              <t hangText="R -> P :">GET Proxy-URI=coap://sep1/o1</t>
+              <t hangText="P -> R :">2.05 (Content), ETag=0x02, Payload="6"</t>
+            </list>
+            <list style="hanging" hangIndent="11">
+              <t hangText="R -> P :">GET Proxy-URI=coap://sep1/o2</t>
+              <t hangText="P -> R :">2.05 (Content), ETag=0x02, Payload="8"</t>
+            </list>
+            Note that the exchange above applies to the very first poll.  Subsequent polls can be done conditionally on the "last-seen" ETag.
+          </t>
+          <t>Also note that the above assumes SEP has been able to update its values at least once.  R must be prepared to retrieve empty representations, if SEP has not yet updated their value since boot-strap.</t>
         </section>
         <section title="SEP Reboot">
-          <t>TODO</t>
+          <t>The idempotence of all the involved methods guarantees a clean recovery in face of a reboot of the SEP.  In fact, if at a given time SEP reboots and loose soft state, including the configuration parameters: SEP has to go again through the bootstrap phase in which the application resources are published:
+            <list style="hanging" hangIndent="11">
+              <t hangText="SEP -> P :">PUT Proxy-URI=coap://sep1/i1, Publish="G,U", Payload="1"</t>
+              <t hangText="P -> SEP :">2.04 (Changed), ETag=0x03</t>
+            </list>
+            <list style="hanging" hangIndent="11">
+              <t hangText="SEP -> P :">PUT Proxy-URI=coap://sep1/i2, Publish="G,U", Payload="2"</t>
+              <t hangText="P -> SEP :">2.04 (Changed), ETag=0x03</t>
+            </list>
+            <list style="hanging" hangIndent="11">
+              <t hangText="SEP -> P :">PUT Proxy-URI=coap://sep1/o1, Publish="G", Payload=""</t>
+              <t hangText="P -> SEP :">2.04 (Changed), ETag=0x03</t>
+            </list>
+            <list style="hanging" hangIndent="11">
+              <t hangText="SEP -> P :">PUT Proxy-URI=coap://sep1/o2, Publish="G", Payload=""</t>
+              <t hangText="P -> SEP :">2.04 (Changed), ETag=0x03</t>
+            </list>
+            The ETag's value (0x03) needs to be not recently used (not within the Max-Age period for the resource).
+          </t>
+          <t>From now on everything can proceed as described in <xref target="example_configuration" />, <xref target="example_update_output" />, and  <xref target="example_retrieve_output" /></t>
         </section>
       </section>
     </section>
