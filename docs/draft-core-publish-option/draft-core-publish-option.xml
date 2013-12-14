@@ -57,9 +57,10 @@
     <workgroup>Internet Engineering Task Force</workgroup>
     <keyword>CoAP, Monitor Option, sleepy sensor</keyword>
     <abstract>
-      <t>This memo defines the Publish Option for the Constrained Application Protocol (CoAP).  The Publish Option is used by a CoAP Endpoint to control the authority delegation of one of its resources to another Endpoint.  All the phases of the authority delegation process (setup, renewal, cancellation) are controlled by a simple RESTful protocol.</t>
-      <t>This memo also introduces the 'proxies' Web Linking relation type, to be used by a CoAP Proxy to explicitly advertise the resources that it can serve - either from its cache, or by forwarding the Client request upstream.</t>
-      <t>The Publish Option, together with the 'proxies' relation, provide the building blocks for a comprehensive, in-protocol, solution to the sleepy/intermittent Endpoint use case.</t>
+      <t>This memo defines the Publish Option for the Constrained Application Protocol (CoAP).</t>
+      <t>The Publish Option is used by a CoAP Endpoint to control the authority delegation of one of its resources to another Endpoint.  All the phases of the authority delegation process (setup, renewal, cancellation) are controlled by a simple RESTful protocol.</t>
+      <t>This memo also introduces the 'proxies' Web Linking relation type, to be used by a CoAP Proxy to explicitly advertise the resources that it can serve - either from its cache, or by forwarding the Client's request upstream.</t>
+      <t>The Publish Option and the 'proxies' relation provide the building blocks for a comprehensive, in-protocol, solution to the sleepy/intermittent Endpoint use case.</t>
     </abstract>
   </front>
   <middle>
@@ -68,7 +69,7 @@
       <t>The Publish Option is used by a sleepy Endpoint (SEP) to temporarily delegate the authority of one of its resources to another, always on, Endpoint.  The delegated Endpoint is typically a Proxy, though it could be an Endpoint with no other special network role.</t>
       <t>The SEP is given a simple RESTful messaging protocol that enables the setup, renewal and cancellation of the authority transfer.  The whole process is driven by the SEP, which may actually never need to listen or to keep any state.</t>
       <t>This memo also introduces the 'proxies' Web Linking <xref target="RFC5988" /> relation type.</t>
-      <t>This new relation, which complements the default 'hosts' relation defined in <xref target="RFC6690" />, can be used by a CoAP Proxy to explicitly advertise the resources that it can serve, either from cache or by forwarding the Client request upstream.</t>
+      <t>This new relation, which complements the default 'hosts' relation defined in <xref target="RFC6690" />, can be used by a CoAP Proxy to explicitly advertise the resources that it can serve, either from cache or by forwarding the Client's request upstream.</t>
       <t>The 'proxies' relation works in concert with the Publish Option to enable SEP discovery even while SEP is off-line.</t>
       <section title="Requirements Language and Motivation">
         <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119"/>.</t>
@@ -78,9 +79,6 @@
     </section>
     <section title="Publish Option">
       <t>The Publish Option enables a SEP to temporarily (i.e. for a specified "lease" time) delegate the authority of one of its hosted resources to another Endpoint.</t>
-      <t>The one-byte integer value carried by the Publish Option allows the publishing node to specify the set of CoAP methods that are allowed on the resource (see <xref target="publish_format" /> for details).</t>
-      <t>The "lease" time of the Publish action is specified by an associated (implicit or explicit) Max-Age Option value.</t>
-      <!-- <t>This allows a SEP to use the delegated Endpoint as the rendezvous point for one-way SEP to SEP signaling.</t> -->
       <figure align="center">
         <artwork align="left"><![CDATA[
 +------+---+---+---+---+---------+--------+--------+---------+
@@ -90,61 +88,9 @@
 +------+---+---+---+---+---------+--------+--------+---------+
         ]]></artwork>
       </figure>
-      <section title="Publishing a Resource">
-        <t>The SEP publishes one of its hosted resources, specified by the enclosed Proxy-URI, by making a PUT to the Proxy with a Publish Option attached.  The Publish Option value specifies the CoAP methods that Clients are allowed to use on the resource (see <xref target="publish_format"/>).</t>
-        <t>The example in <xref target="publish_creation"/> shows a delegation where the GET and PUT methods are allowed, while DELETE is explicitly prohibited, meaning that the resource can only be read and updated by Clients.</t>
-        <figure align="left" anchor="publish_creation">
-          <artwork align="left"><![CDATA[
-P         S
-|   PUT   | Proxy-URI: coap://sep.example.org/res
-|<--------+ Publish: 0x60
-|    r    | Content-Format: text/plain
-|         | Max-Age: 1200
-|  2.01   |
-+-------->| ETag: 0xabcd
-|         | 
-|         |
-          ]]></artwork>
-        </figure>
-        <t>The Proxy, which is voluntarily entrusted by the resource owner to act as the delegated origin for the "lease" time specified by Max-Age, replies with a 2.01 (Created) if the authority transfer succeeds.  An exact duplicate of the submitted representation is created, and from now on it can be accessed via the delegated Proxy using the original URI encoded in a Proxy-Uri Option.  If the Publish operation isn't successful (e.g. because the Proxy does not support Publish), then the origin transfer fails, and an appropriate response code is returned (e.g. 4.02 Bad Option).</t>
-        <t>If no Max-Age is given, a default of 3600 seconds MUST be assumed.  The Max-Age value, either implicit or explicit, determines the lifetime of the origin delegation.  When Max-Age is elapsed, the Proxy MUST delete the published resource value and fall back to its usual proxying function.</t>
-        <t>On successful delegation, the Proxy MUST generate a new ETag and return it in the 2.01 response to the Client, and the Client SHOULD save its value.  The returned ETag value represents the state of the resource at the time the Publish operation is performed.  The Proxy MUST change its value whenever the underlying resource representation changes, e.g. if it gets UPDATE'd.  The current ETag value SHOULD be included by the Proxy in all responses involving the published representation.</t>
-        <t>The ETag can be used by SEP to make conditional requests to the Proxy to check whether the representation state has changed.  SEP issues a GET for the published resource with If-Match Option set to the last seen ETag value.  The possible results are: 4.04 (Not Found) if the resource has been deleted, 2.05 (Content) if it has been otherwise modified, 2.03 (Valid) if it has the same original value.  In case a 2.05 is returned, the SEP need to save the updated ETag returned by the Proxy, and use it on subsequent If-Match GET's.</t>
-        <t>The Publish Option is critical, and MUST NOT be present in a response.  If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the Client.  If the Option value is not correctly formatted (see <xref target="publish_format"/>), a 4.00 (Bad Request) MUST be returned to the Client.  The Publish Option is not Safe-to-Forward, and neither is a Cache-Key.</t>
-        <t>Since the 2.01 is emitted, and for the duration of the delegation, any Client wishing to access the resource can do so by making a Proxy-URI request to the Proxy, which shall then serve the resource off from its own storage.</t>
-        <t>An interesting outcome of this communication strategy is that the SEP may really never need to listen on its radio interface.  However, ignoring the response status code from Proxy, as well as the ETag value, is not a safe practice and is not encouraged.</t>
-        <t>Upon publishing, the Proxy MUST save the identity (e.g. its IP address) of the publishing SEP, and MUST use it to correctly authorise "maintenance" operations such as renewal or cancellation of the published resource.  The SEP identity MUST be kept for the whole duration of the delegation (including any associated renewal) and can be forgotten as soon as the delegation vanishes either implicitly or explicitly.</t>
-      </section>
-      <section title="Updating a Resource">
-        <t>In order to update the delegated resource state or to just extend the lease period, the SEP sends basically the same request (except for the representation value) to the Proxy, which in turn replies with a 2.04 Changed status code, and a new ETag value, in case the update operation succeeds.  If the operation fails, e.g. because the request comes from an Endpoint different from the publishing SEP, a suitable status code is returned (e.g. 4.01 Unauthorized).</t>
-        <figure align="left" anchor="publish_update">
-          <artwork align="left"><![CDATA[
-P         S
-|   PUT   | Proxy-URI: coap://sep.example.org/res
-|<--------+ Publish: 0x60
-|    r    | Content-Format: text/plain
-|         | Max-Age: 1200
-|  2.04   |
-+-------->| ETag: 0xdcba
-|         |
-          ]]></artwork>
-        </figure>
-      </section>
-      <section title="Unpublishing a Resource" anchor="publish_removal">
-        <t>The delegation of a given resource can be explicitly revoked by the SEP at any time before the lease time expires, by issuing a DELETE request to the Proxy hosting the resource duplicate with a Publish Option with value 0x00.</t>
-        <t>On successful deletion of the delegation, a 2.02 Deleted response code is returned by the Proxy.  On error a suitable status code is returned.</t>
-        <figure align="left">
-          <artwork align="left"><![CDATA[
-P          S
-|  DELETE  | Proxy-URI: coap://sep.example.org/res
-|<---------+ Publish: 0x00
-|          |
-|   2.02   |
-+--------->| 
-|          |
-          ]]></artwork>
-        </figure>
-      </section>
+      <t>The one-byte integer value carried by the Publish Option allows the publishing node to specify the set of CoAP methods that are allowed on the resource (see <xref target="publish_format" /> for details).</t>
+      <t>The "lease" time of the Publish action is specified by an associated (implicit or explicit) Max-Age Option value.</t>
+      <!-- <t>This allows a SEP to use the delegated Endpoint as the rendezvous point for one-way SEP to SEP signaling.</t> -->
       <section title="Value Format" anchor="publish_format">
         <t>The Publish Option consists of a single byte having the following layout:</t>
         <figure align="left">
@@ -166,20 +112,85 @@ P          S
         -->
         <t>The 0x00 value is used to explicitly revoke the delegation (see <xref target="publish_removal"/>.) and MUST NOT be used for any other purpose of the Option.</t>
         <t>If the delegated Proxy receives a request for the published resource with a method that is not compatible with the mask supplied by the SEP, it MUST respond with a 4.05 (Method Not Allowed) response code.</t>
-      </section>
-    </section>
-    <section title="Discovery">
+      </section> <!-- Value Format -->
+
+    <section title="Operations">
+      <section title="Publishing a Resource">
+        <t>The SEP publishes one of its hosted resources, specified by the enclosed Proxy-URI, by making a PUT to the Proxy with a Publish Option attached.  The Publish Option value specifies the CoAP methods that Clients are allowed to use on the resource (see <xref target="publish_format"/>).</t>
+        <t>The example below shows a delegation where the GET and PUT methods are allowed, whereas DELETE is explicitly prohibited, meaning that a Client can only read and update the resource.</t>
+        <figure align="left">
+          <artwork align="left"><![CDATA[
+P        SEP
+|   PUT   | Proxy-URI: coap://sep.example.org/res
+|<--------+ Publish: 0xC0
+|    r    | Content-Format: text/plain
+|         | Max-Age: 1200
+|  2.01   |
++-------->| ETag: 0xabcd
+|         | 
+|         |
+          ]]></artwork>
+        </figure>
+        <t>The Proxy, which is voluntarily entrusted by the resource owner to act as the delegated origin for the "lease" time specified by Max-Age, replies with a 2.01 (Created) if the authority transfer succeeds.  An exact duplicate of the submitted representation is created, and from now on it can be accessed via the delegated Proxy using the original URI encoded in a Proxy-Uri Option.  If the Publish operation isn't successful (e.g. because the Proxy does not support Publish), then the origin transfer fails, and an appropriate response code is returned (e.g. 4.02 Bad Option).</t>
+        <t>If no Max-Age is given, a default of 3600 seconds MUST be assumed.  The Max-Age value, either implicit or explicit, determines the lifetime of the origin delegation.  When Max-Age is elapsed, the Proxy MUST delete the published resource value (and any associated link-format metadata) and fall back to its usual proxying function.</t>
+        <t>On successful delegation, the Proxy MUST generate a new ETag and return it in the 2.01 response to the Client; if the published resource can be UPDATE'd, then the Client SHOULD save the ETag value (see <xref target="get_ifmatch" />).</t>
+        <t>The returned ETag value represents the state of the resource at the time the Publish operation is performed.  The Proxy MUST change its value whenever the underlying resource representation changes, e.g. if it gets UPDATE'd.  The current ETag value SHOULD be included by the Proxy in all responses involving the published representation.  The ETag can be used by SEP to make conditional requests to the Proxy to check whether the representation has changed (see <xref target="get_ifmatch" /> for details).</t>
+        <t>The Publish Option is critical, and MUST NOT be present in a response.  If the Proxy does not recognize it, a 4.02 (Bad Option) MUST be returned to the Client.  If the Option value is not correctly formatted (see <xref target="publish_format"/>), a 4.00 (Bad Request) MUST be returned to the Client.  The Publish Option is not Safe-to-Forward, and neither is a Cache-Key.</t>
+        <t>Since the 2.01 is emitted, and for the duration of the delegation, any Client wishing to access the resource can do so by making a Proxy-URI request to the Proxy, which shall then serve the resource from its own storage.</t>
+        <t>An interesting outcome of this communication strategy is that the SEP may really never need to listen on its radio interface.  However, ignoring the response status code from Proxy, as well as the ETag value in case of UPDATE-able resources, is not a safe practice and SHOULD not be used unless the consequences are fully understood.</t>
+        <t>Upon publishing, the Proxy MUST save the identity (e.g. the IP address) of the publishing SEP, and MUST use it to correctly authorise "maintenance" operations such as renewal or cancellation of the published resource.  The SEP identity MUST be kept for the whole duration of the delegation (including any associated renewal) and can be forgotten as soon as the delegation vanishes, either implicitly or explicitly.</t>
+      </section>  <!-- Publishing a Resource -->
+      <section title="Updating a Resource">
+        <t>In order to update the delegated resource state or to just extend the lease period, the SEP sends basically the same request (except for the possibly updated representation value) to the Proxy, which in turn replies with a 2.04 Changed status code, and a new ETag value, in case the update operation succeeds.  If the operation fails, e.g. because the request comes from an Endpoint different from the publishing SEP, a suitable status code is returned (e.g. 4.01 Unauthorized).</t>
+        <figure align="left">
+          <artwork align="left"><![CDATA[
+P        SEP
+|   PUT   | Proxy-URI: coap://sep.example.org/res
+|<--------+ Publish: 0xC0
+|    r    | Content-Format: text/plain
+|         | Max-Age: 1200
+|  2.04   |
++-------->| ETag: 0xdcba
+|         |
+          ]]></artwork>
+        </figure>
+      </section>  <!-- Updating a Resource -->
+      <section title="Unpublishing a Resource" anchor="publish_removal">
+        <t>The delegation of a given resource can be explicitly revoked by the SEP at any time before the lease time expires, by issuing a DELETE request to the Proxy hosting the resource duplicate with a Publish Option with value 0x00.</t>
+        <t>On successful deletion of the delegation, a 2.02 Deleted response code is returned by the Proxy.  On error a suitable status code is returned.</t>
+        <figure align="left">
+          <artwork align="left"><![CDATA[
+P         SEP
+|  DELETE  | Proxy-URI: coap://sep.example.org/res
+|<---------+ Publish: 0x00
+|          |
+|   2.02   |
++--------->| 
+|          |
+          ]]></artwork>
+        </figure>
+      </section>  <!-- Unpublishing a Resource -->
+      <section title="Checking for Change" anchor="get_ifmatch">
+        <t>In order to check whether an UPDATE-able resource has changed, SEP issues a GET for the published resource with If-Match Option set to the last seen ETag value.</t>
+        <t>The possible results are:
+          <list style="symbols">
+            <t>4.04 (Not Found) if the resource has been deleted;</t>
+            <t>2.05 (Content) if it has been otherwise modified;</t>
+            <t>2.03 (Valid) if it has not changed.</t>
+          </list>
+          In case a 2.05 is returned, SEP saves the updated ETag returned by the Proxy, and uses it on subsequent If-Match GET's.</t>
+        <t>Note that, in exceptionally simple scenarios, an unconditional GET followed by a memcmp against the previous representation value, MAY constitute a viable alternative to the method described above.</t>
+      </section> <!-- Checking for Change -->
+    </section> <!-- Operations -->
+  </section> <!-- Publish Option -->
       <section title="The 'proxies' Relation Type">
         <t>The new 'proxies' Web Linking <xref target="RFC5988"/> relation type is meant to signify that the target resource carried by the link, which MUST be identified by an absolute URI, is reachable through a Proxy-URI request made to the anchored Origin (i.e. the Proxy).</t>
         <t>(Note that we need to specify the Proxy through an explicit anchor, thus increasing the verbosity of the link value, because of the way the context URI override rules are defined in Section 2.1 of <xref target="RFC6690"/>.  In fact, absent an explicit anchor, rule (b) would set the context to the SEP origin, which is definitely not what we want.)</t>
         <section title="Examples">
-          <t>
-            <list style="symbols">
-              <t>C multicasts a query to the /.well-known/core interface to discover the P that "proxies" a given (e.g. pre-configured) resource:</t>
-            </list>
-          </t>
-          <figure align="left">
-            <artwork align="left"><![CDATA[
+          <section title="Discover the Proxy for a Resource">
+            <t>C multicasts a query to the /.well-known/core interface and discovers the P (associated to the coap://proxy.example.org authority) "proxies" the resource queried via an explicit href:</t>
+            <figure align="left">
+              <artwork align="left"><![CDATA[
 M         C
 |   GET   | Uri-Path: .well-known
 |<--------+ Uri-Path: core
@@ -188,15 +199,13 @@ P  2.05   |
 +-------->| <coap://sep.example.org/res>;
 |         |     anchor="coap://proxy.example.org/";
 |         |     rel="proxies"
-                  ]]></artwork>
-          </figure>
-          <t>
-            <list style="symbols">
-              <t>C discovers resources that P "proxies":</t>
-            </list>
-          </t>
-          <figure align="left">
-            <artwork align="left"><![CDATA[
+              ]]></artwork>
+            </figure>
+          </section>  <!-- Discover the Proxy for a Resource -->
+          <section title="Discover All the Resources that an Endpoint 'proxies'">
+            <t>C discovers all the resources that P "proxies":</t>
+            <figure align="left">
+              <artwork align="left"><![CDATA[
 P         C
 |   GET   | Uri-Path: .well-known
 |<--------+ Uri-Path: core
@@ -206,15 +215,11 @@ P         C
 |         |     anchor="coap://proxy.example.org/";
 |         |     rel="proxies",
 |         | <...
-                  ]]></artwork>
-          </figure>
-          <t>
-            <list style="symbols">
-              <t>C GET's a "proxied" resource from P:</t>
-            </list>
-          </t>
-          <figure align="left">
-            <artwork align="left"><![CDATA[
+              ]]></artwork>
+            </figure>
+            <t>and can then GET one of the "proxied" resource from P:</t>
+            <figure align="left">
+              <artwork align="left"><![CDATA[
 P         C
 |   GET   |
 |<--------+ Proxy-URI: coap://sep.example.org/res 
@@ -222,18 +227,19 @@ P         C
 |  2.05   |
 +-------->| "res" data...
 |         |
-                  ]]></artwork>
-          </figure>
+              ]]></artwork>
+            </figure>
           <t>The 'proxies' relation is orthogonal to the Publish Option, so it's up to P to decide whether to serve coap://sep.example.org/res from its store/cache, or to forward the request to the origin at coap://sep.example.org.</t>
-        </section>
-      </section>
-      <section title="Adjusting Link-Format Attributes">
+        </section>  <!-- Discover All the Resources "proxied" by an Endpoint -->
+      </section>  <!-- Examples -->
+      <section title="Publish Link-Format Attributes">
         <section title="Implicitly">
-          <t>The resource metadata are implicitly extracted from the published  representation.  Basically, the Proxy works out the ct and sz attributes by inspecting Content-Format and the request payload size.</t>
+          <t>The resource metadata are implicitly extracted from the published  representation.  Basically, the Proxy works out the 'ct' and 'sz' attributes by inspecting Content-Format and the request payload size.</t>
+          <t>The main advantage of this method is that it needs no further transmission except that needed for the Publish operation.  The disadvantage is the very limited (and fixed) number of attributes that can be derived, which makes it suitable only for the most basic use cases.</t>
         </section>
         <section title="Explicitly">
-          <t>The resource metadata are explicitly published to the same Proxy-URI used for the sibling resource, either in a separate request/response cycle (see <xref target="non_atomic_publish"/>),</t>
-          <figure align="left" anchor="non_atomic_publish">
+          <t>The resource metadata are explicitly published to the same Proxy-URI used for the sibling resource, either in a separate request/response cycle:</t>
+          <figure align="left">
             <artwork align="left"><![CDATA[
 P         S
 |   PUT   | Proxy-URI: coap://sep.example.org/res
@@ -245,8 +251,8 @@ P         S
 |         |
               ]]></artwork>
           </figure>
-          <t>or atomically, within the same Publish operation, e.g. by using the Multipart Content-Format to aggregate one (or even more than one) representation(s) together with the application/link-format entry (see <xref target="atomic_publish"/>).</t>
-          <figure align="left" anchor="atomic_publish">
+          <t>or atomically, within the same Publish operation, e.g. by using the Multipart Content-Format to aggregate one (or even more than one) representation(s) together with the application/link-format entry:</t>
+          <figure align="left">
             <artwork align="left"><![CDATA[
 P         S
 |   PUT   | Proxy-URI: coap://sep.example.org/res
@@ -258,7 +264,7 @@ P         S
 |         |
               ]]></artwork>
           </figure>
-          <t>Note that the former (<xref target="non_atomic_publish"/>) is non-atomic, and limited to only one representation of the resource; the latter (<xref target="atomic_publish"/>) is atomic and supports multiple Content-Format's for the published resource.</t>
+          <t>Note that the former is non-atomic, and limited to only one representation of the resource; the latter is atomic and supports multiple Content-Format's for the published resource.</t>
         </section>
       </section>
       <!--
@@ -289,7 +295,7 @@ P         S
           Bruce Nordman,
           Matthieu Vial,
           Akbar Rahman,
-          Esko Dijk
+          and Esko Dijk
          for comments and discussions that have helped shaping this document.
       </t>
     </section>
@@ -336,12 +342,14 @@ P         S
           <t>C: use strong auth to identify SEP + quota limit.</t>
         </list>
       </t>
+      <!-- TODO check this
       <t>
         <list style="symbols">
           <t>T: local state loss.</t>
           <t>C: cache redundancy.</t>
         </list>
       </t>
+      -->
       <t>
         <list style="symbols">
           <t>T: Inject fake copies of the resource by a 3rd party.</t>
@@ -350,12 +358,12 @@ P         S
       </t>
       <?rfc subcompact="no"?>
       <section title="Securing the Delegation">
-        <t><cref>Sketch</cref> SEP signs the identity of the delegated Proxy and a fingerprint of the resource (both data and meta), and bundles it up with the resource itself, maybe in a MultiPart envelope (TBD define signed Content-Format).  Client verifies the resource is indeed from the SEP by checking the signature, and it has been served by the intended origin, within the validity frame of the delegation.  There seems to be an issue with hierarchical caching: the resource can't be served from a downstream Proxy which is different from the one that was originally delegated unless each Proxy in the delivery chain wraps the received message with its own credentials?</t>
+        <t><cref>The following is just a sketch which needs further elaboration</cref> SEP signs the identity of the delegated Proxy and a fingerprint of the resource (both data and meta), and bundles it up with the resource itself, maybe in a MultiPart envelope (TBD define signed Content-Format).  Client verifies the resource is indeed from the SEP by checking the signature, and it has been served by the intended origin, within the validity frame of the delegation.  There seems to be an issue with hierarchical caching: the resource can't be served from a downstream Proxy which is different from the one that was originally delegated unless each Proxy in the delivery chain wraps the received message with its own credentials?</t>
         <!--
         each proxy should wrap the received message with its own credentials).</t>
     -->
-      </section>
-    </section>
+      </section>  <!-- Securing the Delegation -->
+    </section>  <!-- Security Considerations -->
   </middle>
   <back>
     <references title="Normative References">
@@ -368,7 +376,7 @@ P         S
       &I-D.rahman-core-sleepy-problem-statement;
     </references>
     <section title="A (fairly) Comprehensive Example">
-      <t>The following section details the whole life-cycle of an hypothetical Sleepy/Intermittent node that uses Publish to exchange (i.e. read and write) data with other agents in a CoAP network.</t>
+      <t>The following section details the whole life-cycle of an hypothetical Sleepy/Intermittent node that uses Publish to exchange data (both reading and writing) with other agents in a CoAP network.</t>
       <section title="Actors">
         <t>
           <list style="hanging" hangIndent="6">
@@ -380,7 +388,7 @@ P         S
         </t>
       </section>
       <section title="Resources">
-        <t>
+        <t>The following resources model the two functions (F1 and F2) implemented by SEP in terms of their input and output parameters:
           <list style="hanging" hangIndent="17">
             <t hangText="coap://sep1/i1">Configurable parameter for F1.</t>
             <t hangText="coap://sep1/i2">Configurable parameter for F2.</t>

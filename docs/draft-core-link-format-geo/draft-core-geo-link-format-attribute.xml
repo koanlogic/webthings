@@ -50,8 +50,8 @@
 
   <middle>
     <section title="Introduction">
-      <t>This memo proposes a new CoAP link-format attribute, "geo", that can be used to associate positioning metadata to a CoAP resource, and make this information available to other endpoints that, directly or indirectly, participate in to CoAP link-format discovery <xref target="RFC6690" />.</t>
-      <t>The ability for a consuming application to access positioning information about a sensing resource is crucial in a number of use cases, especially those in which one or more sensor networks provide input to an emergency handling service (e.g. fire, flood, etc.).</t>
+      <t>This memo proposes a new CoAP link-format attribute, "geo", that can be used to associate positioning metadata to a CoAP resource, and make this information available to other endpoints that, directly or indirectly, participate to CoAP link-format discovery <xref target="RFC6690" />.</t>
+      <t>The ability for a client application to access positioning information about a sensing resource is crucial in a number of use cases, especially those in which one or more sensor networks provide input to an emergency handling service (e.g. fire, flood, etc.).</t>
       <t>This spec reuses the geo URI syntax <xref target="RFC5870"/>, which is capable of describing physical locations in two or three dimensions (also supporting underground and underwater localisation using negative numbers) in a compact, simple and human readable way.</t>
 
       <section title="Requirements Language">
@@ -61,7 +61,7 @@
     </section>  <!-- Introduction -->
 
     <section title="Motivation and Use Cases">
-      <t>Location-aware applications and location-based services like rescue systems in devastated areas, seismic networks, gas pipeline monitoring deployments, fire or flood detection systems, etc., need to precisely locate the source of sensed stimulus in order to react in a sensible way.</t>
+      <t>Location-aware applications and location-based services like rescue systems in devastated areas, seismic networks, gas pipeline monitoring deployments, fire or flood detection systems, etc., need to precisely locate the source of sensed stimulus in order to react in a suitable way.</t>
       <t>Smart city scenarios, e.g. street lights control, emergency services, often have similar needs.</t>
     </section>  <!-- Motivation and Use Cases -->
 
@@ -74,26 +74,10 @@
         ]]></artwork>
      </figure>
       <t>The geo attribute MUST NOT appear more than once in a link.</t>
-      <t>Since the query filtering rules defined in Section 4.1. of <xref target="RFC6690" /> are not particularly well suited for doing queries based on geo parameters, this memo specifies a querying format specific for the geo attribute (see <xref target="geo-query" />).</t>
       <!--
       <t>(NOTE about Link-Format queries: non exact matches cannot be easily/effectively queried.  To allow effective location-based queries, we should either extend the query filtering rules defined in Section 4.1 of <xref target="RFC6690" />, or split the geo attribute into its explicit axes.)</t>
     -->
     </section>  <!-- The geo Link Format Attribute -->
-
-    <section title="Extended Geo Queries" anchor="geo-query">
-      <t>By means of the "extended" geo query, an application can make objects respond to the link-format query if and only if they are located within a specific area.</t>
-      <t>The query parameters are the upper left and the lower right corners of the rectangular area defined by their comma-delimited latitude/longitude pairs, using the following syntax:
-      <figure>
-        <artwork align="left"><![CDATA[
-"?geo=" latitude "," longitude "-" latitude "," longitude
-        ]]></artwork>
-      </figure>
-      For example, the "/water" resource in <xref target="examples" /> would match the query "?geo=38.3000,20.6400-38.2900,20.6500"</t>
-    <!-- TODO: richer definition -->
-    <!-- TODO: include accuracy -->
-    <!-- TODO: include 3d? -->
-    </section>  <!-- Geo Queries -->
-
 
     <section title="Examples" anchor="examples">
       <t><list style="symbols"><t>A fire detector somewhere in the Pollino National Park (approx. 10cm accuracy, enough to distinguish trees from each other):</t></list></t>
@@ -105,7 +89,7 @@
   </fire>;ct=0;if="sensor";geo="40.00201,16.34007"
         ]]></artwork>
      </figure>
-     <t><list style="symbols"><t>An underwater current sampler in the sea between Ithaki and Kefallonia bearing explicit accuracy information:</t></list></t>
+     <t><list style="symbols"><t>An underwater current sampler in the sea between Ithaki and Kefallonia bearing explicit accuracy information (10m):</t></list></t>
      <figure>
         <artwork align="left"><![CDATA[
   REQ: GET /.well-known/core
@@ -118,12 +102,42 @@
     </section>  <!-- Examples -->
 
     <section title="Encoding Considerations">
-      <t>Encoding should be as succinct as possible.</t>
+      <t>This specification allows only one CRS, which is WGS-84.  There is no need to set an explicit crslabel when encoding a geo link-format attribute, since the default value wgs84 applies anyway.</t>
+      <!--
       <t>It is RECOMMENDED to avoid setting an explicit crslabel if the default WGS-84 CRS is used.</t>
-      <t>See also Section 3.5. of <xref target="RFC5870" />.</t>
+      -->
+      <t>For further encoding consideration, see Section 3.5. of <xref target="RFC5870" />.</t>
     </section>  <!-- Encoding Considerations -->
 
+    <section title="Extended Geo Queries" anchor="geo-query">
+      <t>The query filtering rules defined in Section 4.1. of <xref target="RFC6690" /> are not particularly well suited for querying resources based on geo parameters.  Therefore, this memo specifies an extended set of query formatting and filtering rules specific for the geo attribute.</t>
+      <t>By means of the "extended" geo query format, a client application can make resources pop up in link-format responses based on their location.</t>
+      <section title="Syntax">
+        <t>The query parameters are the top left and the bottom right corners of a rectangular sector representing the query "capture" area.  The two points (top left, bottom right respectively) are expressed as comma-delimited latitude/longitude pairs, separated by a dash "-":
+        <figure>
+          <artwork align="left"><![CDATA[
+  "?geo=" latitude "," longitude "-" latitude "," longitude
+
+  latitude    ; defined in Section 3.3. of RFC 5870
+  longitude   ; defined in Section 3.3. of RFC 5870
+          ]]></artwork>
+        </figure>
+        </t>
+      </section>
+      <section title="Filtering Rules">
+        <t>An endpoint which understands the extended geo query format MUST respond to the query if and only if its latitude and longitude geo attributes fall in the latitude and longitude range defined by the query string.  Any accuracy/uncertainty MUST be taken into consideration by the queried endpoint when running the match algorithm.</t>
+        <t>For example, the "/water" resource in <xref target="examples" /> would match the query "?geo=38.3000,20.6400-38.2900,20.6500"</t>
+    <!-- TODO: include 3d? -->
+      </section>
+    </section>  <!-- Geo Queries -->
+
     <?rfc needLines="8" ?>
+    <section title="Acknowledgements">
+      <t>Thanks to
+          Keith Drage.
+      </t>
+    </section>
+
 
     <section title="IANA Considerations">
       <t>No formal request at present.  However, there is a plan to add a registry for the namespace of link parameters as part of <xref target="RFC5988" /> update.</t>
