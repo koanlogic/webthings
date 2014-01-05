@@ -30,7 +30,7 @@
           <street>3 Ely Road</street>
           <city>Milton, Cambridge</city>
           <code>CB24 6DD</code>
-          <country>England</country>
+          <country>UK</country>
         </postal>
         <email>thomas.fossati@alcatel-lucent.com</email>
       </address>
@@ -44,15 +44,15 @@
     <keyword>CoAP, Link Format, geo link-format attribute, geo tagging sensors</keyword>
 
     <abstract>
-	    <t>This memo proposes a new CoAP link format attribute, "geo", that can be used to associate positioning metadata to a CoAP resource.</t>
+	    <t>This memo proposes a new CoAP link format attribute, "geo", that can be used to associate positioning metadata to a CoAP resource.  An extension to the link format query syntax is also suggested to allow the discovery of resources based on their geo location.</t>
     </abstract>
   </front>
 
   <middle>
     <section title="Introduction">
+      <t>The ability for a client application to access positioning information about a sensing resource is crucial in a number of use cases, e.g. those in which one or more sensor networks provide input to an emergency handling service (e.g. fire, flood, etc.).</t>
       <t>This memo proposes a new CoAP link-format attribute, "geo", that can be used to associate positioning metadata to a CoAP resource, and make this information available to other endpoints that, directly or indirectly, participate to CoAP link-format discovery <xref target="RFC6690" />.</t>
-      <t>The ability for a client application to access positioning information about a sensing resource is crucial in a number of use cases, especially those in which one or more sensor networks provide input to an emergency handling service (e.g. fire, flood, etc.).</t>
-      <t>This spec reuses the geo URI syntax <xref target="RFC5870"/>, which is capable of describing physical locations in two or three dimensions (also supporting underground and underwater localisation using negative numbers) in a compact, simple and human readable way.</t>
+      <t>This spec reuses the geo URI syntax <xref target="RFC5870"/>, which is capable of describing physical locations in two or three dimensions (also supporting underground and underwater localisation using negative numbers) in a simple, reasonably compact, and human readable way.</t>
 
       <section title="Requirements Language">
         <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
@@ -60,10 +60,9 @@
 
     </section>  <!-- Introduction -->
 
-    <section title="Motivation and Use Cases">
-      <t>Location-aware applications and location-based services like rescue systems in devastated areas, seismic networks, gas pipeline monitoring deployments, fire or flood detection systems, etc., need to precisely locate the source of sensed stimulus in order to react in a suitable way.</t>
-      <t>Smart city scenarios, e.g. street lights control, emergency services, often have similar needs.</t>
-    </section>  <!-- Motivation and Use Cases -->
+    <section title="Use Cases">
+      <t>Location-aware applications and location-based services like rescue systems in devastated areas, seismic networks, gas pipeline monitoring deployments, fire or flood detection systems, etc., need to precisely locate the source of sensed stimulus in order to react in a suitable way.  Smart city scenarios, e.g. street lights control, emergency services, often have similar needs.</t>
+    </section>  <!-- Use Cases -->
 
     <section title="The geo Link Format Attribute">
       <t>This section defines a new Web Linking <xref target="RFC5988" /> link-param, "geo", to be used within the <xref target="RFC6690"/> framework, having the following syntax:</t>
@@ -125,7 +124,7 @@
         </t>
       </section>
       <section title="Filtering Rules">
-        <t>An endpoint which understands the extended geo query format MUST respond to the query if and only if its latitude and longitude geo attributes fall in the latitude and longitude range defined by the query string.  Any accuracy/uncertainty MUST be taken into consideration by the queried endpoint when running the match algorithm.</t>
+        <t>An endpoint which understands the extended geo query format MUST respond to the query if and only if its latitude and longitude values fall in the latitude and longitude range defined by the query string.  Any accuracy/uncertainty MUST be taken into consideration by the queried endpoint when running the match algorithm.</t>
         <t>For example, the "/water" resource in <xref target="examples" /> would match the query "?geo=38.3000,20.6400-38.2900,20.6500"</t>
     <!-- TODO: include 3d? -->
       </section>
@@ -134,7 +133,8 @@
     <?rfc needLines="8" ?>
     <section title="Acknowledgements">
       <t>Thanks to
-          Keith Drage.
+          Keith Drage
+         for comments and discussions that have helped shaping this document.
       </t>
     </section>
 
