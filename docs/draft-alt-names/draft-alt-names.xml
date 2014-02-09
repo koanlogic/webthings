@@ -25,27 +25,25 @@
 <?rfc subcompact="no"?>
 <?rfc comments="yes"?>
 <?rfc inline="yes"?>
-<rfc category="std" docName="draft-fossati-core-certmode-alt-names-00" ipr="trust200902">
+<rfc category="std" docName="draft-fossati-core-certmode-rd-names-00" ipr="trust200902">
   <front>
-    <title abbrev="Alt Names for Certificate Mode DTLS">
-      Alternative Authority Names for Certificate Mode DTLS
+    <title abbrev="RD Names for Certificate Mode DTLS">
+      Resource Directory Names for Certificate Mode DTLS
     </title>
     <author fullname="Thomas Fossati" initials="T.F." surname="Fossati">
       <organization>Alcatel-Lucent</organization>
       <address>
-        <!--
         <postal>
           <street>3 Ely Road</street>
           <city>Milton, Cambridge</city>
           <code>CB24 6DD</code>
-          <country>England</country>
+          <country>UK</country>
         </postal>
-        -->
         <email>thomas.fossati@alcatel-lucent.com</email>
       </address>
     </author>
 
-    <date year="2013" month="December" />
+    <date year="2014" month="February" />
 
     <area>General</area>
     <workgroup>Internet Engineering Task Force</workgroup>
@@ -53,18 +51,24 @@
     <keyword>CoAP, TLS, coaps</keyword>
 
     <abstract>
-      <t>This memo describes the use of EUI-64 and Resource Directory names in CoAP Certificate Mode DTLS for the purpose of verifying the identity of a server by a client endpoint.</t>
+      <t>This memo describes the use of Resource Directory names in CoAP Certificate Mode DTLS for the purpose of verifying the identity of a server by a client endpoint.</t>
     </abstract>
   </front>
 
   <middle>
     <section title="Introduction">
-      <t>The CoAP protocol <xref target="I-D.ietf-core-coap" /> defines three distinct mechanisms based on DTLS to de-reference URI in the 'coaps' scheme: Pre-Shared Keys (PSK), Raw Public Keys (RPK) and the so called Certificate Mode.</t>
-      <t>The latter uses X.509 certificates <xref target="RFC5280" /> to authenticate a server endpoint to the requesting party, and viceversa.  (The selection of the X.509 certificate to be presented by the server is determined by the URI authority of the requested resource, which is hinted by the client by means of the Server Name Indication (SNI) extension <xref target="RFC6066" /> during the DTLS handshake with the server.)</t>
+      <!--
+      <t>The CoAP protocol <xref target="I-D.ietf-core-coap" /> defines three distinct mechanisms based on DTLS to de-reference URI in the 'coaps' scheme: Pre-Shared Keys (PSK), Raw Public Keys (RPK), and Certificate Mode.</t>
+      <t>The latter uses X.509 certificates <xref target="RFC5280" /> to authenticate a server endpoint to the requesting party, and vice versa.  (The selection of the X.509 certificate to be presented by the server is determined by the URI authority of the requested resource, which is hinted by the client by means of the Server Name Indication (SNI) extension <xref target="RFC6066" /> during the DTLS handshake with the server.)</t>
 
       <t>Compared to PSK and RPK, Certificate Mode requires more ROM - approximately a 10 KB increment <xref target="I-D.ietf-lwig-tls-minimal" /> -, and more bandwidth to accomodate the transfer of certificates between the parties.  Also, the certificate validation phase is not cheap in terms of RAM and CPU utilisation, making this security mode not well suited for really constrained use-cases.  Scenarios where secured CoAP exchanges are made by unconstrained devices, such as typical proxy-to-proxy communication, are however a good match for the stronger and more scalable authentication services offered by Certificate Mode.</t>
+      -->
         
+      <t>URI names used in X.509 certificates and HostName's found in the SNI extension (which are essential to Certificate mode) implicitly rely on DNS names.  However, CoAP makes no assumption on DNS being the naming authority for the constrained network, thus allowing for a small inconsistency in the current spec which this memo is meant to fix.</t>
+
+      <!--
       <t>(There exist already standardised alternatives such as DVCS <xref target="RFC5055" /> for offloading the burden of certificate validation to a trusted third party, or the client_certificate_url TLS extension to let the server retrieve the client certificate from an external store.  However, the use of such mechanisms in order to make the TLS handshake less demanding for a constrained device is out of scope for the present document.)</t>
+      -->
 
       <section title="Terminology and Requirements Language">
         <t>This specification requires the reader to be familiar with the terminology used in documents produced by the CoRE, TLS, and PKIX working groups.</t>
@@ -82,26 +86,25 @@
 
       <t>Because DNS is not mandatory to implement in CoAP networks, and static configuration is not generally a viable option, there is a need to define some kind of stable, non-DNS, identifier that can be used for 'coaps' URIs in Certificate Mode DTLS as a fall-back in case DNS is not deployed, or not understood by CoAP endpoints.</t>
 
-      <t>The purpose of this memo is to describe syntax and rules for using Resource Directory endpoint names (and domains) <xref target="I-D.ietf-core-resource-directory" /> or EUI-64 identifiers <xref target="EUI-64" /> as an alternative to DNS names in the above said context.</t>
+      <t>The purpose of this memo is to describe syntax and rules for using Resource Directory endpoint names (and domains) <xref target="I-D.ietf-core-resource-directory" /> 
+        <!--
+        or EUI-64 identifiers <xref target="EUI-64" />
+        -->
+        as an alternative to DNS names in the above said context.</t>
 
       <t>This memo contains updates to <xref target="I-D.ietf-core-coap" />, <xref target="RFC6066" />, and <xref target="RFC5280" />.</t>
     </section>  <!-- Motivation -->
 
+    <!-- TODO move to appendix
     <section title="Proposal to Ban Common Name for Endpoint Identification">
       <t>This section contains a proposal to amend text in Section 9.1.3.3 of <xref target="I-D.ietf-core-coap" /> to disallow Common Name (CN) to be used as a fall back identifier in case SAN is not present in the certificate of the server.  In fact, <xref target="RFC2818" /> already deprecated the use of CN in this same scenario, and encouraged the use of the dNSName field in SAN instead.</t>
     <t>The intention is to achieve a reduction in complexity in both spec and code that comes from defining one only path for identity lookup.  Since there are virtually no legacy deployments, we are in the ideal position to place an explicit requirement on clients to request proper certificates to their Certification Authority (CA).</t>
       <t>Proposed text: "Implementations in Certificate Mode MUST verify the identity of their peers by looking at the Subject Alternative Name's set found in the presented certificate.  Common Name's MUST NOT be used to verify peers' identities."</t>
     </section>
+  -->
 
-    <section title="New OID arc for CoAP">
-      <t>This OID designates the OID arc for CoAP-related OIDs assigned by future IETF action, including those introduced by the present document:</t>
-      <figure>
-        <artwork align="center"><![CDATA[
-   id-coap OBJECT IDENTIFIER ::= { id-pkix coap(TODO) }
-        ]]></artwork>
-     </figure>
-    </section>
 
+    <!--
     <section title="EUI-64">
       <t>In IEEE 802.15.4 networks, the IPv6 interface identifier used for stateless autoconfiguration is typically obtained from the EUI-64 identifier assigned to the device (see Section 6 of <xref target="RFC4944" />).  By using said identifier as the host component for CoAP authorities bound to that interface, we get a name that is stable even in presence of network re-numbering, or device re-location.</t>
       <section title="Uniqueness Guarantee">
@@ -169,34 +172,68 @@ id-eui64authority-san OBJECT IDENTIFIER ::= { id-coap 1 }
         <t>The value field of the otherName MUST contain an EUI-64 authority (<xref target="EUI-64-format" />), encoded as a IA5String.  No percent encoding is allowed.  A maximum length of 29 bytes MAY be assumed by the ASN.1 decoder.</t>
       </section>
     </section>
+  -->
 
     <section title="Resource Directory Names and Domains">
       <t>In CoAP networks, a Resource Directory (RD) <xref target="I-D.ietf-core-resource-directory" /> is an entity that acts as a centralised store where protocol endpoints can register and lookup links to resources that are made available in the network.  The RD defines the concept of an "endpoint name" which identifies a given Endpoint (i.e. web server) within a given "domain".  Under the assumption of its uniqueness, an endpoint name/domain can be used as a stable host component for CoAP authorities.</t>
       <section title="Uniqueness Guarantee">
-        <t>An endpoint name is guaranteed to be unique within the associated domain.  If the domain is elided during registration, the RD should assure its uniqueness within an implicit default domain <cref>Check with RD authors: allow an empty default domain?  In which case, modify the ABNF to allow authorities like "node2.:12345"</cref>.</t>
+        <t>An endpoint name is guaranteed to be unique within the associated domain.  If the domain is elided during registration, the RD should assure its uniqueness within an implicit default domain.</t> 
+        <!--
+        <cref>Check with RD authors: allow an empty default domain?  In which case, modify the ABNF to allow authorities like "node2.:12345"</cref>.
+        -->
       </section>
       <section title="Authority Format" anchor="RD-format">
-        <t><cref>This belongs to the RD spec.</cref></t>
-        <t>The following ABNF defines the syntax of a RD name authority.  It reuses 'port', 'pct-encoded' and 'sub-delims' from <xref target="RFC3986" />; ALPHA and DIGIT from  <xref target="RFC5234" />.</t>
-        <figure>
-          <artwork align="center"><![CDATA[
-rd-authority = rd-fullname [":" port]
-rd-fullname  = rd-name ["." rd-domain]
-rd-name      = 1*63rd-char
-rd-domain    = 1*63rd-char
-rd-char      = ALPHA / DIGIT / "-" / "_" / "~" /
-               pct-encoded / sub-delims   ; reg-name chars \ "."
-          ]]></artwork>
-        </figure>
-        <t>Example: node1.domain1:5864</t>
-        <t>Note that rd-char is the set of chars allowed in reg-name minus the dot.  Hence, rd-fullname encodes a subset of reg-name <xref target="RFC3986" />, which fits smoothly in the host part of a coaps URI.</t>
-        <t>Percent encoding MUST NOT be used if not needed, i.e. it can be used only to encode non otherwise allowed chars.</t>
-        <t>The considerations about the implicit value for Uri-Host and Uri-Port Options contained in <xref target="Implicit-Option-Values" /> equally apply to the rd-authority case.</t>
+        <section title="Requirements">
+        <t>The syntax for RD name authorities has been designed to satisfy the following requirements:
+          <list style="hanging" hangIndent="8">
+            <t hangText="REQ#1:">full compatibility with URI reg-name syntax;</t>
+            <t hangText="REQ#2:">support identifiers from different and independently administered sources (e.g. those defined in OMA spec, EUI-64, etc.);</t>
+            <t hangText="REQ#3:">allow for an optional "domain" under which a given name exists (for compatibility with current RD spec).</t>
+          </list>
+        </t>
+        </section>
+        <section title="Syntax">
+          <t>The following ABNF reuses 'port' from <xref target="RFC3986" />; ALPHA and DIGIT from <xref target="RFC5234" />.</t>
+          <figure>
+            <artwork align="center"><![CDATA[
+  RD-char = ALPHA / DIGIT / "-" / "_" / "~" / "!" /
+            "$" / "&" / "'" / "(" / ")" / "*" /
+            "," / ";" / "="
+  RD-ns = ALPHA *(ALPHA / DIGIT / "-")  ; the name-space
+  RD-name = 1*RD-char
+  RD-domain = 1*63RD-char
+  RD-authority = [ RD-ns "+" ] RD-name [ "." RD-domain ] [ ":" port ]
+            ]]></artwork>
+          </figure>
+          <t>Note that RD-char is the set of chars allowed in reg-name (REQ#1) from which the two following characters have been removed:
+            <list style="symbols"> 
+              <t>the dot ("."), which is used to introduce the domain component (REQ#3);</t>
+              <t>the plus ("+"), which is used to encode namespace information along with the name in an unambiguous way (REQ#2).</t>
+            </list>   
+          </t>
+          <t>If RD-ns is present, then the length of RD-ns and RD-name MUST be less then 63 chars.</t>
+          <t>Percent encoding MUST NOT be used if not needed, i.e. it can be used only to encode non otherwise allowed chars.</t>
+        </section>
+        <section title="Examples">
+          <t>
+            <list style="symbols">
+              <t>eui-64+01-23-45-67-89-ab-cd-ef</t>
+              <t>imei+123456789012345</t>
+              <t>imei+123456789012345:9876</t>
+              <t>uuid+64d5ecfa-addc-4695-ac6e-36e8b18de4b9</t>
+              <t>eui-64+01-23-45-67-89-ab-cd-ef.local:1234</t>
+              <t>name.domain:1234</t>
+            </list>
+          </t>
+        </section>
+        <section title="Uri-Host and Uri-Port Considerations" anchor="Implicit-Option-Values">
+          <t>When RD-authority is used in a 'coaps' URI, its value is the same as the ServerName.name included (and successfully validated) by the client in the associated DTLS handshake (see <xref target="RD-SNI" />).</t>
+          <t>Hence, there is no need to include explicit Uri-Host and Uri-Port Options in requests associated to the same security context <cref>This updates Sections 6.4 and 6.5 of [I-D.ietf-core-coap]</cref>.</t>
+          <t>If any of Uri-Host or Uri-Port is included in the request, then its value MUST match the corresponding value set in the established security context.</t>
+        </section>
       </section>
-      <section title="Uri-Host and Uri-Port Considerations">
-        <t>The same considerations stated in <xref target="Implicit-Option-Values" /> hold.</t>
-      </section>
-      <section title="SNI Name Type and Server Name Syntax">
+
+      <section title="SNI Name Type and Server Name Syntax" anchor="RD-SNI">
         <t>In order to encode RD authorities in a ServerNameList, the extension_data field of the server_name extension is expanded to allow a RDAuthority in a ServerName:</t>
         <figure>
           <artwork align="center"><![CDATA[
@@ -204,23 +241,31 @@ struct {
     NameType name_type;
     select (name_type) {
         case host_name: HostName;
-        case eui64_authority: EUI64Authority;
         case rd_authority: RDAuthority;
     } name;
 } ServerName;
 
 enum {
     host_name(0),
-    eui64_authority(1),
-    rd_authority(2),
+    rd_authority(1),
     (255)
 } NameType;
 
 opaque RDAuthority<1..2^16-1>;
           ]]></artwork>
         </figure>
-        <t>RDAuthority, the data structure associated with the rd_authority NameType, is a variable-length vector that begins with a 16-bit length field indicating the length of the following RD authority.  The RD authority is represented as a byte string using ASCII encoding.  It MUST NOT contain any percent-encoded character other than for those characters not explicitly allowed by the grammar in <xref target="RD-format" /> <cref>TODO Make this statement clearer</cref>.</t>
+        <t>RDAuthority, the data structure associated with the rd_authority NameType, is a variable-length vector that begins with a 16-bit length field indicating the length of the following RD authority.  The RD authority is represented as a byte string using ASCII encoding.  It MUST NOT contain any percent-encoded character other than for those characters not explicitly allowed by the grammar in <xref target="RD-format" />.</t>
       </section>
+
+      <section title="New OID arc for CoAP">
+        <t>This OID designates the OID arc for CoAP-related OIDs assigned by future IETF action, including those introduced by the present document:</t>
+        <figure>
+          <artwork align="center"><![CDATA[
+   id-coap OBJECT IDENTIFIER ::= { id-pkix coap(TODO) }
+          ]]></artwork>
+        </figure>
+      </section>
+       
       <section title="OtherName type-id and value Syntax">
         <t>A X.509 Server Certificate intended to be used for resources served by a RD authority MUST contain an otherName SAN identified using a type-id of 'id-rdauthority-san':</t>
         <figure>
@@ -241,17 +286,19 @@ id-rdauthority-san OBJECT IDENTIFIER ::= { id-coap 2 }
               <t>Any other potentially useful extension, e.g. client_certificate_url;</t>
             </list>
           </t>
-          <t>Verify that the intended server name is indeed one of the identities bound to the presented certificate, by checking that the name in the SAN otherName (one of type id-rdauthority-san, or id-eui64authority-san) case-insensitive matches the authority requested via server_name;</t>
+          <t>Verify that the intended server name is indeed one of the identities bound to the presented certificate, by checking that the name in the SAN otherName of type id-rdauthority-san case-insensitive matches the authority requested via server_name;</t>
           <t>Upon receiving the CertificateRequest message, send the certificate via a Certificate message - or CertificateURL message, if the client_certificate_url extension has been successfully negotiated during the "hello" phase;</t>
           <t>Send ClientKeyExchange and then CertificateVerify to complete the mutual authentication process.</t>
         </list>
       </t>
+      <!--
       <t><cref>FIXME Add para that states "all other requirements given in CoAP are still valid".</cref></t>
       <t><cref>FIXME Remember to use established TLS notation, e.g. ClientHello.random, etc.</cref></t>
+      -->
     </section>
     <section title="Server Behaviour">
       <t><list style="format %d)">
-        <t>Server receives extended ClientHello carrying a server_name extension, and uses the given server_name (one defined by current specification) to select the appropriate certificate.  The selected certificate MUST include a SAN otherName with a pertinent type-id (basically: id-rdauthority-san maps rd_authority, while id-eui64authority-san maps eui64_authority) and value, which MUST case-insensitive match the requested ServerName;
+        <t>Server receives extended ClientHello carrying a server_name extension, and uses the given server_name (with a rd_authority NameType) to select the appropriate certificate.  The selected certificate MUST include a SAN otherName with an id-rdauthority-san type-id and value, which MUST case-insensitive match the requested ServerName;
         <list style="format %c)">
           <t>If no certificate can be selected, the server MUST terminate the handshake by sending a fatal-level unrecognized_name(112) alert. <cref>Prefer a single, hard failure, path over soft failure, or worse: ignoring the error altogether.  Rationale: do not waste time/energy; provide clear and prompt diagnostic to the peer.  It doesn't look like the condition that could be exploited by a timing attack.</cref></t>
           <t>If a matching certificate exist, the server SHALL include an extension of type "server_name" in the (extended) ServerHello message with an empty value.</t>
@@ -263,24 +310,23 @@ id-rdauthority-san OBJECT IDENTIFIER ::= { id-coap 2 }
       </list></t>
       <!--
       <t><cref>TODO What happens if the client sends also a PSK ciphersuite and the server agrees?</cref></t>
-      -->
       <t><cref>FIXME Add para that states "all other requirements given in CoAP are still valid".</cref></t>
       <t><cref>FIXME Remember to use established TLS notation, e.g. ClientHello.random, etc.</cref></t>
+      -->
     </section>
+    <!--
     <section title="Examples">
       <t><cref>TODO</cref></t>
     </section>
+    -->
 
     <section title="IANA Considerations">
       <t><cref>Need to register a few new IDs, not sure where (IANA, PKIX registry, TLS registry)?</cref></t>
-      <t>The list:
-        <list>
+      <t>
+        <list style="symbols">
           <t>id-coap</t>
-          <t>OtherName.type-id::id-eui64authority-san</t>
           <t>OtherName.type-id::id-rdauthority-san</t>
-          <t>NameType::eui64_authority</t>
           <t>NameType::rd_authority</t>
-          <t>ServerName.name::EUI64Authority</t>
           <t>ServerName.name::RDAuthority</t>
         </list>
       </t>
@@ -297,7 +343,7 @@ id-rdauthority-san OBJECT IDENTIFIER ::= { id-coap 2 }
     </section>  <!-- Security Considerations -->
 
     <section title="Acknowledgements">
-      <t>Thanks to Carsten Bormann for reviewing an initial version of this document.</t>
+      <t>Thanks to Carsten Bormann and Zach Shelby who reviewed an initial version of this document.</t>
     </section>
 
   </middle>
