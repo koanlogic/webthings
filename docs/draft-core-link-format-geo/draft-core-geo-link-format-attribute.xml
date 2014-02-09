@@ -36,7 +36,7 @@
       </address>
     </author>
 
-    <date year="2013" month="December" />
+    <date year="2014" month="January" />
 
     <area>General</area>
     <workgroup>Internet Engineering Task Force</workgroup>
@@ -44,13 +44,13 @@
     <keyword>CoAP, Link Format, geo link-format attribute, geo tagging sensors</keyword>
 
     <abstract>
-	    <t>This memo proposes a new CoAP link format attribute, "geo", that can be used to associate positioning metadata to a CoAP resource.  An extension to the link format query syntax is also suggested to allow the discovery of resources based on their geo location.</t>
+	    <t>This memo proposes a new CoAP link format attribute, "geo", that can be used to associate positioning metadata to a CoAP resource.  An extension to the link format query syntax is also defined to allow the discovery of resources based on their geo location.</t>
     </abstract>
   </front>
 
   <middle>
     <section title="Introduction">
-      <t>The ability for a client application to access positioning information about a sensing resource is crucial in a number of use cases, e.g. those in which one or more sensor networks provide input to an emergency handling service (e.g. fire, flood, etc.).</t>
+      <t>The ability for a client application to access positioning information about a sensing resource is crucial in a number of use cases, e.g. those in which one or more sensor networks provide input to an emergency handling service (fire, flood, etc.).</t>
       <t>This memo proposes a new CoAP link-format attribute, "geo", that can be used to associate positioning metadata to a CoAP resource, and make this information available to other endpoints that, directly or indirectly, participate to CoAP link-format discovery <xref target="RFC6690" />.</t>
       <t>This spec reuses the geo URI syntax <xref target="RFC5870"/>, which is capable of describing physical locations in two or three dimensions (also supporting underground and underwater localisation using negative numbers) in a simple, reasonably compact, and human readable way.</t>
 
@@ -68,8 +68,8 @@
       <t>This section defines a new Web Linking <xref target="RFC5988" /> link-param, "geo", to be used within the <xref target="RFC6690"/> framework, having the following syntax:</t>
       <figure>
         <artwork align="left"><![CDATA[
-  link-extension  = "geo" "=" geo-path
-  geo-path          ; defined in Section 3.3. of RFC 5870
+        link-extension  = "geo" "=" geo-path
+        geo-path          ; defined in Section 3.3. of RFC 5870
         ]]></artwork>
      </figure>
       <t>The geo attribute MUST NOT appear more than once in a link.</t>
@@ -79,10 +79,20 @@
     </section>  <!-- The geo Link Format Attribute -->
 
     <section title="Examples" anchor="examples">
+      <t><list style="symbols"><t>A sensor exposing an explicit location resource:</t></list></t>
+      <figure>
+        <artwork align="left"><![CDATA[
+  REQ: GET /.well-known/core?geo=*
+
+  RES: 2.05 Content
+  </loc>;geo="52.2047, 0.1368"
+        ]]></artwork>
+     </figure>
+
       <t><list style="symbols"><t>A fire detector somewhere in the Pollino National Park (approx. 10cm accuracy, enough to distinguish trees from each other):</t></list></t>
       <figure>
         <artwork align="left"><![CDATA[
-  REQ: GET /.well-known/core
+  REQ: GET /.well-known/core?geo=*
 
   RES: 2.05 Content
   </fire>;ct=0;if="sensor";geo="40.00201,16.34007"
@@ -91,13 +101,12 @@
      <t><list style="symbols"><t>An underwater current sampler in the sea between Ithaki and Kefallonia bearing explicit accuracy information (10m):</t></list></t>
      <figure>
         <artwork align="left"><![CDATA[
-  REQ: GET /.well-known/core
+  REQ: GET /.well-known/core?geo=*
 
   RES: 2.05 Content
   </water>;ct=0;if="sensor";geo="38.2953,20.6426,-20;u=10"
         ]]></artwork>
-     </figure>
-
+      </figure>
     </section>  <!-- Examples -->
 
     <section title="Encoding Considerations">
@@ -109,32 +118,56 @@
     </section>  <!-- Encoding Considerations -->
 
     <section title="Extended Geo Queries" anchor="geo-query">
-      <t>The query filtering rules defined in Section 4.1. of <xref target="RFC6690" /> are not particularly well suited for querying resources based on geo parameters.  Therefore, this memo specifies an extended set of query formatting and filtering rules specific for the geo attribute.</t>
-      <t>By means of the "extended" geo query format, a client application can make resources pop up in link-format responses based on their location.</t>
-      <section title="Syntax">
-        <t>The query parameters are the top left and the bottom right corners of a rectangular sector representing the query "capture" area.  The two points (top left, bottom right respectively) are expressed as comma-delimited latitude/longitude pairs, separated by a dash "-":
+
+      <t>The "extended" geo query (xgeo) format allows a client application to select a capture area, and let endpoints advertise their presence -- by replying to the link-format query -- if they are located within the specified area.</t>
+
+      <section title="Syntax"> 
+        <t>The syntax for describing the query capture area is based on the "WGS 84 bounding box" defined in section 10.2.2 of <xref target="OGC-WSC" />.</t>
+        <t>The WGS 84 bounding box is a specialisation of the more general bounding box concept for use with the WGS 84 geodetic datum, with latitude and longitude expressed as decimal degrees.</t>
+        <t>A bounding box is a rectangular area identified by its lower and upper corners, i.e. the points within the bounding box at which the value of each coordinate is the algebraic minimum and maximum, respectively.</t>
+        <t>For consistency with the geo URI definition, the latitude and longitude attributes of the upper and lower corners have been swapped, while the optional 'crs' and 'dimensions' parameters are not used (their default values are implicitly assumed), which leads to the following ABNF:
         <figure>
           <artwork align="left"><![CDATA[
-  "?geo=" latitude "," longitude "-" latitude "," longitude
-
-  latitude    ; defined in Section 3.3. of RFC 5870
-  longitude   ; defined in Section 3.3. of RFC 5870
+        ext-geo-query = "?xgeo=" bounding-box
+        bounding-box  = lower-corner "-" upper-corner
+        lower-corner  = latitude "," longitude
+        upper-corner  = latitude "," longitude
           ]]></artwork>
         </figure>
         </t>
+        <t>For simplicity, xgeo allows a single bounding box per link-format query.  Therefore, when a search is logically made of multiple boxes (e.g. at a discontinuity point, or for more complex tessellations), the querying client shall split it into the appropriate number of xgeo queries and send them out individually.</t>
       </section>
       <section title="Filtering Rules">
-        <t>An endpoint which understands the extended geo query format MUST respond to the query if and only if its latitude and longitude values fall in the latitude and longitude range defined by the query string.  Any accuracy/uncertainty MUST be taken into consideration by the queried endpoint when running the match algorithm.</t>
-        <t>For example, the "/water" resource in <xref target="examples" /> would match the query "?geo=38.3000,20.6400-38.2900,20.6500"</t>
-    <!-- TODO: include 3d? -->
+        <t>An endpoint which understands xgeo MUST respond to the query if and only if its latitude and longitude values fall within the bounding box specified in the query string.</t>
+        <t>When running the match algorithm, the queried endpoint MUST take into consideration any accuracy/uncertainty associated with its current position.  Any uncertainty information MUST be returned in a response if it has been used to compute a positive answer to the corresponding xgeo query.</t>
+      </section>
+      <section title="Examples">
+        <t><list style="symbols"><t>An example capture area that would match (among the other) the "/water" resource in <xref target="examples" />:</t></list></t>
+        <t>
+        <figure>
+          <artwork align="left"><![CDATA[
+  REQ: GET /.well-known/core?xgeo=38.2900,20.6400-38.3000,20.6500
+
+  RES[0]: 2.05 Content
+  </water>;geo="38.2953,20.6426,-20;u=10"
+
+  RES[1]: 2.05 Content
+  </pos>;geo="38.2908,20.6451"
+
+  RES[2]: [...]
+
+          ]]></artwork>
+        </figure>
+        </t>
       </section>
     </section>  <!-- Geo Queries -->
 
     <?rfc needLines="8" ?>
     <section title="Acknowledgements">
       <t>Thanks to
-          Keith Drage
-         for comments and discussions that have helped shaping this document.
+        Keith Drage and
+        Carl Reed
+        for comments and discussions that have helped shaping this document.
       </t>
     </section>
 
@@ -166,6 +199,14 @@
       &RFC5988;
       &RFC6280;
       &RFC6690;
+      <reference anchor="OGC-WSC" target="http://http://www.opengeospatial.org/standards/common">
+        <front>
+          <title>OGC Web Service Common Implementation Specification (Version 2.0.0)</title>
+          <author initials="A." surname="Whiteside"></author>
+          <author initials="J." surname="Greenwood"></author>
+          <date year="2010" month="April" />
+        </front>
+      </reference>
     </references>
   </back>
 </rfc>
