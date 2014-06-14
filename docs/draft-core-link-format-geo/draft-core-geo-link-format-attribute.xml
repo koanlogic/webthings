@@ -18,7 +18,7 @@
 <?rfc subcompact="no" ?>
 <?rfc comments="yes" ?>
 <?rfc inline="yes" ?>
-<rfc category="std" docName="draft-fossati-core-geo-link-format-attribute-02" ipr="trust200902">
+<rfc category="std" docName="draft-fossati-core-geo-link-format-attribute-03" ipr="trust200902">
   <front>
     <title abbrev="The geo Link-Format Attribute">
       A Link-Format Attribute for Locating Things
@@ -36,7 +36,7 @@
       </address>
     </author>
 
-    <date year="2014" month="January" />
+    <date year="2014" month="February" />
 
     <area>General</area>
     <workgroup>Internet Engineering Task Force</workgroup>

@@ -29,7 +29,7 @@
           <street>3 Ely Road</street>
           <city>Milton, Cambridge</city>
           <code>CB24 6DD</code>
-          <country>England</country>
+          <country>UK</country>
         </postal>
         <email>thomas.fossati@alcatel-lucent.com</email>
       </address>
@@ -52,24 +52,20 @@
         <email>salvatore.loreto@ericsson.com</email>
       </address>
     </author>
-    <date year="2013" month="December"/>
+    <date year="2014" month="January"/>
     <area>General</area>
     <workgroup>Internet Engineering Task Force</workgroup>
     <keyword>CoAP, Monitor Option, sleepy sensor</keyword>
     <abstract>
-      <t>This memo defines the Publish Option for the Constrained Application Protocol (CoAP).</t>
-      <t>The Publish Option is used by a CoAP Endpoint to control the authority delegation of one of its resources to another Endpoint.  All the phases of the authority delegation process (setup, renewal, cancellation) are controlled by a simple RESTful protocol.</t>
+      <t>This memo defines the Publish Option for the Constrained Application Protocol (CoAP).  The Publish Option is used by a CoAP Endpoint to control the authority delegation of one of its resources to another Endpoint.  All the phases of the authority delegation process (setup, renewal, cancellation) are controlled by a simple RESTful protocol.</t>
       <t>This memo also introduces the 'proxies' Web Linking relation type, to be used by a CoAP Proxy to explicitly advertise the resources that it can serve - either from its cache, or by forwarding the Client's request upstream.</t>
       <t>The Publish Option and the 'proxies' relation provide the building blocks for a comprehensive, in-protocol, solution to the sleepy/intermittent Endpoint use case.</t>
     </abstract>
   </front>
   <middle>
     <section title="Introduction">
-      <t>This memo defines the Publish Option for the Constrained Application Protocol <xref target="I-D.ietf-core-coap" />.</t>
-      <t>The Publish Option is used by a sleepy Endpoint (SEP) to temporarily delegate the authority of one of its resources to another, always on, Endpoint.  The delegated Endpoint is typically a Proxy, though it could be an Endpoint with no other special network role.</t>
-      <t>The SEP is given a simple RESTful messaging protocol that enables the setup, renewal and cancellation of the authority transfer.  The whole process is driven by the SEP, which may actually never need to listen or to keep any state.</t>
-      <t>This memo also introduces the 'proxies' Web Linking <xref target="RFC5988" /> relation type.</t>
-      <t>This new relation, which complements the default 'hosts' relation defined in <xref target="RFC6690" />, can be used by a CoAP Proxy to explicitly advertise the resources that it can serve, either from cache or by forwarding the Client's request upstream.</t>
+      <t>This memo defines the Publish Option for the Constrained Application Protocol <xref target="I-D.ietf-core-coap" />.  The Publish Option is used by a sleepy Endpoint (SEP) to temporarily delegate the authority of one of its resources to another, always on, Endpoint.  The delegated Endpoint is typically a Proxy, though it could be an Endpoint with no other special network role.  The SEP is given a simple RESTful messaging protocol that enables the setup, renewal and cancellation of the authority transfer.  The whole process is driven by the SEP, which may actually never need to listen or to keep any state.</t>
+      <t>This memo also introduces the 'proxies' Web Linking <xref target="RFC5988" /> relation type. This new relation, which complements the default 'hosts' relation defined in <xref target="RFC6690" />, can be used by a CoAP Proxy to explicitly advertise the resources that it can serve, either from cache or by forwarding the Client's request upstream.</t>
       <t>The 'proxies' relation works in concert with the Publish Option to enable SEP discovery even while SEP is off-line.</t>
       <section title="Requirements Language and Motivation">
         <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119"/>.</t>
@@ -172,7 +168,7 @@ P         SEP
       </section>  <!-- Unpublishing a Resource -->
       <section title="Checking for Change" anchor="get_ifmatch">
         <t>In order to check whether an UPDATE-able resource has changed, SEP issues a GET for the published resource with If-Match Option set to the last seen ETag value.</t>
-        <t>The possible results are:
+        <t>The possible outcomes are:
           <list style="symbols">
             <t>4.04 (Not Found) if the resource has been deleted;</t>
             <t>2.05 (Content) if it has been otherwise modified;</t>
@@ -202,7 +198,7 @@ P  2.05   |
               ]]></artwork>
             </figure>
           </section>  <!-- Discover the Proxy for a Resource -->
-          <section title="Discover All the Resources that an Endpoint 'proxies'">
+          <section title="Discover all the Resources that an Endpoint 'proxies'">
             <t>C discovers all the resources that P "proxies":</t>
             <figure align="left">
               <artwork align="left"><![CDATA[
@@ -230,7 +226,7 @@ P         C
               ]]></artwork>
             </figure>
           <t>The 'proxies' relation is orthogonal to the Publish Option, so it's up to P to decide whether to serve coap://sep.example.org/res from its store/cache, or to forward the request to the origin at coap://sep.example.org.</t>
-        </section>  <!-- Discover All the Resources "proxied" by an Endpoint -->
+        </section>  <!-- Discover all the Resources "proxied" by an Endpoint -->
       </section>  <!-- Examples -->
       <section title="Publish Link-Format Attributes">
         <section title="Implicitly">

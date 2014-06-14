@@ -56,15 +56,15 @@
   </front>
 
   <middle>
-    <section title="Introduction">
       <!--
+    <section title="Introduction">
       <t>The CoAP protocol <xref target="I-D.ietf-core-coap" /> defines three distinct mechanisms based on DTLS to de-reference URI in the 'coaps' scheme: Pre-Shared Keys (PSK), Raw Public Keys (RPK), and Certificate Mode.</t>
       <t>The latter uses X.509 certificates <xref target="RFC5280" /> to authenticate a server endpoint to the requesting party, and vice versa.  (The selection of the X.509 certificate to be presented by the server is determined by the URI authority of the requested resource, which is hinted by the client by means of the Server Name Indication (SNI) extension <xref target="RFC6066" /> during the DTLS handshake with the server.)</t>
 
       <t>Compared to PSK and RPK, Certificate Mode requires more ROM - approximately a 10 KB increment <xref target="I-D.ietf-lwig-tls-minimal" /> -, and more bandwidth to accomodate the transfer of certificates between the parties.  Also, the certificate validation phase is not cheap in terms of RAM and CPU utilisation, making this security mode not well suited for really constrained use-cases.  Scenarios where secured CoAP exchanges are made by unconstrained devices, such as typical proxy-to-proxy communication, are however a good match for the stronger and more scalable authentication services offered by Certificate Mode.</t>
-      -->
-        
+
       <t>URI names used in X.509 certificates and HostName's found in the SNI extension (which are essential to Certificate mode) implicitly rely on DNS names.  However, CoAP makes no assumption on DNS being the naming authority for the constrained network, thus allowing for a small inconsistency in the current spec which this memo is meant to fix.</t>
+      -->
 
       <!--
       <t>(There exist already standardised alternatives such as DVCS <xref target="RFC5055" /> for offloading the burden of certificate validation to a trusted third party, or the client_certificate_url TLS extension to let the server retrieve the client certificate from an external store.  However, the use of such mechanisms in order to make the TLS handshake less demanding for a constrained device is out of scope for the present document.)</t>
@@ -75,7 +75,9 @@
 
         <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
       </section>  <!-- Terminology and Requirements Language -->
+     <!-- was: introduction
     </section>
+    -->
 
     <section title="Motivation and Scope">
       <t>According to Section 9.1.3.3 of <xref target="I-D.ietf-core-coap" />, a client, when presented with a certificate carrying the identity of the server in the SubjectAltName (SAN), must check that the authority of the requested URI matches at least one of the authority names of any CoAP URI found in a field of URI type in the SAN set.</t>
