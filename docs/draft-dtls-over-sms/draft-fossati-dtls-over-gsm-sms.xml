@@ -72,7 +72,7 @@
       </section>  <!-- Data Coding Scheme -->
 
       <section title="Handshake Overview" anchor="section:handshake">
-        <t>In order to protect against certain types of DoS attacks, DTLS adds an additional roundtrip to the TLS <xref target="RFC5246"/> handshake that is used to exchange a stateless cookie.  Thus a full blown DTLS handshake comprises up to 6 "flights" (i.e. logical message exchanges), each of which is then mapped on to one or more lower layer PDUs using the segmentation and reassembly (SaR) scheme described in Section 4.2.3 of <xref target="RFC6347"/>.  The overhead for said scheme is 6 bytes per Handshake message which, given a realistic 10+ messages handshake, would amount around 60 bytes across the whole handshake sequence.</t>
+        <t>In order to protect against certain types of DoS attacks, DTLS adds an additional roundtrip to the TLS <xref target="RFC5246"/> handshake to implement a cheap (for the server) return routability test.  Thus a full blown DTLS handshake comprises up to 6 "flights" (i.e. logical message exchanges), each of which is then mapped on to one or more lower layer PDUs using the segmentation and reassembly (SaR) scheme described in Section 4.2.3 of <xref target="RFC6347"/>.  The overhead for said scheme is 6 bytes per Handshake message which, given a realistic 10+ messages handshake, would amount around 60 bytes across the whole handshake sequence.</t>
         <t>Note that the DTLS SaR scheme is defined for handshake messages only.  (In fact, Record Layer messages are never fragmented and MUST fit within a single transport layer datagram, whatever is the limit imposed by the underlying transport.)</t>
         <t>SMS provides an optional segmentation and reassembly scheme, known as Concatenated short messages (see Section 9.2.3.24.1 of <xref target="GSM-SMS"/>).</t>
         <t>Since the SaR scheme in DTLS can't be circumvented, the Concatenated short messages mechanism SHOULD NOT be used during handshake to avoid redundant overhead.</t>
@@ -92,12 +92,12 @@
         <t><xref target="RFC6347"/> requires that each DTLS message fits within a single transport layer datagram</t>
         <t>The content of an SMS message is carried in the TP-UserData field, and its size may be up to 140 bytes.  As already mentioned in <xref target="section:handshake"/>, longer (i.e. up to 34170 bytes) messages can be sent using a segmentation and reassembly scheme known as Concatenated SMS (see Section 9.2.3.24.1 of <xref target="GSM-SMS"/>).</t>
         <t>This scheme consumes 6-7 bytes (depending on whether the short or long segmentation format is used) of the TP-UserData field, thus reducing the space available for the actual content of the SMS message to 133-134 bytes per TPDU.</t>
-        <t>So, though in principle a PMTU value higher than 140 bytes could be used (which may look like an appealing option given its more efficient use of the transport) there is a significant number of disadvantages to consider (apart from the fixed tax of 7 bytes per TPDU to be paid to the SaR function):
+        <t>Though in principle a PMTU value higher than 140 bytes could be used (which may look like an appealing option given its more efficient use of the transport) there is a significant number of disadvantages to consider (apart from the fixed tax of 7 bytes per TPDU to be paid to the SaR function):
           <list style="numbers">
             <t>high sensitivity to packet loss -- since there is no automatic recovery mechanism in case one TPDU in the chain is lost, and since the SaR function is transparent to the application layer, then a PMTU worth of data may be discarded even if just 1/255th of the data were lost;</t>
             <t>some networks may support the Concatenated SMS function partially, if at all;</t>
             <t>TPDU reordering may delay data delivery to the application;</t>
-            <t>high buffering requirement on both sides of the communication path.</t>
+            <t>high buffering requirement on both ends of the communication path.</t>
           </list></t>
           <t>For these reasons, the Concatenated short messages mechanism SHOULD NOT be used, and it is RECOMMENDED to set the PMTU to 140, or less if WDP-based multiplexing is enabled (see <xref target="section:multiplexing"/>).</t>
       </section>  <!-- Message Segmentation and Re-Assembly --> 
@@ -106,8 +106,7 @@
         <t><xref target="RFC6347"/> recommends an initial timer value of 1 second with Exponential back off up to no less then 60 seconds.  Given the latency characteristics of typical SMS delivery, the 1 second value can easily lead to spurious retransmissions, which in turn may lead to link congestion.</t>
         <t>Choosing an appropriate timer value is a difficult problem due to the wide variance in latency in SMS delivery.
           <!-- and also to the fact that in M2M environments a substantial fraction of the delay could be due to the cryptographic computation that the (constrained) device is performing. -->
-        </t>
-        <t>This specification RECOMMENDS an initial timer value of 10 seconds with Exponential back off up to no less then 60 seconds.</t>
+        This specification RECOMMENDS an initial timer value of 10 seconds with Exponential back off up to no less then 60 seconds.</t>
         <t>If an RTT estimator (e.g. <xref target="I-D.bormann-core-cocoa"/>) is already available in the protocol stack of the device, it could be used to dynamically update the setting of the retransmit timeout.</t>
       </section>  <!-- DTLS State Machine Timers Adjustments -->
 
@@ -137,6 +136,7 @@
         Padmakumar Subramani,
         Tim Carey,
         Zhiyuan Hu,
+        Eric Rescorla,
       for helpful comments and discussions that have shaped this document.
       </t>
     </section>  <!-- Acknowledgements -->
