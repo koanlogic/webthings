@@ -57,7 +57,7 @@
 
       <section title="Usage of DTLS and SMS in CoAP M2M Environments">
         <t>One of the main reasons for defining a DTLS/SMS binding is its envisaged usage in machine-to-machine (M2M) communication.</t>
-        <t>Specifically, M2M environments based on the CoAP protocol mandate DTLS for securing transactions between endpoints -- as detailed in Section 9 of <xref target="I-D.ietf-core-coap"/>, and further articulated in <xref target="I-D.ietf-dice-profile"/>.  Also, the <xref target="OMA-LWM2M"/> architecture identifies SMS as an alternative transport for CoAP messages.</t>
+        <t>Specifically, M2M environments based on the CoAP protocol mandate DTLS for securing transactions between endpoints -- as detailed in Section 9 of <xref target="I-D.ietf-core-coap"/>, and further articulated in <xref target="I-D.ietf-dice-profile"/>, while the <xref target="OMA-LWM2M"/> architecture identifies SMS as an alternative transport for CoAP messages.</t>
       </section>
     </section>  <!-- Introduction -->
 
@@ -72,11 +72,9 @@
       </section>  <!-- Data Coding Scheme -->
 
       <section title="Handshake Overview" anchor="section:handshake">
-        <t>In order to protect against certain types of DoS attacks, DTLS adds an additional roundtrip to the TLS <xref target="RFC5246"/> handshake to implement a cheap (for the server) return routability test.  Thus a full blown DTLS handshake comprises up to 6 "flights" (i.e. logical message exchanges), each of which is then mapped on to one or more lower layer PDUs using the segmentation and reassembly (SaR) scheme described in Section 4.2.3 of <xref target="RFC6347"/>.  The overhead for said scheme is 6 bytes per Handshake message which, given a realistic 10+ messages handshake, would amount around 60 bytes across the whole handshake sequence.</t>
-        <t>Note that the DTLS SaR scheme is defined for handshake messages only.  (In fact, Record Layer messages are never fragmented and MUST fit within a single transport layer datagram, whatever is the limit imposed by the underlying transport.)</t>
-        <t>SMS provides an optional segmentation and reassembly scheme, known as Concatenated short messages (see Section 9.2.3.24.1 of <xref target="GSM-SMS"/>).</t>
-        <t>Since the SaR scheme in DTLS can't be circumvented, the Concatenated short messages mechanism SHOULD NOT be used during handshake to avoid redundant overhead.</t>
-          <t>Instead, before starting the handshake phase (either actively or passively), the DTLS implementation MUST be explicitly configured with the PMTU (i.e. 140 bytes if WPD-based multiplexing is not used, 133 bytes otherwise) of the SMS transport in order to correctly instrument its SaR function.</t>
+        <t>DTLS adds an additional roundtrip to the TLS <xref target="RFC5246"/> handshake to serve as a return-routability test for protection against certain types of DoS attacks.  Thus a full blown DTLS handshake comprises up to 6 "flights" (i.e. logical message exchanges), each of which is then mapped on to one or more lower layer PDUs using the segmentation and reassembly (SaR) scheme described in Section 4.2.3 of <xref target="RFC6347"/>.  The overhead for said scheme is 6 bytes per Handshake message which, given a realistic 10+ messages handshake, would amount around 60 bytes across the whole handshake sequence.</t>
+        <t>(Note that the DTLS SaR scheme is defined for handshake messages only.  In fact, Record Layer messages are never fragmented and MUST fit within a single transport layer datagram, whatever be the limit imposed by the underlying transport.)</t>
+        <t>SMS provides an optional segmentation and reassembly scheme as well, known as Concatenated short messages (see Section 9.2.3.24.1 of <xref target="GSM-SMS"/>).  However, since the SaR scheme in DTLS can't be circumvented, the Concatenated short messages mechanism SHOULD NOT be used during handshake to avoid redundant overhead.  Before starting the handshake phase (either actively or passively), the DTLS implementation MUST be explicitly configured with the PMTU (i.e. 140 bytes if WPD-based multiplexing is not used, 133 bytes otherwise) of the SMS transport in order to correctly instrument its SaR function.</t>
           <t>It is RECOMMENDED to use the established security context over the longest possible period (possibly until a Closure Alert message is received, or after a very long inactivity timeout) to avoid the expensive re-establishment of the security association.</t>
         <section title="X.509 Certificate-based Authentication Caveats">
           <t>X.509 certificate-based authentication (used in Certificate mode CoAP) exacerbates the number of TPDUs -- especially those involved in flight 4 and 5 -- needed to complete the handshake phase.</t>
@@ -103,10 +101,10 @@
       </section>  <!-- Message Segmentation and Re-Assembly --> 
 
       <section title="DTLS State Machine Timers Adjustments">
-        <t><xref target="RFC6347"/> recommends an initial timer value of 1 second with Exponential back off up to no less then 60 seconds.  Given the latency characteristics of typical SMS delivery, the 1 second value can easily lead to spurious retransmissions, which in turn may lead to link congestion.</t>
+        <t><xref target="RFC6347"/> recommends an initial timer value of 1 second with exponential back off up to no less then 60 seconds.  Given the latency characteristics of typical SMS delivery, the 1 second value can easily lead to spurious retransmissions, which in turn may lead to link congestion.</t>
         <t>Choosing an appropriate timer value is a difficult problem due to the wide variance in latency in SMS delivery.
           <!-- and also to the fact that in M2M environments a substantial fraction of the delay could be due to the cryptographic computation that the (constrained) device is performing. -->
-        This specification RECOMMENDS an initial timer value of 10 seconds with Exponential back off up to no less then 60 seconds.</t>
+        This specification RECOMMENDS an initial timer value of 10 seconds with exponential back off up to no less then 60 seconds.</t>
         <t>If an RTT estimator (e.g. <xref target="I-D.bormann-core-cocoa"/>) is already available in the protocol stack of the device, it could be used to dynamically update the setting of the retransmit timeout.</t>
       </section>  <!-- DTLS State Machine Timers Adjustments -->
 
