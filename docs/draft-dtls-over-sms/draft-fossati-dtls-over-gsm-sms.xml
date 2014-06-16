@@ -51,7 +51,7 @@
 
   <middle>
     <section title="Introduction">
-      <t>This document specifies the use of DTLS <xref target="RFC6347"/> over GSM SMS <xref target="GSM-SMS"/>.</t>
+      <t>This document specifies the use of DTLS <xref target="RFC6347"/> over GSM SMS <xref target="GSM-SMS"/> for securing end-to-end communication between Mobile Stations (i.e. devices implementing the GSM SMS communication standard).</t>
       <t>DTLS provides communications privacy for applications that use datagram transport protocols and allows client/server applications to communicate in a way that is designed to prevent eavesdropping and detect tampering or message forgery.</t>
       <t>SMS is a generic transport protocol for narrow-band end-to-end communication between devices, and is an integral part of the GSM network technology.</t>
 
@@ -68,7 +68,7 @@
 
     <section title="DTLS over SMS">
       <section title="Data Coding Scheme">
-        <t>The remainder of this specification assumes Mobile Stations (i.e. devices implementing <xref target="GSM-SMS"/> are capable of producing and consuming 8-bit binary data encoded Transport Protocol Data Units (TPDU).</t>
+        <t>The remainder of this specification assumes Mobile Stations are capable of producing and consuming 8-bit binary data encoded Transport Protocol Data Units (TPDU).</t>
       </section>  <!-- Data Coding Scheme -->
 
       <section title="Handshake Overview" anchor="section:handshake">
@@ -131,10 +131,11 @@
 
     <section title="Acknowledgements">
       <t>Thanks to
-        Padmakumar Subramani,
         Tim Carey,
         Zhiyuan Hu,
+        Kathleen Moriarty,
         Eric Rescorla,
+        Padmakumar Subramani,
       for helpful comments and discussions that have shaped this document.
       </t>
     </section>  <!-- Acknowledgements -->
